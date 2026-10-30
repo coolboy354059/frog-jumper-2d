@@ -2,6 +2,7 @@
 <!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 1: Save and display the player's personal-best coin total between visits, using guarded localStorage access. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 2: Remove the “OFFLINE PLAY” wording from the header badge as requested. -->
+<!-- CHANGE LOG: 2026-10-30 — Fix 3: Improve the title menu flow and harden storage access for a smoother, more reliable play loop. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -11,21 +12,23 @@
 <style>
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif;padding:20px 12px 28px}
+  body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
   .app{max-width:1000px;margin:0 auto}
   header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:0 2px}
-  .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff70,#66d85f);box-shadow:0 5px 0 #317e48;font-size:30px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
   .cabinet{background:linear-gradient(180deg,#1e4c56,#12333e);border:1px solid #ffffff22;border-radius:22px;padding:12px;box-shadow:0 16px 50px #0004, inset 0 1px #ffffff15}
-  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#a9c9bf;font-weight:800;margin-bottom:3px}.stat strong{font-size:16px;font-weight:950;white-space:nowrap}.progress-outer{height:5px;background:#ffffff19;border-radius:99px;margin-top:7px;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#baff63,#ffdc5a);border-radius:99px;transition:width .2s ease}.best-run{margin-top:5px;color:#b8d6cc;font-size:10px;font-weight:800}
-  .stage{position:relative;width:100%;overflow:hidden;border-radius:15px;background:#88dfff;outline:1px solid #ffffff2a;isolation:isolate}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:8/5;touch-action:none;image-rendering:auto}
-  .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}.overlay-card{width:min(100%,470px);border-radius:22px;border:1px solid #ffffff2c;background:linear-gradient(155deg,#24535cfa,#102e39fa);box-shadow:0 15px 50px #0005;padding:clamp(18px,4vw,30px)}.big-frog{font-size:clamp(42px,9vw,65px);line-height:1;filter:drop-shadow(0 5px 0 #123b35);margin-bottom:10px}.overlay h2{margin:0 0 8px;font-weight:1000;letter-spacing:-.04em;font-size:clamp(25px,5vw,39px)}.overlay p{margin:0 auto 18px;max-width:38ch;font-size:14px;line-height:1.55;color:#d3e9e2}.button-row{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.btn{appearance:none;border:1px solid #ffffff30;border-radius:12px;padding:11px 16px;font:900 14px/1.1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;transition:transform .08s,filter .12s;background:#234d56;color:#f2fff8;min-height:43px}.btn:hover{filter:brightness(1.09)}.btn:active{transform:translateY(2px)}.btn.primary{color:#25351f;border:0;background:linear-gradient(180deg,#e1ff7c,#b7f34e);box-shadow:0 4px 0 #659f37}.btn:focus-visible,.control:focus-visible{outline:3px solid white;outline-offset:3px}
-  .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:23px;height:23px;padding:0 5px;margin:0 2px;border-radius:6px;border:1px solid #ffffff2f;background:#0b2730;color:white;font-size:11px;font-weight:900;box-shadow:0 2px #0003}
-  .controls{display:none;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:none}.control-group{display:flex;gap:9px}.control{display:grid;place-items:center;min-width:60px;min-height:55px;padding:0 17px;border:1px solid #ffffff28;border-radius:15px;background:#0d2b35;color:#f5fff8;font-size:23px;font-weight:950;box-shadow:0 4px 0 #071d25;cursor:pointer;touch-action:none}.control.jump{min-width:105px;background:linear-gradient(180deg,#ffdf77,#f3b935);color:#3b3218;box-shadow:0 4px 0 #9c7222}.control.pressed{transform:translateY(3px);box-shadow:0 1px 0 #071d25;filter:brightness(1.15)}
-  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 2px 0}.tip{border-radius:12px;border:1px solid #ffffff14;background:#ffffff07;padding:11px 12px}.tip b{display:block;color:#e6f9c5;font-size:12px;margin-bottom:4px}.tip span{display:block;color:#bcd6cf;font-size:11px;line-height:1.45}
+  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b2d2c6;margin-bottom:4px;font-weight:800}.stat strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.progress-outer{margin-top:7px;width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#d9ff7d,#7ae38f);border-radius:999px;box-shadow:0 0 16px rgba(201,255,103,.5)}.best-run{margin-top:4px;font-size:11px;color:#a9c8bb}
+  .stage{position:relative;width:100%;overflow:hidden;border-radius:15px;background:#88dfff;outline:1px solid #ffffff2a;isolation:isolate}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:16/10;background:#88dfff}
+  .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
+  .overlay-card{max-width:440px;width:min(90%,420px);padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
+  .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;margin:12px 0 0;line-height:1.5;font-size:15px}.button-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}.action{cursor:pointer;border:none;border-radius:999px;padding:11px 18px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;font-size:11px;transition:transform .12s ease,filter .12s ease;background:#7bd1a0;color:#093121}.action.primary{background:linear-gradient(180deg,#d5ff7d,#9de053);color:#1d3603;box-shadow:0 10px 25px rgba(159,224,83,.25)}.action.secondary{background:linear-gradient(180deg,#eff8ff,#bfdff5);color:#143547}.action.ghost{background:rgba(255,255,255,.06);color:#ebfffa;border:1px solid rgba(255,255,255,.12)}.action:active{transform:translateY(1px) scale(.98)}
+  .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
+  .controls{display:none;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:none}.control-group{display:flex;gap:9px}.control{appearance:none;border:none;background:linear-gradient(180deg,#fbfeff,#dfeaf0);color:#1b2a33;border-radius:14px;min-width:64px;height:56px;font-size:26px;font-weight:900;box-shadow:inset 0 -4px rgba(0,0,0,.1),0 10px 24px rgba(0,0,0,.12)}.control.pressed{transform:translateY(2px);filter:brightness(.96)}.control.jump{min-width:120px;height:56px;font-size:16px;padding:0 18px;letter-spacing:.08em;text-transform:uppercase}
+  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 2px 0}.tip{border-radius:12px;border:1px solid #ffffff14;background:#ffffff07;padding:11px 12px}.tip b{display:block;color:#ebffdf;margin-bottom:5px;font-size:13px}.tip span{display:block;color:#d3e5df;line-height:1.45;font-size:12px}
   footer{text-align:center;color:#8fafa6;font-size:11px;margin:14px 0 0;line-height:1.5}
-  @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.logo{width:43px;height:43px;flex-basis:43px;font-size:26px;border-radius:13px}.version{font-size:9px;padding:7px}.sub{font-size:11px}.controls{display:flex}.control{min-width:51px;min-height:53px;padding:0 12px}.control.jump{min-width:90px}.tips{grid-template-columns:1fr;gap:7px}.tip{padding:9px 11px}.tip span{font-size:12px}.below{font-size:11px}.overlay-card{padding:17px 13px}.stage canvas{aspect-ratio:8/5}}
+  @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.controls{display:flex}.tips{grid-template-columns:1fr}.below{font-size:11px}} 
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 </head>
@@ -74,11 +77,11 @@
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const LEVELS = [
-    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#6abfd0', enemies:[], movers:[], platforms:[[0,515,270],[320,460,135],[515,405,130],[705,450,140],[900,380,130],[1090,435,140],[1290,370,135],[1490,435,150],[1710,505,430]]},
-    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff06c', bottom:'#279eb5', enemies:[7], movers:[], platforms:[[0,515,250],[305,460,125],[485,385,118],[665,455,118],[845,370,120],[1025,435,125],[1215,355,125],[1405,430,130],[1625,500,470]]},
-    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#f7d977', bottom:'#172e45', enemies:[6,7], movers:[{index:2,amp:24,speed:1.25,phase:0.4},{index:5,amp:19,speed:1.4,phase:2.1}], platforms:[[0,515,255],[305,460,125],[485,402,120],[675,445,120],[860,370,120],[1045,430,125],[1235,360,125],[1425,430,135],[1645,500,450]]},
-    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#e64d38', enemies:[6,7], movers:[{index:3,amp:18,speed:1.6,phase:1.2}], platforms:[[0,515,245],[320,455,118],[505,390,110],[690,445,112],[880,365,110],[1065,430,115],[1255,355,115],[1450,425,125],[1670,500,440]]},
-    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe36c', bottom:'#6ca5df', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]}
+    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#d3f9c8'},
+    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff09a', bottom:'#c1f4d8'},
+    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#ffe589', bottom:'#becab0'},
+    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#f7b06f'},
+    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff'}
   ];
 
   // Build 35 levels from the five hand-designed world themes. Each new round
@@ -184,16 +187,34 @@
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+
+  function readStoredNumber(key, fallback = 0) {
+    try {
+      const raw = window.localStorage.getItem(key);
+      const parsed = raw === null ? Number.NaN : Number.parseInt(raw, 10);
+      return Number.isFinite(parsed) ? Math.max(0, parsed) : fallback;
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function writeStoredNumber(key, value) {
+    try {
+      window.localStorage.setItem(key, String(Math.max(0, Number.isFinite(value) ? value : 0)));
+    } catch (_) {
+      // Ignore storage restrictions from private browsing or sandboxed environments.
+    }
+  }
+
   // Fix 1: Keep the best coin total across visits when browser storage is available.
   function getBestCoins(){
-    try { return Math.max(0, Math.min(TOTAL_COINS, Number.parseInt(localStorage.getItem('frogJumperBestCoins') || '0', 10) || 0)); }
-    catch (_) { return 0; }
+    return readStoredNumber('frogJumperBestCoins', 0);
   }
   function updateBestCoins(){
     let best = getBestCoins();
     if(totalCoins > best){
       best = totalCoins;
-      try { localStorage.setItem('frogJumperBestCoins', String(best)); } catch (_) { /* Private browsing or storage restrictions should not stop the game. */ }
+      writeStoredNumber('frogJumperBestCoins', best);
     }
     const bestLabel = document.getElementById('best-label');
     if(bestLabel) bestLabel.textContent = best;
@@ -210,16 +231,16 @@
     state=kind;
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['🗺️ LEVEL ADVENTURE · LEVEL 1','primary',()=>startGame('level')],['🤖 RACE WITH ROBOT','',()=>startGame('race')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'Move with ← → or A / D. Jump with SPACE, W, or ↑. In Level Adventure, collect 5 coins to open each portal. In Robot Race, race the bot to the portal; coins are optional. Pause with P or Esc.',buttons:[['LEVEL ADVENTURE','primary',()=>startGame('level')],['BACK','',()=>showOverlay('menu')]]},
-      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true}); }],['RESTART LEVEL','',restartCurrentLevel],['MAIN MENU','',returnToMenu]]},
-      levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex+1}. Ready for the next race?`:`You cleared ${level.name} and collected ${coinsThisLevel} coins. Ready for the next adventure?`,buttons:[[gameMode==='race'?'NEXT RACE →':'NEXT LEVEL →','primary',()=>{setupLevel(levelIndex+1);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MAIN MENU','',returnToMenu]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins. The pond is cheering for you!`:`You beat all ${TOTAL_LEVELS} levels and collected ${totalCoins} coins. The whole pond is cheering for you!`,buttons:[[gameMode==='race'?'RACE AGAIN':'PLAY AGAIN','primary',restartRun],['MAIN MENU','',returnToMenu]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:`You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',restartRun],['MAIN MENU','',returnToMenu]]},
-      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>startGame('race')],['MAIN MENU','',returnToMenu]]}
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'Move with ← → or A / D. Jump with SPACE, W, or ↑. In Level Adventure, collect 5 coins to open each portal. In Robot Race, race the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['RESTART LEVEL','ghost',()=>restartCurrentLevel()]]},
+      levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins on the way.`:`You finished all ${TOTAL_LEVELS} levels and completed the frog adventure with ${totalCoins} coins.`,buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:`You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
-    overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="btn ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
   }
   function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
@@ -227,10 +248,10 @@
     if(player.invulnerable>0)return;
     lives--;updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.33));
+    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
-  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:.35+Math.random()*.45,maxLife:.8,color,size:2+Math.random()*4});}return a;}
+  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:0.45+Math.random()*0.45,maxLife:0.45+Math.random()*0.45,size:3+Math.random()*4,color});}return a;}
   function updateRobot(dt){
     if(!robot || state!=='playing') return;
     robot.stumble=Math.max(0,robot.stumble-dt);
@@ -371,10 +392,10 @@
     const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,level.sky[0]);g.addColorStop(1,level.sky[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
     if(level.themeIndex===2){ // fireflies and moonlit glints
       ctx.fillStyle='#f4e2a8';ctx.beginPath();ctx.arc(790,102,36,0,Math.PI*2);ctx.fill();ctx.fillStyle='#745c9f';ctx.beginPath();ctx.arc(804,91,34,0,Math.PI*2);ctx.fill();
-      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;ctx.fillStyle=`rgba(255,242,151,${.25+.5*(.5+.5*Math.sin(elapsed*2+i))})`;ctx.beginPath();ctx.arc(x,y,1.7+(i%3)*.45,0,Math.PI*2);ctx.fill();}
+      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;ctx.fillStyle=`rgba(255,242,151,${.25+.5*(.5+.5*Math.sin(elapsed*2+i))})`;ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
     }else{
       // soft pixel-inspired clouds, moving at a slower parallax rate
-      for(let i=0;i<6;i++){const x=((i*205-cameraX*.11)%(W+180)+W+180)%(W+180)-60;const y=53+(i%3)*45;ctx.fillStyle=level.themeIndex===3?'#ffd1b544':'#ffffffa8';roundedRect(x,y,75,24,12,ctx.fillStyle);ctx.beginPath();ctx.arc(x+20,y+2,18,0,Math.PI*2);ctx.arc(x+42,y-7,23,0,Math.PI*2);ctx.arc(x+59,y+3,15,0,Math.PI*2);ctx.fill();}
+      for(let i=0;i<6;i++){const x=((i*205-cameraX*.11)%(W+180)+W+180)%(W+180)-60;const y=53+(i%3)*45;ctx.fillStyle=level.themeIndex===3?'#ffd1b544':'#ffffffa8';roundedRect(x,y,75,24,12,ctx.fillStyle);}
     }
     // distant rounded hills
     for(let layer=0;layer<2;layer++){
@@ -387,7 +408,7 @@
     }
     // The bottom tells you what happens if you miss a platform.
     ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
-    if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.fill();}}
+    if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
     else if(level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
   }
   function drawPlatform(p){
@@ -425,7 +446,7 @@
     ctx.scale(pulse,1);
     ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     ctx.strokeStyle=unlocked?'#e1c7ff':'#b0c0c9';ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.stroke();
-    const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,17,29,0,0,Math.PI*2);ctx.fill();
+    const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,16,29,0,0,Math.PI*2);ctx.fill();
     if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=elapsed*2+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
     ctx.restore();
     ctx.textAlign='center';ctx.font='900 12px system-ui';ctx.fillStyle=unlocked?'#ffffff':'#e2e9eb';ctx.fillText(gameMode==='race'?'FINISH':(unlocked?'GO!':'5 COINS'),x,y-12);
@@ -511,16 +532,18 @@
 
   function bindHold(id,key){
     const el=document.getElementById(id);
-    const down=e=>{e.preventDefault();input[key]=true;el.classList.add('pressed');try{el.setPointerCapture(e.pointerId);}catch(_){}};
+    const down=e=>{e.preventDefault();input[key]=true;el.classList.add('pressed');try{el.setPointerCapture(e.pointerId);}catch(_){};
+    };
     const up=e=>{if(e)e.preventDefault();input[key]=false;el.classList.remove('pressed');};
     el.addEventListener('pointerdown',down);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('lostpointercapture',up);
     el.addEventListener('contextmenu',e=>e.preventDefault());
   }
   bindHold('left-control','left');bindHold('right-control','right');
   const jumpBtn=document.getElementById('jump-control');
-  jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){}});
+  jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){};});
   const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
   jumpBtn.addEventListener('pointerup',releaseJump);jumpBtn.addEventListener('pointercancel',releaseJump);jumpBtn.addEventListener('lostpointercapture',releaseJump);jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
+
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
 
   setupLevel(0);
