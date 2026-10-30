@@ -1,0 +1,516 @@
+<!doctype html>
+<!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#102b36">
+<title>Frog Jumper — 2D Platform Adventure</title>
+<style>
+  :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif;padding:20px 12px 28px}
+  .app{max-width:1000px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:0 2px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff70,#66d85f);box-shadow:0 5px 0 #317e48;font-size:30px}
+  h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
+  .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
+  .cabinet{background:linear-gradient(180deg,#1e4c56,#12333e);border:1px solid #ffffff22;border-radius:22px;padding:12px;box-shadow:0 16px 50px #0004, inset 0 1px #ffffff15}
+  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#a9c9bf;font-weight:800;margin-bottom:3px}.stat strong{font-size:16px;font-weight:950;white-space:nowrap}.progress-outer{height:5px;background:#ffffff19;border-radius:99px;margin-top:7px;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#baff63,#ffdc5a);border-radius:99px;transition:width .2s ease}
+  .stage{position:relative;width:100%;overflow:hidden;border-radius:15px;background:#88dfff;outline:1px solid #ffffff2a;isolation:isolate}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:8/5;touch-action:none;image-rendering:auto}
+  .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}.overlay-card{width:min(100%,470px);border-radius:22px;border:1px solid #ffffff2c;background:linear-gradient(155deg,#24535cfa,#102e39fa);box-shadow:0 15px 50px #0005;padding:clamp(18px,4vw,30px)}.big-frog{font-size:clamp(42px,9vw,65px);line-height:1;filter:drop-shadow(0 5px 0 #123b35);margin-bottom:10px}.overlay h2{margin:0 0 8px;font-weight:1000;letter-spacing:-.04em;font-size:clamp(25px,5vw,39px)}.overlay p{margin:0 auto 18px;max-width:38ch;font-size:14px;line-height:1.55;color:#d3e9e2}.button-row{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.btn{appearance:none;border:1px solid #ffffff30;border-radius:12px;padding:11px 16px;font:900 14px/1.1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;transition:transform .08s,filter .12s;background:#234d56;color:#f2fff8;min-height:43px}.btn:hover{filter:brightness(1.09)}.btn:active{transform:translateY(2px)}.btn.primary{color:#25351f;border:0;background:linear-gradient(180deg,#e1ff7c,#b7f34e);box-shadow:0 4px 0 #659f37}.btn:focus-visible,.control:focus-visible{outline:3px solid white;outline-offset:3px}
+  .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:23px;height:23px;padding:0 5px;margin:0 2px;border-radius:6px;border:1px solid #ffffff2f;background:#0b2730;color:white;font-size:11px;font-weight:900;box-shadow:0 2px #0003}
+  .controls{display:none;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:none}.control-group{display:flex;gap:9px}.control{display:grid;place-items:center;min-width:60px;min-height:55px;padding:0 17px;border:1px solid #ffffff28;border-radius:15px;background:#0d2b35;color:#f5fff8;font-size:23px;font-weight:950;box-shadow:0 4px 0 #071d25;cursor:pointer;touch-action:none}.control.jump{min-width:105px;background:linear-gradient(180deg,#ffdf77,#f3b935);color:#3b3218;box-shadow:0 4px 0 #9c7222}.control.pressed{transform:translateY(3px);box-shadow:0 1px 0 #071d25;filter:brightness(1.15)}
+  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 2px 0}.tip{border-radius:12px;border:1px solid #ffffff14;background:#ffffff07;padding:11px 12px}.tip b{display:block;color:#e6f9c5;font-size:12px;margin-bottom:4px}.tip span{display:block;color:#bcd6cf;font-size:11px;line-height:1.45}
+  footer{text-align:center;color:#8fafa6;font-size:11px;margin:14px 0 0;line-height:1.5}
+  @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.logo{width:43px;height:43px;flex-basis:43px;font-size:26px;border-radius:13px}.version{font-size:9px;padding:7px}.sub{font-size:11px}.controls{display:flex}.control{min-width:51px;min-height:53px;padding:0 12px}.control.jump{min-width:90px}.tips{grid-template-columns:1fr;gap:7px}.tip{padding:9px 11px}.tip span{font-size:12px}.below{font-size:11px}.overlay-card{padding:17px 13px}.stage canvas{aspect-ratio:8/5}}
+  @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand"><div class="logo" aria-hidden="true">🐸</div><div><h1>FROG JUMPER</h1><div class="sub">A tiny frog. 35 levels. One robot rival.</div></div></div>
+    <div class="version">35 LEVELS · OFFLINE PLAY</div>
+  </header>
+  <main class="cabinet" aria-label="Frog Jumper game">
+    <div class="hud" aria-live="polite">
+      <div class="stat"><label>Mode / Level</label><strong id="level-label">Level 1 · Froggy Fields</strong><div class="progress-outer"><div id="level-progress" class="progress-fill"></div></div></div>
+      <div class="stat"><label>Coins</label><strong>🪙 <span id="coin-label">0</span><span style="color:#93b7a9"> / 175</span></strong></div>
+      <div class="stat"><label>Lives</label><strong id="life-label">❤️ ❤️ ❤️</strong></div>
+    </div>
+    <div class="stage" id="stage">
+      <canvas id="game" width="960" height="600" tabindex="0" role="img" aria-label="Frog Jumper platform game. Use arrow keys to move and space to jump."></canvas>
+      <div class="overlay" id="overlay"></div>
+    </div>
+    <div class="controls" aria-label="Touch game controls">
+      <div class="control-group"><button type="button" class="control" id="left-control" aria-label="Move left">◀</button><button type="button" class="control" id="right-control" aria-label="Move right">▶</button></div>
+      <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆ JUMP</button>
+    </div>
+    <div class="below"><div><span class="key">←</span><span class="key">→</span> move &nbsp; <span class="key">SPACE</span> jump</div><div><span class="key">P</span> pause &nbsp; <span class="key">R</span> restart</div></div>
+  </main>
+  <section class="tips" aria-label="How to play">
+    <div class="tip"><b>① Level Adventure</b><span>Start at Level 1 and hop through all 35 levels. Collect 5 coins to open each portal.</span></div>
+    <div class="tip"><b>② Race with Robot</b><span>Race a little robot to the finish portal. Coins are bonus points in race mode.</span></div>
+    <div class="tip"><b>③ More worlds</b><span>Explore seven rounds of five colorful worlds, with trickier gaps and extra slimes.</span></div>
+  </section>
+  <footer>One HTML file · 35 levels · Two game modes · Works offline in your browser</footer>
+</div>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const stage = document.getElementById('stage');
+  const W = canvas.width, H = canvas.height;
+  const PLAYER_W = 36, PLAYER_H = 36;
+  const FIXED_DT = 1 / 120;
+  const TOTAL_LEVELS = 35;
+  const COINS_PER_LEVEL = 5;
+  const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const LEVELS = [
+    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#6abfd0', enemies:[], movers:[], platforms:[[0,515,270],[320,460,135],[515,405,130],[705,450,140],[900,380,130],[1090,435,140],[1290,370,135],[1490,435,150],[1710,505,430]]},
+    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff06c', bottom:'#279eb5', enemies:[7], movers:[], platforms:[[0,515,250],[305,460,125],[485,385,118],[665,455,118],[845,370,120],[1025,435,125],[1215,355,125],[1405,430,130],[1625,500,470]]},
+    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#f7d977', bottom:'#172e45', enemies:[6,7], movers:[{index:2,amp:24,speed:1.25,phase:0.4},{index:5,amp:19,speed:1.4,phase:2.1}], platforms:[[0,515,255],[305,460,125],[485,402,120],[675,445,120],[860,370,120],[1045,430,125],[1235,360,125],[1425,430,135],[1645,500,450]]},
+    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#e64d38', enemies:[6,7], movers:[{index:3,amp:18,speed:1.6,phase:1.2}], platforms:[[0,515,245],[320,455,118],[505,390,110],[690,445,112],[880,365,110],[1065,430,115],[1255,355,115],[1450,425,125],[1670,500,440]]},
+    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe36c', bottom:'#6ca5df', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]}
+  ];
+
+  // Build 35 levels from the five hand-designed world themes. Each new round
+  // reuses a theme with narrower platforms, slightly wider gaps, and more slimes.
+  LEVELS.forEach((item, index) => { item.themeIndex = index; });
+  const WORLD_TEMPLATES = LEVELS.slice();
+  const ROMAN = ['I','II','III','IV','V','VI','VII'];
+  for (let i = WORLD_TEMPLATES.length; i < TOTAL_LEVELS; i++) {
+    const themeIndex = i % WORLD_TEMPLATES.length;
+    const round = Math.floor(i / WORLD_TEMPLATES.length);
+    const base = WORLD_TEMPLATES[themeIndex];
+    const gapBonus = Math.min(24, round * 4);
+    const widthLoss = Math.min(20, round * 3);
+    const platforms = base.platforms.map((p, pi) => {
+      if (pi === 0) return [...p];
+      const x = p[0] + pi * gapBonus;
+      const pattern = pi >= 1 && pi <= 7 ? Math.sin(pi * 1.7 + round * 0.85) * round * 4 : 0;
+      const y = Math.max(340, Math.min(525, p[1] + pattern));
+      const minWidth = pi === base.platforms.length - 1 ? 350 : 82;
+      const w = Math.max(minWidth, p[2] - widthLoss);
+      return [x, y, w];
+    });
+    const enemies = [...base.enemies];
+    if (round >= 2 && !enemies.includes(4)) enemies.push(4);
+    if (round >= 4 && !enemies.includes(5)) enemies.push(5);
+    const movers = base.movers.map(m => ({...m}));
+    if (round >= 3 && !movers.some(m => m.index === 4)) {
+      movers.push({index:4, amp:12 + round * 2, speed:1.15 + round * .07, phase:round * .8});
+    }
+    LEVELS.push({
+      ...base,
+      name: `${base.name} ${ROMAN[round]}`,
+      subtitle: `Round ${round + 1} · A little harder than before!`,
+      themeIndex,
+      platforms,
+      enemies,
+      movers
+    });
+  }
+
+  let state = 'menu';
+  let gameMode = 'level';
+  let robot = null;
+  let levelIndex = 0;
+  let level = LEVELS[0];
+  let platforms = [];
+  let coins = [];
+  let enemies = [];
+  let player = null;
+  let cameraX = 0;
+  let totalCoins = 0;
+  let coinsThisLevel = 0;
+  let lives = 3;
+  let ticks = 0;
+  let elapsed = 0;
+  let lastTime = 0;
+  let accumulator = 0;
+  let rafId = 0;
+  let checkpoint = {x:40,y:479};
+  let particles = [];
+  const input = {left:false,right:false,jumpBuffer:0};
+  const MAX_LIVES = 3;
+
+  function makePlayer(x, y) {
+    return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
+  }
+  function setupLevel(index) {
+    levelIndex = index;
+    level = LEVELS[levelIndex];
+    elapsed = 0; ticks = 0;
+    platforms = level.platforms.map((p,i)=>({id:i,x:p[0],baseY:p[1],y:p[1],w:p[2],h:20,prevY:p[1],moving:null}));
+    for (const m of level.movers) {
+      const p = platforms[m.index];
+      if(p) p.moving={amp:m.amp,speed:m.speed,phase:m.phase};
+    }
+    coins = [];
+    for (let i=1;i<=COINS_PER_LEVEL;i++) {
+      const p = platforms[i];
+      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:false,phase:i*1.7});
+    }
+    enemies=[];
+    for (const idx of level.enemies) {
+      const p=platforms[idx];
+      if(p) enemies.push({x:p.x+24,y:p.y-24,w:30,h:24,platformId:p.id,minX:p.x+8,maxX:p.x+p.w-38,vx:(idx%2?1:-1)*(100+levelIndex*9),alive:true,phase:idx*2});
+    }
+    particles=[];
+    player=makePlayer(54,platforms[0].y-PLAYER_H);
+    robot = gameMode === 'race' ? {...makePlayer(40,platforms[0].y-PLAYER_H), targetIndex:1, falls:0, stumble:0} : null;
+    checkpoint={x:54,y:platforms[0].y-PLAYER_H};
+    cameraX=0;
+    coinsThisLevel=0;
+    updateHUD();
+  }
+  function startGame(mode='level'){
+    gameMode = mode;
+    lives=MAX_LIVES;totalCoins=0;setupLevel(0);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+  }
+  function restartCurrentLevel(){
+    // Restarting discards this level's coins but keeps coins from earlier levels.
+    totalCoins = Math.max(0, totalCoins - coinsThisLevel);
+    setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+  }
+  function restartRun(){startGame(gameMode);}
+  function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
+  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function updateHUD(){
+    document.getElementById('level-label').textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
+    document.getElementById('coin-label').textContent=totalCoins;
+    document.getElementById('life-label').textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
+    document.getElementById('level-progress').style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
+  }
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';}
+  function showOverlay(kind){
+    state=kind;
+    overlay.hidden=false;
+    const content={
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['🗺️ LEVEL ADVENTURE · LEVEL 1','primary',()=>startGame('level')],['🤖 RACE WITH ROBOT','',()=>startGame('race')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'Move with ← → or A / D. Jump with SPACE, W, or ↑. In Level Adventure, collect 5 coins to open each portal. In Robot Race, race the bot to the portal; coins are optional. Pause with P or Esc.',buttons:[['LEVEL ADVENTURE','primary',()=>startGame('level')],['BACK','',()=>showOverlay('menu')]]},
+      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true}); }],['RESTART LEVEL','',restartCurrentLevel],['MAIN MENU','',returnToMenu]]},
+      levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex+1}. Ready for the next race?`:`You cleared ${level.name} and collected ${coinsThisLevel} coins. Ready for the next adventure?`,buttons:[[gameMode==='race'?'NEXT RACE →':'NEXT LEVEL →','primary',()=>{setupLevel(levelIndex+1);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MAIN MENU','',returnToMenu]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins. The pond is cheering for you!`:`You beat all ${TOTAL_LEVELS} levels and collected ${totalCoins} coins. The whole pond is cheering for you!`,buttons:[[gameMode==='race'?'RACE AGAIN':'PLAY AGAIN','primary',restartRun],['MAIN MENU','',returnToMenu]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:`You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',restartRun],['MAIN MENU','',returnToMenu]]},
+      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>startGame('race')],['MAIN MENU','',returnToMenu]]}
+    }[kind];
+    if(!content) return;
+    overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="btn ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
+  }
+  function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
+  function hurt(){
+    if(player.invulnerable>0)return;
+    lives--;updateHUD();
+    if(lives<=0){showOverlay('gameover');clearInputs();return;}
+    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.33));
+    particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
+  }
+  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:.35+Math.random()*.45,maxLife:.8,color,size:2+Math.random()*4});}return a;}
+  function updateRobot(dt){
+    if(!robot || state!=='playing') return;
+    robot.stumble=Math.max(0,robot.stumble-dt);
+    const target=platforms[Math.min(robot.targetIndex,platforms.length-1)];
+    const current=robot.standingOn;
+    robot.vx=robot.stumble>0?65:(215+Math.min(12,Math.floor(levelIndex/5)*2));
+    if(robot.onGround && current){
+      robot.targetIndex=Math.max(robot.targetIndex,current.id+1);
+      const next=platforms[Math.min(robot.targetIndex,platforms.length-1)];
+      if(next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
+        robot.vy=-655;robot.onGround=false;robot.standingOn=null;robot.y-=1;
+      }
+    }
+    const prevBottom=robot.y+robot.h;
+    robot.vy=Math.min(900,robot.vy+1580*dt);
+    robot.x+=robot.vx*dt;
+    robot.y+=robot.vy*dt;
+    robot.onGround=false;robot.standingOn=null;
+    if(robot.vy>=0){
+      for(const p of platforms){
+        const overlapsX=robot.x+robot.w-4>p.x && robot.x+4<p.x+p.w;
+        const oldTop=Math.min(p.prevY,p.y);
+        if(overlapsX && prevBottom<=oldTop+12 && robot.y+robot.h>=p.y && robot.y+robot.h<=p.y+24){
+          robot.y=p.y-robot.h;robot.vy=0;robot.onGround=true;robot.standingOn=p;
+        }
+      }
+    }
+    if(robot.onGround && robot.standingOn) robot.targetIndex=Math.max(robot.targetIndex,robot.standingOn.id+1);
+    if(robot.y>H+110){
+      robot.falls++;
+      const safe=platforms[Math.max(0,Math.min(platforms.length-2,robot.targetIndex-2))] || platforms[0];
+      robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
+      robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
+    }
+    const end=level.platforms[level.platforms.length-1];
+    const portalX=end[0]+end[2]*.68, portalY=end[1]-75;
+    const overlap=robot.x+robot.w>portalX-24 && robot.x<portalX+24 && robot.y+robot.h>portalY && robot.y<portalY+88;
+    if(overlap){showOverlay('robotWon');clearInputs();}
+  }
+
+  function completeLevel(){
+    if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
+    clearInputs();
+    if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
+  }
+  function update(dt){
+    if(state!=='playing')return;
+    ticks++;elapsed+=dt;
+    player.jumpBuffer=Math.max(player.jumpBuffer-dt,0);
+    player.invulnerable=Math.max(0,player.invulnerable-dt);
+    player.blink+=dt*12;
+
+    // Move lift platforms first and carry the frog when it is standing on one.
+    for(const p of platforms){
+      p.prevY=p.y;
+      if(p.moving){p.y=p.baseY+Math.sin(elapsed*p.moving.speed+p.moving.phase)*p.moving.amp;}
+      if(player.standingOn===p && player.onGround) player.y+=p.y-p.prevY;
+      if(robot && robot.standingOn===p && robot.onGround) robot.y+=p.y-p.prevY;
+    }
+    for(const c of coins){if(c.platformId!==null){const p=platforms[c.platformId];if(p)c.y=p.y-47;}}
+
+    const axis=(input.right?1:0)-(input.left?1:0);
+    const speed=292 + Math.min(12, Math.floor(levelIndex/5)*2);
+    player.vx=axis*speed;
+    if(axis)player.face=axis;
+    player.x+=player.vx*dt;
+    player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
+
+    const previousBottom=player.y+player.h;
+    player.vy=Math.min(900,player.vy+1580*dt);
+    player.y+=player.vy*dt;
+    player.wasOnGround=player.onGround;
+    player.onGround=false;
+    player.standingOn=null;
+    if(player.vy>=0){
+      for(const p of platforms){
+        const overlapsX=player.x+player.w-4>p.x && player.x+4<p.x+p.w;
+        const oldTop=Math.min(p.prevY,p.y);
+        if(overlapsX && previousBottom<=oldTop+12 && player.y+player.h>=p.y && player.y+player.h<=p.y+24){
+          player.y=p.y-player.h;player.vy=0;player.onGround=true;player.standingOn=p;
+        }
+      }
+    }
+    if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
+    if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
+      player.vy=-655;player.onGround=false;player.standingOn=null;player.coyote=0;player.jumpBuffer=0;player.y-=1;
+      particles.push(...makeBurst(player.x+player.w/2,player.y+player.h, '#c9ff67',4));
+    }
+
+    // Robot racer uses the same jump physics and platform collision rules as the frog.
+    if(gameMode==='race' && robot) { updateRobot(dt); if(state!=='playing') return; }
+
+    // Coins can be collected once; total score and level progress never go negative.
+    for(const c of coins){
+      if(c.taken)continue;
+      const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
+      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=Math.min(TOTAL_COINS,totalCoins+1);particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
+    }
+
+    // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
+    for(const e of enemies){
+      if(!e.alive)continue;
+      const ep=platforms[e.platformId];if(!ep)continue;
+      e.y=ep.y-e.h;
+      e.x+=e.vx*dt;
+      if(e.x<e.minX){e.x=e.minX;e.vx=Math.abs(e.vx)}
+      if(e.x>e.maxX){e.x=e.maxX;e.vx=-Math.abs(e.vx)}
+      const hit=player.x+player.w-6>e.x&&player.x+6<e.x+e.w&&player.y+player.h>e.y+4&&player.y+5<e.y+e.h;
+      if(hit&&player.invulnerable<=0){
+        if(player.vy>80&&previousBottom<=e.y+13){e.alive=false;player.vy=-425;player.onGround=false;particles.push(...makeBurst(e.x+e.w/2,e.y,'#bcff77',13));}
+        else {hurt();if(state!=='playing')return;}
+      }
+    }
+
+    // Every safe landing beyond the mid-level point updates the respawn checkpoint.
+    if(player.onGround&&player.standingOn&&player.standingOn.id>=6){
+      checkpoint={x:Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7)),y:player.standingOn.y-player.h};
+    }
+
+    for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
+    particles=particles.filter(p=>p.life>0);
+
+    // Falling into the pit (or lava on Level 4) costs one life. No permanent soft lock.
+    const fallen=player.y>H+110;
+    const lava=level.themeIndex===3&&player.y+player.h>585;
+    if(fallen||lava){hurt();if(state!=='playing')return;}
+
+    const target=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
+    cameraX+=(target-cameraX)*Math.min(1,dt*7.5);
+    const portalX=level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]*.68;
+    const portalY=level.platforms[level.platforms.length-1][1]-74;
+    const portalOverlap=player.x+player.w>portalX-24&&player.x<portalX+24&&player.y+player.h>portalY&&player.y<portalY+88;
+    if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
+  }
+
+  function roundedRect(x,y,w,h,r,fill,stroke){ctx.beginPath();ctx.roundRect(x,y,w,h,r);if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}}
+  function drawBackground(){
+    const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,level.sky[0]);g.addColorStop(1,level.sky[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    if(level.themeIndex===2){ // fireflies and moonlit glints
+      ctx.fillStyle='#f4e2a8';ctx.beginPath();ctx.arc(790,102,36,0,Math.PI*2);ctx.fill();ctx.fillStyle='#745c9f';ctx.beginPath();ctx.arc(804,91,34,0,Math.PI*2);ctx.fill();
+      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;ctx.fillStyle=`rgba(255,242,151,${.25+.5*(.5+.5*Math.sin(elapsed*2+i))})`;ctx.beginPath();ctx.arc(x,y,1.7+(i%3)*.45,0,Math.PI*2);ctx.fill();}
+    }else{
+      // soft pixel-inspired clouds, moving at a slower parallax rate
+      for(let i=0;i<6;i++){const x=((i*205-cameraX*.11)%(W+180)+W+180)%(W+180)-60;const y=53+(i%3)*45;ctx.fillStyle=level.themeIndex===3?'#ffd1b544':'#ffffffa8';roundedRect(x,y,75,24,12,ctx.fillStyle);ctx.beginPath();ctx.arc(x+20,y+2,18,0,Math.PI*2);ctx.arc(x+42,y-7,23,0,Math.PI*2);ctx.arc(x+59,y+3,15,0,Math.PI*2);ctx.fill();}
+    }
+    // distant rounded hills
+    for(let layer=0;layer<2;layer++){
+      const parallax=layer===0?.13:.27,base=layer===0?470:520,spacing=layer===0?225:185;
+      ctx.fillStyle=layer===0?level.hills:level.far;
+      for(let i=-2;i<8;i++){
+        const x=((i*spacing-cameraX*parallax)%(W+spacing*2)+W+spacing*2)%(W+spacing*2)-spacing;
+        ctx.beginPath();ctx.ellipse(x+spacing*.5,base,spacing*.72,90+(i%3)*11,0,Math.PI,Math.PI*2);ctx.fill();
+      }
+    }
+    // The bottom tells you what happens if you miss a platform.
+    ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
+    if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.fill();}}
+    else if(level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
+  }
+  function drawPlatform(p){
+    const x=p.x-cameraX,y=p.y;
+    if(x+p.w<-20||x>W+20)return;
+    // shadow, earthy side and a grassy top; moving platforms get a bright edge
+    roundedRect(x+2,y+7,p.w,p.h,7,'#142e2b66');
+    roundedRect(x,y,p.w,p.h,7,level.ground,'#ffffff1d');
+    roundedRect(x,y,p.w,10,6,level.grass);
+    ctx.fillStyle=level.trim;
+    for(let j=8;j<p.w-5;j+=23){ctx.fillRect(x+j,y+1,8,3);}
+    ctx.fillStyle='#2d2d2d20';for(let j=14;j<p.w-8;j+=32)ctx.fillRect(x+j,y+14,8,3);
+    if(p.moving){ctx.strokeStyle='#e4ff8a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+12,y+5);ctx.lineTo(x+p.w-12,y+5);ctx.stroke();}
+  }
+  function drawCoin(c){
+    if(c.taken)return;const x=c.x-cameraX,y=c.y+Math.sin(elapsed*3+c.phase)*4;if(x<-20||x>W+20)return;
+    const spin=.35+.65*Math.abs(Math.sin(elapsed*5+c.phase));
+    ctx.save();ctx.translate(x,y);ctx.scale(spin,1);
+    ctx.fillStyle='#b77613';ctx.beginPath();ctx.ellipse(1,2,11,15,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=level.accent;ctx.beginPath();ctx.ellipse(0,0,10,14,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff6ad';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,6,10,0,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='#fff5bc';ctx.fillRect(-2,-7,3,8);ctx.restore();
+  }
+  function drawEnemy(e){
+    if(!e.alive)return;const x=e.x-cameraX,y=e.y;if(x<-40||x>W+40)return;
+    const wobble=Math.sin(elapsed*10+e.phase)*2;
+    roundedRect(x,y+wobble,e.w,e.h,10,'#579b42','#275d38');
+    roundedRect(x+4,y+3+wobble,e.w-8,8,5,'#a7ef59');
+    ctx.fillStyle='#fff';ctx.fillRect(x+7,y+8+wobble,6,7);ctx.fillRect(x+19,y+8+wobble,6,7);
+    ctx.fillStyle='#203c2a';ctx.fillRect(x+10,y+10+wobble,3,4);ctx.fillRect(x+21,y+10+wobble,3,4);
+  }
+  function drawPortal(){
+    const end=level.platforms[level.platforms.length-1];const x=end[0]+end[2]*.68-cameraX,y=end[1]-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
+    ctx.save();ctx.translate(x,y);const pulse=1+Math.sin(elapsed*4)*.055;
+    ctx.scale(pulse,1);
+    ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle=unlocked?'#e1c7ff':'#b0c0c9';ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.stroke();
+    const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,17,29,0,0,Math.PI*2);ctx.fill();
+    if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=elapsed*2+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
+    ctx.restore();
+    ctx.textAlign='center';ctx.font='900 12px system-ui';ctx.fillStyle=unlocked?'#ffffff':'#e2e9eb';ctx.fillText(gameMode==='race'?'FINISH':(unlocked?'GO!':'5 COINS'),x,y-12);
+  }
+  function drawPlayer(){
+    const blink=player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
+    const x=Math.round(player.x-cameraX),squash=player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
+    ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
+    // legs and body
+    roundedRect(2,20,12,14,5,'#218447');roundedRect(22,20,12,14,5,'#218447');
+    roundedRect(3,14,30,20,10,'#34bd58','#1c7b42');roundedRect(8,23,20,8,4,'#ffbc62');
+    // eye stalks and big eyes
+    roundedRect(4,4,11,16,5,'#23a64d');roundedRect(21,4,11,16,5,'#23a64d');
+    ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
+    ctx.strokeStyle='#145c36';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
+    ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    ctx.restore();
+  }
+  function drawRobot(){
+    if(!robot || gameMode!=='race')return;
+    const x=Math.round(robot.x-cameraX),y=Math.round(robot.y);
+    if(x<-50||x>W+50)return;
+    const bob=robot.onGround?Math.sin(elapsed*13)*1.2:0;
+    ctx.save();ctx.translate(x,y+bob);
+    // Tiny silver rival robot with antenna, glowing eyes, and little wheels.
+    ctx.strokeStyle='#dce8ef';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(18,8);ctx.lineTo(18,2);ctx.stroke();
+    ctx.fillStyle='#ff6d85';ctx.beginPath();ctx.arc(18,2,3,0,Math.PI*2);ctx.fill();
+    roundedRect(4,8,28,23,6,'#92a7b5','#405b6c');
+    roundedRect(7,12,22,11,4,'#163642','#d2f7f1');
+    ctx.fillStyle='#78ffdf';ctx.fillRect(10,15,4,4);ctx.fillRect(22,15,4,4);
+    ctx.fillStyle='#445b69';ctx.fillRect(2,31,11,5);ctx.fillRect(23,31,11,5);
+    ctx.fillStyle='#eafaff';ctx.fillRect(7,26,5,2);ctx.fillRect(24,26,5,2);
+    ctx.restore();
+    ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#183b48';ctx.fillText('BOT',x+18,y-5);
+  }
+  function drawParticles(){for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
+  function render(){
+    drawBackground();
+    for(const p of platforms)drawPlatform(p);
+    drawPortal();
+    for(const c of coins)drawCoin(c);
+    for(const e of enemies)drawEnemy(e);
+    drawParticles();
+    drawRobot();
+    if(player)drawPlayer();
+    // Small in-world status reminder, always visible on the top right.
+    ctx.textAlign='right';ctx.font='900 14px system-ui';ctx.fillStyle='#123e41';
+    ctx.fillText(gameMode==='race'?`RACE ${levelIndex+1}/${TOTAL_LEVELS}  ·  YOU vs BOT`:`LEVEL ${levelIndex+1}/${TOTAL_LEVELS}  ·  ${coinsThisLevel}/${COINS_PER_LEVEL} COINS`,W-17,26);
+    if(state==='paused'){
+      ctx.fillStyle='#061c28a8';ctx.fillRect(0,0,W,H);
+    }
+  }
+  function frame(now){
+    if(!lastTime)lastTime=now;
+    let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    if(state==='playing'){
+      accumulator+=delta;
+      let count=0;
+      while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}
+      if(count>=8)accumulator=0;
+    }else{accumulator=0;}
+    render();rafId=requestAnimationFrame(frame);
+  }
+
+  document.addEventListener('keydown',e=>{
+    const code=e.code;
+    if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
+    if(code==='ArrowLeft'||code==='KeyA')input.left=true;
+    if(code==='ArrowRight'||code==='KeyD')input.right=true;
+    if((code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
+    if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
+    if(code==='KeyR'&&!e.repeat){if(state==='menu'||state==='gameover'||state==='won')restartRun();else restartCurrentLevel();}
+    if(code==='Enter'&&!e.repeat&&state==='menu')startGame('level');
+  },{passive:false});
+  document.addEventListener('keyup',e=>{
+    if(e.code==='ArrowLeft'||e.code==='KeyA')input.left=false;
+    if(e.code==='ArrowRight'||e.code==='KeyD')input.right=false;
+  });
+  window.addEventListener('blur',clearInputs);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
+
+  function bindHold(id,key){
+    const el=document.getElementById(id);
+    const down=e=>{e.preventDefault();input[key]=true;el.classList.add('pressed');try{el.setPointerCapture(e.pointerId);}catch(_){}};
+    const up=e=>{if(e)e.preventDefault();input[key]=false;el.classList.remove('pressed');};
+    el.addEventListener('pointerdown',down);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('lostpointercapture',up);
+    el.addEventListener('contextmenu',e=>e.preventDefault());
+  }
+  bindHold('left-control','left');bindHold('right-control','right');
+  const jumpBtn=document.getElementById('jump-control');
+  jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){}});
+  const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
+  jumpBtn.addEventListener('pointerup',releaseJump);jumpBtn.addEventListener('pointercancel',releaseJump);jumpBtn.addEventListener('lostpointercapture',releaseJump);jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
+  canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
+
+  setupLevel(0);
+  showOverlay('menu');
+  render();
+  rafId=requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
