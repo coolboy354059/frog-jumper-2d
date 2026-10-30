@@ -3,6 +3,7 @@
 <!-- CHANGE LOG: 2026-10-30 — Fix 1: Save and display the player's personal-best coin total between visits, using guarded localStorage access. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 2: Remove the “OFFLINE PLAY” wording from the header badge as requested. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 3: Improve the title menu flow and harden storage access for a smoother, more reliable play loop. -->
+<!-- CHANGE LOG: 2026-10-30 — Fix 4: Make Robot Race more competitive by increasing the bot racer speed and jump strength. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -257,12 +258,12 @@
     robot.stumble=Math.max(0,robot.stumble-dt);
     const target=platforms[Math.min(robot.targetIndex,platforms.length-1)];
     const current=robot.standingOn;
-    robot.vx=robot.stumble>0?65:(215+Math.min(12,Math.floor(levelIndex/5)*2));
+    robot.vx=robot.stumble>0?80:(250+Math.min(18,Math.floor(levelIndex/5)*3));
     if(robot.onGround && current){
       robot.targetIndex=Math.max(robot.targetIndex,current.id+1);
       const next=platforms[Math.min(robot.targetIndex,platforms.length-1)];
       if(next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
-        robot.vy=-655;robot.onGround=false;robot.standingOn=null;robot.y-=1;
+        robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
       }
     }
     const prevBottom=robot.y+robot.h;
