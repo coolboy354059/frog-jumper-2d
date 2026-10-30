@@ -1,5 +1,6 @@
 <!doctype html>
 <!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
+<!-- CHANGE LOG: 2026-10-30 — Fix 1: Save and display the player's personal-best coin total between visits, using guarded localStorage access. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -16,7 +17,7 @@
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
   .cabinet{background:linear-gradient(180deg,#1e4c56,#12333e);border:1px solid #ffffff22;border-radius:22px;padding:12px;box-shadow:0 16px 50px #0004, inset 0 1px #ffffff15}
-  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#a9c9bf;font-weight:800;margin-bottom:3px}.stat strong{font-size:16px;font-weight:950;white-space:nowrap}.progress-outer{height:5px;background:#ffffff19;border-radius:99px;margin-top:7px;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#baff63,#ffdc5a);border-radius:99px;transition:width .2s ease}
+  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:#a9c9bf;font-weight:800;margin-bottom:3px}.stat strong{font-size:16px;font-weight:950;white-space:nowrap}.progress-outer{height:5px;background:#ffffff19;border-radius:99px;margin-top:7px;overflow:hidden}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#baff63,#ffdc5a);border-radius:99px;transition:width .2s ease}.best-run{margin-top:5px;color:#b8d6cc;font-size:10px;font-weight:800}
   .stage{position:relative;width:100%;overflow:hidden;border-radius:15px;background:#88dfff;outline:1px solid #ffffff2a;isolation:isolate}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:8/5;touch-action:none;image-rendering:auto}
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}.overlay-card{width:min(100%,470px);border-radius:22px;border:1px solid #ffffff2c;background:linear-gradient(155deg,#24535cfa,#102e39fa);box-shadow:0 15px 50px #0005;padding:clamp(18px,4vw,30px)}.big-frog{font-size:clamp(42px,9vw,65px);line-height:1;filter:drop-shadow(0 5px 0 #123b35);margin-bottom:10px}.overlay h2{margin:0 0 8px;font-weight:1000;letter-spacing:-.04em;font-size:clamp(25px,5vw,39px)}.overlay p{margin:0 auto 18px;max-width:38ch;font-size:14px;line-height:1.55;color:#d3e9e2}.button-row{display:flex;justify-content:center;flex-wrap:wrap;gap:9px}.btn{appearance:none;border:1px solid #ffffff30;border-radius:12px;padding:11px 16px;font:900 14px/1.1 system-ui,sans-serif;cursor:pointer;touch-action:manipulation;transition:transform .08s,filter .12s;background:#234d56;color:#f2fff8;min-height:43px}.btn:hover{filter:brightness(1.09)}.btn:active{transform:translateY(2px)}.btn.primary{color:#25351f;border:0;background:linear-gradient(180deg,#e1ff7c,#b7f34e);box-shadow:0 4px 0 #659f37}.btn:focus-visible,.control:focus-visible{outline:3px solid white;outline-offset:3px}
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:23px;height:23px;padding:0 5px;margin:0 2px;border-radius:6px;border:1px solid #ffffff2f;background:#0b2730;color:white;font-size:11px;font-weight:900;box-shadow:0 2px #0003}
@@ -36,7 +37,7 @@
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="hud" aria-live="polite">
       <div class="stat"><label>Mode / Level</label><strong id="level-label">Level 1 · Froggy Fields</strong><div class="progress-outer"><div id="level-progress" class="progress-fill"></div></div></div>
-      <div class="stat"><label>Coins</label><strong>🪙 <span id="coin-label">0</span><span style="color:#93b7a9"> / 175</span></strong></div>
+      <div class="stat"><label>Coins</label><strong>🪙 <span id="coin-label">0</span><span style="color:#93b7a9"> / 175</span></strong><div class="best-run">Personal best: <span id="best-label">0</span></div></div>
       <div class="stat"><label>Lives</label><strong id="life-label">❤️ ❤️ ❤️</strong></div>
     </div>
     <div class="stage" id="stage">
@@ -182,7 +183,22 @@
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  // Fix 1: Keep the best coin total across visits when browser storage is available.
+  function getBestCoins(){
+    try { return Math.max(0, Math.min(TOTAL_COINS, Number.parseInt(localStorage.getItem('frogJumperBestCoins') || '0', 10) || 0)); }
+    catch (_) { return 0; }
+  }
+  function updateBestCoins(){
+    let best = getBestCoins();
+    if(totalCoins > best){
+      best = totalCoins;
+      try { localStorage.setItem('frogJumperBestCoins', String(best)); } catch (_) { /* Private browsing or storage restrictions should not stop the game. */ }
+    }
+    const bestLabel = document.getElementById('best-label');
+    if(bestLabel) bestLabel.textContent = best;
+  }
   function updateHUD(){
+    updateBestCoins();
     document.getElementById('level-label').textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
     document.getElementById('coin-label').textContent=totalCoins;
     document.getElementById('life-label').textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
