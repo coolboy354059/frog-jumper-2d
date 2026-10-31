@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 51: Add a lightweight Halloween scene with animated bats and pumpkins, without changing platform physics or controls. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 50: Restrict the developer coin-grant helper to local development so it is not exposed on the public game. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 49: Recalculate respawn height from the checkpoint platform's current position so moving-platform checkpoints remain safe. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 48: Add Ocean Blue, Golden Froggy, and Ninja Frog shop skins with validated save-data support and vector-drawn artwork. -->
@@ -20,7 +21,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#102b36">
 <title>Frog Jumper 2D — Free Online Frog Platform Game</title>
-<meta name="description" content="Play Frog Jumper 2D, a free online platform adventure. Jump through levels, collect coins, race a robot, and unlock fun frog skins.">
+<meta name="description" content="Play Frog Jumper 2D, a free online platform adventure. Jump through levels, collect coins, race a robot, unlock frog skins, and enjoy spooky Halloween decorations.">
 <link rel="canonical" href="https://coolboy354059.github.io/frog-jumper-2d/">
 <style>
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
@@ -763,6 +764,28 @@
     ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
     if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
     else if(level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
+
+    // Halloween decorations: distant bats and tiny pumpkins stay out of the play area.
+    ctx.save();
+    for(let i=0;i<5;i++){
+      const drift=reduceMotion?0:Math.sin(elapsed*1.8+i)*9;
+      const x=((i*223-cameraX*.16)%(W+100)+W+100)%(W+100)-35;
+      const y=82+(i%3)*48+drift;
+      ctx.fillStyle='#17263d';
+      ctx.beginPath();ctx.ellipse(x,y,7,5,0,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.moveTo(x-4,y);ctx.quadraticCurveTo(x-17,y-15,x-22,y-3);ctx.quadraticCurveTo(x-12,y-5,x-8,y+4);ctx.fill();
+      ctx.beginPath();ctx.moveTo(x+4,y);ctx.quadraticCurveTo(x+17,y-15,x+22,y-3);ctx.quadraticCurveTo(x+12,y-5,x+8,y+4);ctx.fill();
+      ctx.fillStyle='#ffe9a8';ctx.fillRect(x-3,y-1,2,2);ctx.fillRect(x+2,y-1,2,2);
+    }
+    for(let i=0;i<4;i++){
+      const x=((i*267-cameraX*.32)%(W+80)+W+80)%(W+80)-25;
+      const y=550+(i%2)*5;
+      ctx.fillStyle='#ed852d';ctx.beginPath();ctx.ellipse(x,y,13,12,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='#b95720';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-10);ctx.quadraticCurveTo(x-5,y,x,y+10);ctx.moveTo(x,y-10);ctx.quadraticCurveTo(x+5,y,x,y+10);ctx.stroke();
+      ctx.fillStyle='#5e9b48';ctx.fillRect(x-2,y-15,4,5);
+      ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.moveTo(x-7,y-2);ctx.lineTo(x-3,y-5);ctx.lineTo(x,y-2);ctx.lineTo(x+3,y-5);ctx.lineTo(x+7,y-2);ctx.lineTo(x+5,y+4);ctx.lineTo(x-5,y+4);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
   }
   function drawPlatform(p){
     const x=p.x-cameraX,y=p.y;
