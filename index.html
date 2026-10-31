@@ -5,6 +5,7 @@
 <!-- CHANGE LOG: 2026-10-30 — Fix 3: Improve the title menu flow and harden storage access for a smoother, more reliable play loop. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 4: Make Robot Race more competitive by increasing the bot racer speed and jump strength. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 5: Remove the “Works offline in your browser” footer wording as requested. -->
+<!-- CHANGE LOG: 2026-10-30 — Fix 6: Restore the five original level platform layouts, enemy lists, and moving-platform settings so the game can initialize and render. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -79,11 +80,11 @@
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const LEVELS = [
-    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#d3f9c8'},
-    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff09a', bottom:'#c1f4d8'},
-    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#ffe589', bottom:'#becab0'},
-    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#f7b06f'},
-    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff'}
+    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#d3f9c8', enemies:[], movers:[], platforms:[[0,515,270],[320,460,135],[515,405,130],[705,450,140],[900,380,130],[1090,435,140],[1290,370,135],[1490,435,150],[1710,505,430]]},
+    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff09a', bottom:'#c1f4d8', enemies:[7], movers:[], platforms:[[0,515,250],[305,460,125],[485,385,118],[665,455,118],[845,370,120],[1025,435,125],[1215,355,125],[1405,430,130],[1625,500,470]]},
+    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#ffe589', bottom:'#becab0', enemies:[6,7], movers:[{index:2,amp:24,speed:1.25,phase:0.4},{index:5,amp:19,speed:1.4,phase:2.1}], platforms:[[0,515,255],[305,460,125],[485,402,120],[675,445,120],[860,370,120],[1045,430,125],[1235,360,125],[1425,430,135],[1645,500,450]]},
+    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#f7b06f', enemies:[6,7], movers:[{index:3,amp:18,speed:1.6,phase:1.2}], platforms:[[0,515,245],[320,455,118],[505,390,110],[690,445,112],[880,365,110],[1065,430,115],[1255,355,115],[1450,425,125],[1670,500,440]]},
+    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]},
   ];
 
   // Build 35 levels from the five hand-designed world themes. Each new round
