@@ -143,7 +143,7 @@ test('all game artwork files are served successfully', async () => {
   ]) {
     const response=await page.request.get(baseUrl+asset);
     assert.equal(response.status(),200,asset+' must load');
-    assert.ok(Number(response.headers()['content-length'] || 0) > 0,asset+' must not be empty');
+    assert.ok((await response.body()).length > 0,asset+' must not be empty');
   }
   await page.close();
 });
