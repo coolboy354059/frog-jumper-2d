@@ -25,6 +25,7 @@ assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\
 assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement should use a draggable joystick');
 assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should recenter when released');
 assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
+assert.match(scriptMatch[1], /if\(player\)player\.jumpBuffer=0/, 'Clearing input should cancel a queued player jump');
 assert.match(scriptMatch[1], /state==='playing'&&!touchControlsAvailable/, 'Touchscreen controls should not auto-hide during play');
 assert.match(scriptMatch[1], /releasePointerCapture\(activePointer\)/, 'Joystick pointer capture should be released when reset');
 assert.match(scriptMatch[1], /function syncPauseControl\(\)/, 'Touch players should have a pause/resume control');
