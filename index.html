@@ -628,13 +628,12 @@
     // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
     if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
-      // Draw a square crop around the astronaut frog, rather than shrinking the
-      // entire 1536×1024 planet illustration into the character slot.
-      // Source crop measured from the uploaded PNG: x=520, y=260, width=505, height=500.
+      // Keep the Jupiter artwork slightly smaller than the normal frog sprite,
+      // leaving a little breathing room so its helmet/planet details do not look oversized.
       const cropX = 520, cropY = 260, cropW = 505, cropH = 500;
-      const imageScale = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
-      const imageW = cropW * imageScale;
-      const imageH = cropH * imageScale;
+      const fitScale = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
+      const imageW = cropW * fitScale * 0.78;
+      const imageH = cropH * fitScale * 0.78;
       ctx.drawImage(
         jupiterSkinImage,
         cropX, cropY, cropW, cropH,
