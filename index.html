@@ -38,6 +38,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 10: Give each particle matching current and maximum lifetimes so every burst particle starts fully visible and fades consistently. -->
 </head>
 <body>
 <div class="app">
@@ -258,7 +259,7 @@
     player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
-  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:0.45+Math.random()*0.45,maxLife:0.45+Math.random()*0.45,size:3+Math.random()*4,color});}return a;}
+  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
   function updateRobot(dt){
     if(!robot || state!=='playing') return;
     robot.stumble=Math.max(0,robot.stumble-dt);
