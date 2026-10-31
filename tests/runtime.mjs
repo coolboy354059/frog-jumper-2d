@@ -328,4 +328,16 @@ assert.equal(hooks.getCoinsThisLevel(), 0, 'Restarting the level should reset th
 assert.equal(hooks.getTotalCoins(), 0, 'Restarting the level should remove its coins from the run score');
 assert.equal(hooks.getWalletCoins(), 0, 'Restarting the level should roll back its unbanked coin rewards');
 
+hooks.startGame('race');
+for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
+  hooks.setState('playing');
+  hooks.setupLevel(levelIndex);
+  let frameCount = 0;
+  while (hooks.getState() === 'playing' && frameCount < 6000) {
+    hooks.update(1 / 120);
+    frameCount++;
+  }
+  assert.equal(hooks.getState(), 'robotWon', 'Robot Race AI should be able to finish Level ' + (levelIndex + 1) + ' without getting stuck');
+}
+
 console.log('Frog Jumper runtime checks passed: 35 levels, level geometry, rewards, storage, inputs, mobile controls, and rendering fallback.');
