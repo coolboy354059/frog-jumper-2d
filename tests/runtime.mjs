@@ -239,7 +239,7 @@ assert.equal(malformedShop.equippedHat, 'none', 'Malformed cosmetic data must no
 hooks.startGame('race');
 const player = hooks.getPlayer();
 const robot = hooks.getRobot();
-assert.ok(robot.x + robot.w < player.x, 'Robot should not overlap the frog at race start');
+assert.ok(robot.x > player.x + player.w, 'Robot should start slightly ahead without overlapping the frog');
 
 hooks.startGame('level');
 hooks.getPlayer().jumpBuffer = 0.12;
