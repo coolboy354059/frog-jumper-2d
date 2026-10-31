@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- CHANGE LOG: 2026-10-31 — Complete Infinite Explore implementation and remove the temporary maintenance gate after syntax, menu-mode, and extended simulated traversal checks passed. -->
 <!-- CHANGE LOG: 2026-10-31 — Infinite Explore: Save respawn checkpoints at the center of each safe platform so a fall does not repeatedly respawn the frog at a dangerous edge. -->
 <!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 1: Save and display the player's personal-best coin total between visits, using guarded localStorage access. -->
@@ -116,9 +117,6 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 44: Make menu, help, shop, and pause overlays scrollable on short screens so their bottom buttons remain reachable. -->
 </head>
 <body>
-<div class="maintenance-screen" role="status" aria-live="polite">
-  <iframe class="maintenance-frame" src="maintenance.html" title="Frog Jumper maintenance notice"></iframe>
-</div>
 <div class="app">
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
