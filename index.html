@@ -34,6 +34,7 @@
   @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.controls{display:flex}.tips{grid-template-columns:1fr}.below{font-size:11px}} 
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
+<!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 </head>
 <body>
 <div class="app">
@@ -260,11 +261,11 @@
     robot.stumble=Math.max(0,robot.stumble-dt);
     const target=platforms[Math.min(robot.targetIndex,platforms.length-1)];
     const current=robot.standingOn;
-    robot.vx=robot.stumble>0?80:(250+Math.min(18,Math.floor(levelIndex/5)*3));
+    robot.vx=robot.stumble>0?0:(250+Math.min(18,Math.floor(levelIndex/5)*3));
     if(robot.onGround && current){
       robot.targetIndex=Math.max(robot.targetIndex,current.id+1);
       const next=platforms[Math.min(robot.targetIndex,platforms.length-1)];
-      if(next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
+      if(robot.stumble<=0 && next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
         robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
       }
     }
