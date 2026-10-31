@@ -245,6 +245,8 @@ assert.equal(hooks.getPlayer().jumpBuffer, 0, 'Damage should discard a buffered 
 assert.equal(hooks.getLives(), 2, 'A normal hit should remove exactly one life');
 
 hooks.returnToMenu();
+desktop.document.dispatch('keydown', { code: 'KeyR', repeat: false, target: new FakeElement('canvas'), preventDefault() {} });
+assert.equal(hooks.getState(), 'menu', 'R should not start a game from the title screen');
 const menuButton = new FakeElement('robot-race-button');
 menuButton.interactive = true;
 let spaceWasPrevented = false;
