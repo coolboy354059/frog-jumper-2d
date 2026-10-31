@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 47: Aim Robot Race landings near each platform's left side so the bot keeps enough runway for its next jump. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
 <!doctype html>
 <!-- CHANGE LOG: 2026-10-31 — Robot Race: calculate jump timing from the next platform's height and aim for its center to reduce missed landings. -->
@@ -568,7 +569,8 @@
         // begin the jump at the position that puts the robot over that target.
         const rise=next.y-current.y;
         const airtime=(680+Math.sqrt(680*680+4*790*rise))/1580;
-        const landingX=next.x+(next.w-robot.w)*0.5;
+        // Land near the left side to preserve runway for the following jump.
+        const landingX=next.x+Math.min(8,(next.w-robot.w)*0.5);
         const latestLaunchX=current.x+current.w-robot.w-4;
         const launchX=Math.min(latestLaunchX,landingX-robot.vx*airtime);
         if(robot.x>=launchX){
