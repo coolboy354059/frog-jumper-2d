@@ -126,7 +126,8 @@ function bootGame({ touch = false } = {}) {
     '    getLevels: () => LEVELS,',
     '    setupLevel,',
     '    getPlatforms: () => platforms,',
-    '    getCoins: () => coins,',
+    '    getCoins: () => coins,
+    getEnemies: () => enemies,',
     '    getPlayer: () => player,',
     '    getRobot: () => robot,',
     '    getLives: () => lives,',
@@ -348,6 +349,34 @@ hooks.restartCurrentLevel();
 assert.equal(hooks.getCoinsThisLevel(), 0, 'Restarting the level should reset the level coin count');
 assert.equal(hooks.getTotalCoins(), 0, 'Restarting the level should remove its coins from the run score');
 assert.equal(hooks.getWalletCoins(), 0, 'Restarting the level should roll back its unbanked coin rewards');
+
+hooks.startGame('level');
+hooks.setupLevel(2);
+hooks.setState('playing');
+let testEnemy = hooks.getEnemies()[0];
+let testPlayer = hooks.getPlayer();
+testPlayer.x = testEnemy.x + 1;
+testPlayer.y = testEnemy.y - 20;
+testPlayer.vx = 0;
+testPlayer.vy = 0;
+testPlayer.onGround = false;
+hooks.update(1 / 120);
+assert.equal(hooks.getLives(), 2, 'A side collision with a slime should cost one life');
+assert.equal(testEnemy.alive, true, 'A side collision should not defeat the slime');
+
+hooks.startGame('level');
+hooks.setupLevel(2);
+hooks.setState('playing');
+testEnemy = hooks.getEnemies()[0];
+testPlayer = hooks.getPlayer();
+testPlayer.x = testEnemy.x + 1;
+testPlayer.y = testEnemy.y - 32;
+testPlayer.vx = 0;
+testPlayer.vy = 200;
+testPlayer.onGround = false;
+hooks.update(1 / 120);
+assert.equal(hooks.getLives(), 3, 'A falling stomp should not cost a life');
+assert.equal(testEnemy.alive, false, 'A falling stomp should defeat the slime');
 
 hooks.startGame('race');
 for (let levelIndex = 0; levelIndex < levels.length; levelIndex++) {
