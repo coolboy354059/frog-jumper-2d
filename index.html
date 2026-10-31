@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- CHANGE LOG: 2026-10-31 — Infinite Explore: Save respawn checkpoints at the center of each safe platform so a fall does not repeatedly respawn the frog at a dangerous edge. -->
 <!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 1: Save and display the player's personal-best coin total between visits, using guarded localStorage access. -->
 <!-- CHANGE LOG: 2026-10-30 — Fix 2: Remove the “OFFLINE PLAY” wording from the header badge as requested. -->
@@ -673,7 +674,12 @@
 
     // Every safe landing beyond the mid-level point updates the respawn checkpoint.
     if(player.onGround&&player.standingOn&&(gameMode==='infinite'||player.standingOn.id>=6)){
-      checkpoint={x:Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7)),y:player.standingOn.y-player.h,platformRef:player.standingOn};
+      // In Infinite Explore, respawn in the middle of the safe platform rather
+      // than at the frog's current position near a risky edge.
+      const safeX=gameMode==='infinite'
+        ? player.standingOn.x+(player.standingOn.w-player.w)*.5
+        : Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7));
+      checkpoint={x:safeX,y:player.standingOn.y-player.h,platformRef:player.standingOn};
     }
 
     for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
