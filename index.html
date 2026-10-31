@@ -193,7 +193,7 @@
     if (round >= 4 && !enemies.includes(5)) enemies.push(5);
     const movers = base.movers.map(m => ({...m}));
     if (round >= 3 && !movers.some(m => m.index === 4)) {
-      movers.push({index:4, amp:12 + round * 2, speed:1.15 + round * .07, phase:round * .8});
+      movers.push({index:4, amp:Math.min(10, 6 + round), speed:1.15 + round * .07, phase:round * .8});
     }
     LEVELS.push({
       ...base,
