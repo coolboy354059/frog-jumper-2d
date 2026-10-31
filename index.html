@@ -1,4 +1,5 @@
 <!doctype html>
+<!-- CHANGE LOG: 2026-10-31 — Robot Race: calculate jump timing from the next platform's height and aim for its center to reduce missed landings. -->
 <!-- CHANGE LOG: 2026-10-31 — Complete Infinite Explore implementation and remove the temporary maintenance gate after syntax, menu-mode, and extended simulated traversal checks passed. -->
 <!-- CHANGE LOG: 2026-10-31 — Infinite Explore: Save respawn checkpoints at the center of each safe platform so a fall does not repeatedly respawn the frog at a dangerous edge. -->
 <!-- CHANGE LOG: 2026-10-30 — Imported the user's original playable game unchanged as the starting point for tracked improvements. -->
@@ -555,14 +556,23 @@
   function updateRobot(dt){
     if(!robot || state!=='playing') return;
     robot.stumble=Math.max(0,robot.stumble-dt);
-    const target=platforms[Math.min(robot.targetIndex,platforms.length-1)];
     const current=robot.standingOn;
     robot.vx=robot.stumble>0?0:(250+Math.min(18,Math.floor(levelIndex/5)*3));
     if(robot.onGround && current){
       robot.targetIndex=Math.max(robot.targetIndex,current.id+1);
       const next=platforms[Math.min(robot.targetIndex,platforms.length-1)];
-      if(robot.stumble<=0 && next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
-        robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
+      if(robot.stumble<=0 && next && next.id>current.id){
+        // Aim for the middle of the next platform instead of jumping blindly
+        // near the edge. Estimate airtime from the height difference, then
+        // begin the jump at the position that puts the robot over that target.
+        const rise=next.y-current.y;
+        const airtime=(680+Math.sqrt(680*680+4*790*rise))/1580;
+        const landingX=next.x+(next.w-robot.w)*0.5;
+        const latestLaunchX=current.x+current.w-robot.w-4;
+        const launchX=Math.min(latestLaunchX,landingX-robot.vx*airtime);
+        if(robot.x>=launchX){
+          robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
+        }
       }
     }
     const prevBottom=robot.y+robot.h;
