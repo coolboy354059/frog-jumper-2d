@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
 <!doctype html>
 <!-- CHANGE LOG: 2026-10-31 — Robot Race: calculate jump timing from the next platform's height and aim for its center to reduce missed landings. -->
 <!-- CHANGE LOG: 2026-10-31 — Complete Infinite Explore implementation and remove the temporary maintenance gate after syntax, menu-mode, and extended simulated traversal checks passed. -->
@@ -592,7 +593,10 @@
     if(robot.onGround && robot.standingOn) robot.targetIndex=Math.max(robot.targetIndex,robot.standingOn.id+1);
     if(robot.y>H+110){
       robot.falls++;
-      const safe=platforms[Math.max(0,Math.min(platforms.length-2,robot.targetIndex-2))] || platforms[0];
+      // targetIndex points to the next platform, so the last safe landing
+      // is targetIndex - 1. Recover there instead of falling back an extra platform.
+      const safeIndex=Math.max(0,Math.min(platforms.length-1,robot.targetIndex-1));
+      const safe=platforms[safeIndex] || platforms[0];
       robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
       robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
     }
