@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 49: Recalculate respawn height from the checkpoint platform's current position so moving-platform checkpoints remain safe. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 48: Add Ocean Blue, Golden Froggy, and Ninja Frog shop skins with validated save-data support and vector-drawn artwork. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 47: Aim Robot Race landings near each platform's left side so the bot keeps enough runway for its next jump. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
@@ -555,7 +556,7 @@
     if(player.invulnerable>0)return;
     lives--;updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
+    player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
     cameraX=gameMode==='infinite'?Math.max(0,player.x-W*.34):Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
