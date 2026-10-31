@@ -1,0 +1,12 @@
+{
+  "name": "frog-jumper-2d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser game with strict Playwright regression tests",
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
