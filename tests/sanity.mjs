@@ -12,7 +12,7 @@ new Script(scriptMatch[1], { filename: 'index.html' });
 for (const id of [
   'game', 'stage', 'overlay', 'bottom-bar',
   'bar-fullscreen', 'bar-exit',
-  'move-stick', 'stick-knob', 'jump-control'
+  'move-stick', 'stick-knob', 'pause-control', 'jump-control'
 ]) {
   assert.ok(html.includes('id="' + id + '"'), 'Missing game control: ' + id);
 }
@@ -26,6 +26,8 @@ assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should 
 assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
 assert.match(scriptMatch[1], /state==='playing'&&!touchControlsAvailable/, 'Touchscreen controls should not auto-hide during play');
 assert.match(scriptMatch[1], /releasePointerCapture\(activePointer\)/, 'Joystick pointer capture should be released when reset');
+assert.match(scriptMatch[1], /function syncPauseControl\(\)/, 'Touch players should have a pause/resume control');
+assert.match(scriptMatch[1], /pauseControl\.addEventListener\('click'/, 'Touch pause button should work');
 assert.match(scriptMatch[1], /const TOTAL_LEVELS = 35/);
 assert.match(scriptMatch[1], /const COINS_PER_LEVEL = 5/);
 assert.match(scriptMatch[1], /const cropX = 520, cropY = 260, cropW = 505, cropH = 500/, 'Jupiter should use the character-focused crop');
