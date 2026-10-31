@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://coolboy354059.github.io/frog-jumper-2d/sitemap.xml
