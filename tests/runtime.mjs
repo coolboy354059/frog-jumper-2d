@@ -290,6 +290,15 @@ assert.equal(input.right, true, 'Dragging the joystick to the right should move 
 hooks.resetJoystick();
 assert.equal(input.left, false);
 assert.equal(input.right, false);
+desktop.document.dispatch('keydown', { code: 'ArrowRight', repeat: false, target: new FakeElement('canvas'), preventDefault() {} });
+hooks.moveJoystick({ clientX: 0, clientY: 34 });
+assert.equal(input.left, true, 'Joystick should still set its own direction while a keyboard direction is held');
+assert.equal(input.right, true, 'Keyboard direction should remain active beside an opposite joystick direction');
+hooks.resetJoystick();
+assert.equal(input.left, false, 'Releasing joystick should clear only joystick direction');
+assert.equal(input.right, true, 'Releasing joystick should preserve the held keyboard direction');
+desktop.document.dispatch('keyup', { code: 'ArrowRight', target: new FakeElement('canvas') });
+assert.equal(input.right, false, 'Releasing keyboard should clear the keyboard direction');
 assert.ok(desktop.contextCalls.arcTo > 0, 'Rounded-rectangle fallback should render without Canvas roundRect');
 
 const touch = bootGame({ touch: true });
