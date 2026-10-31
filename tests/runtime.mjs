@@ -179,6 +179,15 @@ for (const [index, level] of levels.entries()) {
       const rise = previous[1] - platform[1];
       assert.ok(gap >= 0 && gap <= 150, levelName + ' platform gap ' + i + ' should be reasonable');
       assert.ok(rise <= 140, levelName + ' platform rise ' + i + ' should be within the frog jump range');
+      const jumpSpeed = 655;
+      const gravity = 1580;
+      const jumpHeight = (jumpSpeed * jumpSpeed) / (2 * gravity);
+      assert.ok(rise <= jumpHeight, levelName + ' platform rise ' + i + ' must not exceed the frog jump height');
+      const discriminant = jumpSpeed * jumpSpeed - 2 * gravity * rise;
+      const landingTime = (jumpSpeed + Math.sqrt(discriminant)) / gravity;
+      const moveSpeed = 292 + Math.min(12, Math.floor(index / 5) * 2);
+      const horizontalReach = moveSpeed * landingTime + 32;
+      assert.ok(gap <= horizontalReach + 1, levelName + ' gap ' + i + ' should be reachable with the frog jump and platform-edge overhang');
     }
   }
   assert.ok(level.platforms.at(-1)[2] >= 350, levelName + ' finish platform should be wide enough');
