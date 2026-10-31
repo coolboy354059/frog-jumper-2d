@@ -60,6 +60,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 11: Match the user's red-framed, text-free game layout with a slim auto-hiding bottom bar and X menu control. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 14: Fix shop purchase/equip buttons by checking equipped state inside each click handler instead of referencing an out-of-scope variable. -->
 </head>
 <body>
 <div class="app">
@@ -278,7 +279,8 @@
     overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
       const id=button.dataset.shopItem;const item=items.find(entry=>entry.id===id);if(!item)return;
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-      if(equipped){
+      const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
+      if(currentlyEquipped){
         if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
       }else{
         if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
