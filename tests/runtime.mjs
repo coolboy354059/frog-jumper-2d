@@ -248,6 +248,9 @@ assert.ok(robot.x > player.x + player.w, 'Robot should start slightly ahead with
 
 hooks.startGame('level');
 hooks.getPlayer().jumpBuffer = 0.12;
+hooks.clearInputs();
+assert.equal(hooks.getPlayer().jumpBuffer, 0, 'Pausing or clearing inputs should discard a buffered jump');
+hooks.getPlayer().jumpBuffer = 0.12;
 hooks.hurt();
 assert.equal(hooks.getPlayer().jumpBuffer, 0, 'Damage should discard a buffered jump');
 assert.equal(hooks.getLives(), 2, 'A normal hit should remove exactly one life');
