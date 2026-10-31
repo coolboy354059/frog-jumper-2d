@@ -23,6 +23,7 @@ assert.match(scriptMatch[1], /if\(state==='playing'\)showBottomBar\(\)/, 'The bo
 assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\.includes\(state\)/, 'The restart key should be limited to game states');
 assert.match(scriptMatch[1], /const TOTAL_LEVELS = 35/);
 assert.match(scriptMatch[1], /const COINS_PER_LEVEL = 5/);
+assert.match(scriptMatch[1], /const cropX = 520, cropY = 260, cropW = 505, cropH = 500/, 'Jupiter should use the character-focused crop');
 
 const assetPaths = [...scriptMatch[1].matchAll(/\.src\s*=\s*['"]([^'"]+)['"]/g)].map(m => m[1]);
 assert.ok(assetPaths.length >= 3, 'Expected the Jupiter and both hat images');
