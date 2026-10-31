@@ -107,6 +107,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 40: Give the slower Robot Race rival a small head start instead of starting behind the faster frog. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 41: Apply landscape-phone sizing through the shared touch-device class so the maxTouchPoints fallback works too. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 42: Clear the real player's buffered jump on pause, blur, and menu transitions so it cannot fire unexpectedly after resuming. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 43: Keep keyboard and joystick directions separate so releasing one input source cannot cancel the other on hybrid touch devices. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -231,6 +232,9 @@
   let checkpoint = {x:40,y:479};
   let particles = [];
   const input = {left:false,right:false,jumpBuffer:0};
+  const keyboardInput = {left:false,right:false};
+  const joystickInput = {left:false,right:false};
+  function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left;input.right=keyboardInput.right||joystickInput.right;}
   const MAX_LIVES = 3;
 
   function makePlayer(x, y) {
@@ -276,7 +280,7 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
     try {
@@ -705,8 +709,8 @@
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
     const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA'))input.left=true;
-    if(useGameControls&&(code==='ArrowRight'||code==='KeyD'))input.right=true;
+    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
     if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
     if(code==='KeyR'&&!e.repeat&&!interactiveTarget){
@@ -716,8 +720,8 @@
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
-    if(e.code==='ArrowLeft'||e.code==='KeyA')input.left=false;
-    if(e.code==='ArrowRight'||e.code==='KeyD')input.right=false;
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){keyboardInput.left=false;syncHorizontalInput();}
+    if(e.code==='ArrowRight'||e.code==='KeyD'){keyboardInput.right=false;syncHorizontalInput();}
   });
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
@@ -748,12 +752,13 @@
     stickKnob.style.left=`calc(50% + ${x}px)`;
     stickKnob.style.top=`calc(50% + ${y}px)`;
     const deadZone=Math.max(4,rect.width*.075);
-    input.left=x < -deadZone;
-    input.right=x > deadZone;
+    joystickInput.left=x < -deadZone;
+    joystickInput.right=x > deadZone;
+    syncHorizontalInput();
   }
   function resetJoystick(){
     const activePointer=stickPointer;
-    stickPointer=null;input.left=false;input.right=false;
+    stickPointer=null;joystickInput.left=false;joystickInput.right=false;syncHorizontalInput();
     stickKnob.style.left='50%';stickKnob.style.top='50%';
     if(activePointer!==null&&typeof moveStick.hasPointerCapture==='function'&&moveStick.hasPointerCapture(activePointer)){
       try{moveStick.releasePointerCapture(activePointer);}catch(_){}
