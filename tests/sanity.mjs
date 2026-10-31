@@ -23,6 +23,9 @@ assert.match(scriptMatch[1], /if\(state==='playing'\)showBottomBar\(\)/, 'The bo
 assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\.includes\(state\)/, 'The restart key should be limited to game states');
 assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement should use a draggable joystick');
 assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should recenter when released');
+assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
+assert.match(scriptMatch[1], /state==='playing'&&!touchDevice/, 'Touchscreen controls should not auto-hide during play');
+assert.match(scriptMatch[1], /releasePointerCapture\(activePointer\)/, 'Joystick pointer capture should be released when reset');
 assert.match(scriptMatch[1], /const TOTAL_LEVELS = 35/);
 assert.match(scriptMatch[1], /const COINS_PER_LEVEL = 5/);
 assert.match(scriptMatch[1], /const cropX = 520, cropY = 260, cropW = 505, cropH = 500/, 'Jupiter should use the character-focused crop');
