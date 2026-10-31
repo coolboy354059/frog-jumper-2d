@@ -69,7 +69,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 14: Fix shop purchase/equip buttons by checking equipped state inside each click handler instead of referencing an out-of-scope variable. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 15: Resize the Jupiter artwork to the frog's 36×36 gameplay footprint so it no longer looks oversized. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 15: Fit the 1536×1024 Jupiter PNG proportionally inside the 36×36 gameplay footprint (36×24), avoiding distortion. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -571,8 +571,13 @@
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
     // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
-    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0){
-      ctx.drawImage(jupiterSkinImage,0,0,36,36);
+    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
+      // Fit the original PNG inside the 36×36 player footprint without distorting it.
+      // The uploaded Jupiter artwork is 1536×1024 (3:2), so it renders at 36×24.
+      const imageScale = Math.min(PLAYER_W / jupiterSkinImage.naturalWidth, PLAYER_H / jupiterSkinImage.naturalHeight);
+      const imageW = jupiterSkinImage.naturalWidth * imageScale;
+      const imageH = jupiterSkinImage.naturalHeight * imageScale;
+      ctx.drawImage(jupiterSkinImage, (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH);
     }else{
       const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
       roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
