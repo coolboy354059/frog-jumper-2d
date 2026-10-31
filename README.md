@@ -4,7 +4,7 @@ A single-file 2D platform adventure starring a tiny frog, with 35 levels, coins,
 
 ## Play locally
 
-Open `index.html` in a modern browser such as Chrome. The game runs offline and does not need a build step.
+Open `index.html` in a modern browser such as Chrome OR use the GitHub sites. The game runs offline and does not need a build step.
 
 ## Controls
 
