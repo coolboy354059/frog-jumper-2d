@@ -29,6 +29,16 @@
   .overlay-card{max-width:440px;width:min(90%,420px);padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
   .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;margin:12px 0 0;line-height:1.5;font-size:15px}.button-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}.action{cursor:pointer;border:none;border-radius:999px;padding:11px 18px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;font-size:11px;transition:transform .12s ease,filter .12s ease;background:#7bd1a0;color:#093121}.action.primary{background:linear-gradient(180deg,#d5ff7d,#9de053);color:#1d3603;box-shadow:0 10px 25px rgba(159,224,83,.25)}.action.secondary{background:linear-gradient(180deg,#eff8ff,#bfdff5);color:#143547}.action.ghost{background:rgba(255,255,255,.06);color:#ebfffa;border:1px solid rgba(255,255,255,.12)}.action:active{transform:translateY(1px) scale(.98)}
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
+  .shop-card{max-height:90%;overflow:auto}
+  .wallet-line{font-size:18px!important;margin:8px 0 14px!important;color:#ffe28a!important}
+  .shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}
+  .shop-item{min-width:0;padding:10px 7px;border:1px solid #ffffff22;border-radius:12px;background:#071d2766;display:flex;flex-direction:column;align-items:center;gap:7px}
+  .shop-emoji{font-size:30px;line-height:1.2}
+  .shop-item strong{font-size:13px}
+  .shop-item small{font-size:10px;line-height:1.3;color:#c5ddd7;min-height:28px}
+  .shop-item .action{font-size:9px;padding:9px 7px;width:100%;letter-spacing:.02em}
+  .shop-item .action:disabled{opacity:.5;cursor:not-allowed}
+  @media(max-width:520px){.shop-grid{grid-template-columns:1fr}.shop-item{display:grid;grid-template-columns:40px 1fr;align-items:center;text-align:left}.shop-emoji{grid-row:span 2}.shop-item small{min-height:0}.shop-item .action{grid-column:2}}
   .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
   .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
   .bar-fullscreen,.bar-exit{height:48px;flex:0 0 48px;border:0;border-radius:5px;background:transparent;color:#ed171f;cursor:pointer;display:grid;place-items:center;padding:0}
@@ -48,6 +58,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 10: Give each particle matching current and maximum lifetimes so every burst particle starts fully visible and fades consistently. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 11: Match the user's red-framed, text-free game layout with a slim auto-hiding bottom bar and X menu control. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
 </head>
 <body>
 <div class="app">
@@ -139,6 +150,10 @@
   let cameraX = 0;
   let totalCoins = 0;
   let coinsThisLevel = 0;
+  let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
+  let shopData = loadShopData();
+  let equippedSkin = shopData.equippedSkin;
+  let equippedHat = shopData.equippedHat;
   let lives = 3;
   let ticks = 0;
   let elapsed = 0;
@@ -186,8 +201,9 @@
     showBottomBar();
   }
   function restartCurrentLevel(){
-    // Restarting discards this level's coins but keeps coins from earlier levels.
+    // Restarting discards this level's coins from both the run score and wallet.
     totalCoins = Math.max(0, totalCoins - coinsThisLevel);
+    walletCoins = Math.max(0, walletCoins - coinsThisLevel);saveWallet();
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
@@ -210,6 +226,46 @@
     } catch (_) {
       // Ignore storage restrictions from private browsing or sandboxed environments.
     }
+  }
+  function loadShopData(){
+    const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
+    try{
+      const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
+      if(!saved||typeof saved!=='object')return defaults;
+      return {
+        ownedSkins:Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>v==='jupiter')])]:defaults.ownedSkins,
+        ownedHats:Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:[],
+        equippedSkin:saved.equippedSkin==='jupiter'&&saved.ownedSkins?.includes('jupiter')?'jupiter':'red',
+        equippedHat:['black','tv'].includes(saved.equippedHat)&&saved.ownedHats?.includes(saved.equippedHat)?saved.equippedHat:'none'
+      };
+    }catch(_){return defaults;}
+  }
+  function saveShopData(){
+    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));}catch(_){}
+  }
+  function saveWallet(){writeStoredNumber('frogJumperWalletCoins',walletCoins);}
+  function showShop(){
+    state='shop';window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
+    const items=[
+      {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
+      {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
+      {id:'tv',kind:'hat',name:'Tiny TV Hat',price:3000,emoji:'📺',description:'A tiny television for your frog'}
+    ];
+    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
+      const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
+      const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
+      const label=equipped?'EQUIPPED':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
+      const disabled=equipped||(!owned&&walletCoins<item.price);
+      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
+    }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
+    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
+      const id=button.dataset.shopItem;const item=items.find(entry=>entry.id===id);if(!item)return;
+      const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
+      if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
+      if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
+      shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop();
+    }));
+    document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
   }
 
   // Fix 1: Keep the best coin total across visits when browser storage is available.
@@ -245,7 +301,7 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       help:{emoji:'🎮',title:'HOW TO HOP',text:'Move with ← → or A / D. Jump with SPACE, W, or ↑. In Level Adventure, collect 5 coins to open each portal. In Robot Race, race the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['RESTART LEVEL','ghost',()=>restartCurrentLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
@@ -362,7 +418,7 @@
     for(const c of coins){
       if(c.taken)continue;
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
-      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=Math.min(TOTAL_COINS,totalCoins+1);particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
+      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
     }
 
     // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
@@ -469,17 +525,31 @@
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
     const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
-    // Froggy is red in real life, so the player frog is red too.
-    // legs and body
-    roundedRect(2,20,12,14,5,'#b51f35');roundedRect(22,20,12,14,5,'#b51f35');
-    roundedRect(3,14,30,20,10,'#ef334b','#941b30');roundedRect(8,23,20,8,4,'#ff9b9b');
+    // Froggy stays red by default; the Jupiter skin changes the body colors.
+    const jupiter=equippedSkin==='jupiter';
+    const legColor=jupiter?'#9a5738':'#b51f35';
+    const bodyColor=jupiter?'#d99a52':'#ef334b';
+    const outlineColor=jupiter?'#75402e':'#941b30';
+    const bellyColor=jupiter?'#f3d18b':'#ff9b9b';
+    const headColor=jupiter?'#c47b43':'#d92743';
+    roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
+    roundedRect(3,14,30,20,10,bodyColor,outlineColor);roundedRect(8,23,20,8,4,bellyColor);
+    if(jupiter){ctx.save();ctx.globalAlpha=.85;ctx.strokeStyle='#fff0bd';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(5,18);ctx.quadraticCurveTo(18,13,31,18);ctx.moveTo(7,29);ctx.quadraticCurveTo(18,25,29,29);ctx.stroke();ctx.fillStyle='#a64d3b';ctx.beginPath();ctx.ellipse(25,25,4,3,0,0,Math.PI*2);ctx.fill();ctx.restore();}
     // eye stalks and big eyes
-    roundedRect(4,4,11,16,5,'#d92743');roundedRect(21,4,11,16,5,'#d92743');
+    roundedRect(4,4,11,16,5,headColor);roundedRect(21,4,11,16,5,headColor);
     ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
     ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
-    ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    ctx.fillStyle=jupiter?'#d98a62':'#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    // Hats are drawn above the frog's eyes so they stay visible while hopping.
+    if(equippedHat==='black'){
+      roundedRect(2,-2,32,6,3,'#171717','#050505');roundedRect(9,-13,18,13,5,'#202020','#050505');
+    }else if(equippedHat==='tv'){
+      ctx.strokeStyle='#d7e7ef';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(13,-7);ctx.lineTo(8,-14);ctx.moveTo(23,-7);ctx.lineTo(28,-14);ctx.stroke();
+      roundedRect(3,-17,30,18,4,'#253744','#0b1820');roundedRect(7,-14,22,12,2,'#77d8e8','#d8faff');
+      ctx.fillStyle='#1a3845';ctx.fillRect(12,-11,3,3);ctx.fillRect(21,-11,3,3);ctx.fillRect(15,-5,7,1);
+    }
     ctx.restore();
   }
   function drawRobot(){
