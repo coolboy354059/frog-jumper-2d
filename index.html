@@ -469,15 +469,16 @@
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
     const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
+    // Froggy is red in real life, so the player frog is red too.
     // legs and body
-    roundedRect(2,20,12,14,5,'#218447');roundedRect(22,20,12,14,5,'#218447');
-    roundedRect(3,14,30,20,10,'#34bd58','#1c7b42');roundedRect(8,23,20,8,4,'#ffbc62');
+    roundedRect(2,20,12,14,5,'#b51f35');roundedRect(22,20,12,14,5,'#b51f35');
+    roundedRect(3,14,30,20,10,'#ef334b','#941b30');roundedRect(8,23,20,8,4,'#ff9b9b');
     // eye stalks and big eyes
-    roundedRect(4,4,11,16,5,'#23a64d');roundedRect(21,4,11,16,5,'#23a64d');
+    roundedRect(4,4,11,16,5,'#d92743');roundedRect(21,4,11,16,5,'#d92743');
     ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
-    ctx.strokeStyle='#145c36';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
+    ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
     ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     ctx.restore();
   }
