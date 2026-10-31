@@ -97,6 +97,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 31: Limit joystick travel to the knob's true inner radius and reduce its dead zone for easier movement. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 32: Add a real touchscreen pause/resume button so phone players can pause without leaving the game. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 33: Document phone, keyboard pause, and restart controls directly in the Help screen. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 34: Preserve native Space/arrow-key behavior on focused buttons while keeping keyboard game controls active on the canvas. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -690,16 +691,17 @@
 
   document.addEventListener('keydown',e=>{
     const code=e.code;
-    if(['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(code==='ArrowLeft'||code==='KeyA')input.left=true;
-    if(code==='ArrowRight'||code==='KeyD')input.right=true;
-    if((code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
+    const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
+    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
+    if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
+    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA'))input.left=true;
+    if(useGameControls&&(code==='ArrowRight'||code==='KeyD'))input.right=true;
+    if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
     if(code==='KeyR'&&!e.repeat){
       if(state==='menu'||state==='gameover'||state==='won')restartRun();
       else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
     }
-    const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
