@@ -109,6 +109,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 41: Apply landscape-phone sizing through the shared touch-device class so the maxTouchPoints fallback works too. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 42: Clear the real player's buffered jump on pause, blur, and menu transitions so it cannot fire unexpectedly after resuming. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 43: Keep keyboard and joystick directions separate so releasing one input source cannot cancel the other on hybrid touch devices. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 45: Enlarge the full Jupiter frog artwork by 35% while keeping its complete image and aspect ratio. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 44: Make menu, help, shop, and pause overlays scrollable on short screens so their bottom buttons remain reachable. -->
 </head>
 <body>
@@ -634,7 +635,7 @@
       const fitScale = Math.min(
         PLAYER_W / jupiterSkinImage.naturalWidth,
         PLAYER_H / jupiterSkinImage.naturalHeight
-      );
+      ) * 1.35;
       const imageW = jupiterSkinImage.naturalWidth * fitScale;
       const imageH = jupiterSkinImage.naturalHeight * fitScale;
       ctx.drawImage(
