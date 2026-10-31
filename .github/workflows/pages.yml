@@ -28,8 +28,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Run Frog Jumper sanity checks
-        run: node tests/sanity.mjs
+      - name: Run Frog Jumper checks
+        run: |
+          node tests/sanity.mjs
+          node tests/runtime.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
