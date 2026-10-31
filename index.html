@@ -99,6 +99,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 33: Document phone, keyboard pause, and restart controls directly in the Help screen. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 34: Preserve native Space/arrow-key behavior on focused buttons while keeping keyboard game controls active on the canvas. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 35: Validate equipped cosmetics against sanitized ownership lists so malformed saved shop data cannot equip unowned items. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 36: Keep R from starting a new game on the title screen or interrupting a focused menu button; reserve it for restarting active/result games. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -701,8 +702,8 @@
     if(useGameControls&&(code==='ArrowRight'||code==='KeyD'))input.right=true;
     if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat){
-      if(state==='menu'||state==='gameover'||state==='won')restartRun();
+    if(code==='KeyR'&&!e.repeat&&!interactiveTarget){
+      if(state==='gameover'||state==='won')restartRun();
       else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
     }
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
