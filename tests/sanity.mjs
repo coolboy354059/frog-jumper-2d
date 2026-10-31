@@ -24,7 +24,7 @@ assert.match(scriptMatch[1], /if\(state==='playing'\)showBottomBar\(\)/, 'The bo
 assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\.includes\(state\)/, 'The restart key should be limited to game states');
 assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement should use a draggable joystick');
 assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should recenter when released');
-assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
+assert.match(scriptMatch[1], /input\.jumpBuffer=0;if\(player\)player\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
 assert.match(scriptMatch[1], /if\(player\)player\.jumpBuffer=0/, 'Clearing input should cancel a queued player jump');
 assert.match(scriptMatch[1], /const keyboardInput = \{left:false,right:false\}/, 'Keyboard directions should have their own input state');
 assert.match(scriptMatch[1], /const joystickInput = \{left:false,right:false\}/, 'Joystick directions should have their own input state');
