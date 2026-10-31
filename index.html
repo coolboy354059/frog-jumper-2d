@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 48: Add Ocean Blue, Golden Froggy, and Ninja Frog shop skins with validated save-data support and vector-drawn artwork. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 47: Aim Robot Race landings near each platform's left side so the bot keeps enough runway for its next jump. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
 <!doctype html>
@@ -158,6 +159,7 @@
   const TOTAL_LEVELS = 35;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
+  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja']);
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
@@ -448,12 +450,12 @@
     try{
       const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
-      const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>v==='jupiter')])]:defaults.ownedSkins;
+      const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>FROG_SKIN_IDS.has(v))])]:defaults.ownedSkins;
       const ownedHats=Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:defaults.ownedHats;
       return {
         ownedSkins,
         ownedHats,
-        equippedSkin:saved.equippedSkin==='jupiter'&&ownedSkins.includes('jupiter')?'jupiter':'red',
+        equippedSkin:FROG_SKIN_IDS.has(saved.equippedSkin)&&ownedSkins.includes(saved.equippedSkin)?saved.equippedSkin:'red',
         equippedHat:['black','tv'].includes(saved.equippedHat)&&ownedHats.includes(saved.equippedHat)?saved.equippedHat:'none'
       };
     }catch(_){return defaults;}
@@ -474,7 +476,10 @@
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
       {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
+      {id:'ocean',kind:'skin',name:'Ocean Blue',price:150,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
+      {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
+      {id:'ninja',kind:'skin',name:'Ninja Frog',price:650,emoji:'🥷',description:'Dark stealth colors with a red headband'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:3000,emoji:'📺',description:'A tiny television for your frog'}
     ];
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
@@ -796,7 +801,7 @@
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
     const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
-    // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
+    // Jupiter uses the uploaded full-frog artwork; other skins use crisp vector-drawn palettes.
     const jupiter=equippedSkin==='jupiter';
     if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
       // Draw the entire original Jupiter image. Do not crop into it or zoom.
@@ -813,15 +818,35 @@
         (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH
       );
     }else{
-      const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
-      roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
-      roundedRect(3,14,30,20,10,bodyColor,outlineColor);roundedRect(8,23,20,8,4,bellyColor);
-      roundedRect(4,4,11,16,5,headColor);roundedRect(21,4,11,16,5,headColor);
+      const palettes={
+        red:{leg:'#b51f35',body:'#ef334b',outline:'#941b30',belly:'#ff9b9b',head:'#d92743',mouth:'#81172a'},
+        ocean:{leg:'#287aaf',body:'#3b9ad6',outline:'#205d85',belly:'#a8e9ff',head:'#2382c2',mouth:'#164e75'},
+        gold:{leg:'#d78d18',body:'#ffc943',outline:'#a86b13',belly:'#fff0a5',head:'#edaa24',mouth:'#98600e'},
+        ninja:{leg:'#202635',body:'#333949',outline:'#161d29',belly:'#c8494f',head:'#252b3b',mouth:'#10151d'}
+      };
+      const palette=palettes[equippedSkin]||palettes.red;
+      roundedRect(2,20,12,14,5,palette.leg);roundedRect(22,20,12,14,5,palette.leg);
+      roundedRect(3,14,30,20,10,palette.body,palette.outline);roundedRect(8,23,20,8,4,palette.belly);
+      roundedRect(4,4,11,16,5,palette.head);roundedRect(21,4,11,16,5,palette.head);
       ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
-      ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
-      ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+      ctx.strokeStyle=palette.mouth;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
+      if(equippedSkin==='red'){ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+      if(equippedSkin==='ocean'){
+        ctx.fillStyle='#d6f7ff';ctx.beginPath();ctx.arc(5,23,1.7,0,Math.PI*2);ctx.arc(31,23,1.7,0,Math.PI*2);ctx.arc(7,27,1.2,0,Math.PI*2);ctx.arc(29,27,1.2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='gold'){
+        ctx.fillStyle='#fff9d6';ctx.beginPath();ctx.arc(18,27,2.3,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#ffe17a';ctx.fillRect(5,6,3,2);ctx.fillRect(28,6,3,2);
+      }
+      if(equippedSkin==='ninja'){
+        // A wrapped face mask and trailing red headband make this skin distinct.
+        roundedRect(4,15,28,8,4,'#171c28','#090d14');
+        ctx.fillStyle='#f4f5f2';ctx.fillRect(10,17,4,2);ctx.fillRect(22,17,4,2);
+        ctx.fillStyle='#d83a4b';ctx.fillRect(4,4,28,3);
+        ctx.beginPath();ctx.moveTo(30,5);ctx.lineTo(37,1);ctx.lineTo(34,10);ctx.closePath();ctx.fill();
+      }
     }
     // PNG hats are positioned above the frog and can be worn with either skin.
     if(equippedHat==='black' && blackHatImage.complete && blackHatImage.naturalWidth>0){
