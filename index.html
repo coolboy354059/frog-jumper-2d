@@ -45,11 +45,13 @@
   .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px}
   .bar-exit{font-size:40px;line-height:1;font-weight:500}
   .controls{display:none;flex:1;justify-content:space-between;align-items:center;gap:12px;margin:0;user-select:none;-webkit-user-select:none;touch-action:none}
-  .control-group{display:flex;gap:9px}
-  .control{appearance:none;border:none;background:linear-gradient(180deg,#fbfeff,#dfeaf0);color:#1b2a33;border-radius:12px;min-width:58px;height:48px;font-size:24px;font-weight:900;box-shadow:inset 0 -4px rgba(0,0,0,.1),0 6px 14px rgba(0,0,0,.12)}
-  .control.pressed{transform:translateY(2px);filter:brightness(.96)}
-  .control.jump{min-width:64px;height:48px;font-size:25px;padding:0 12px}
-  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:66px;min-height:66px;padding:7px}.bar-fullscreen,.bar-exit{width:44px;height:44px;flex-basis:44px}.bar-square{width:34px;height:34px}}
+  .joystick{position:relative;width:68px;height:68px;flex:0 0 68px;border:2px solid #ffffff9c;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffff55,#163b49cc 72%);box-shadow:inset 0 3px 10px #0004,0 5px 14px #0003;touch-action:none}
+  .joystick::before,.joystick::after{content:"";position:absolute;background:#ffffff35;pointer-events:none}
+  .joystick::before{width:1px;height:80%;left:50%;top:10%}.joystick::after{height:1px;width:80%;top:50%;left:10%}
+  .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
+  .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
+  .control.pressed{transform:scale(.94);filter:brightness(.96)}
+  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:82px;min-height:82px;padding:7px}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
   @media (any-pointer:coarse){.controls{display:flex}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
@@ -86,7 +88,7 @@
       <button type="button" class="bar-fullscreen" id="bar-fullscreen" aria-label="Toggle fullscreen"><span class="bar-square" aria-hidden="true"></span></button>
       <button type="button" class="bar-exit" id="bar-exit" aria-label="Exit game tab">×</button>
       <div class="controls" aria-label="Touch game controls">
-        <div class="control-group"><button type="button" class="control" id="left-control" aria-label="Move left">◀</button><button type="button" class="control" id="right-control" aria-label="Move right">▶</button></div>
+        <div class="joystick" id="move-stick" role="group" aria-label="Movement joystick"><span class="stick-knob" id="stick-knob"></span></div>
         <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
       </div>
     </div>
@@ -664,15 +666,33 @@
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
 
-  function bindHold(id,key){
-    const el=document.getElementById(id);
-    const down=e=>{e.preventDefault();input[key]=true;el.classList.add('pressed');try{el.setPointerCapture(e.pointerId);}catch(_){};
-    };
-    const up=e=>{if(e)e.preventDefault();input[key]=false;el.classList.remove('pressed');};
-    el.addEventListener('pointerdown',down);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('lostpointercapture',up);
-    el.addEventListener('contextmenu',e=>e.preventDefault());
+  const moveStick=document.getElementById('move-stick');
+  const stickKnob=document.getElementById('stick-knob');
+  let stickPointer=null;
+  function moveJoystick(e){
+    const rect=moveStick.getBoundingClientRect();
+    const radius=rect.width*.34;
+    const dx=e.clientX-(rect.left+rect.width/2);
+    const dy=e.clientY-(rect.top+rect.height/2);
+    const distance=Math.hypot(dx,dy);
+    const scale=distance>radius?radius/distance:1;
+    const x=dx*scale,y=dy*scale;
+    stickKnob.style.left=`calc(50% + ${x}px)`;
+    stickKnob.style.top=`calc(50% + ${y}px)`;
+    input.left=x < -8;
+    input.right=x > 8;
   }
-  bindHold('left-control','left');bindHold('right-control','right');
+  function resetJoystick(){
+    stickPointer=null;input.left=false;input.right=false;
+    stickKnob.style.left='50%';stickKnob.style.top='50%';
+  }
+  moveStick.addEventListener('pointerdown',e=>{
+    if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
+    try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
+  });
+  moveStick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer){e.preventDefault();moveJoystick(e);}});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(type=>moveStick.addEventListener(type,e=>{if(e.pointerId===stickPointer)resetJoystick();}));
+  moveStick.addEventListener('contextmenu',e=>e.preventDefault());
   const bottomBar=document.getElementById('bottom-bar');
   let bottomBarTimer=0;
   function showBottomBar(){
