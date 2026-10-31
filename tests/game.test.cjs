@@ -28,14 +28,14 @@ before(async () => {
         res.writeHead(200, {'content-type':types[path.extname(file)] || 'application/octet-stream'});
         res.end(data);
       });
-    }).listen(0,'127.0.0.1',function(){process.stdout.write('PORT '+this.address().port+'\\n');});
+    }).listen(0,'127.0.0.1',function(){process.stdout.write('PORT '+this.address().port + String.fromCharCode(10));});
   `], { stdio: ['ignore','pipe','pipe'] });
   const port = await new Promise((resolve,reject) => {
     const timer = setTimeout(() => reject(new Error('Local test server did not start')), 10000);
     let buffer = '';
     server.stdout.on('data', chunk => {
       buffer += chunk;
-      const match = buffer.match(/PORT (\\d+)/);
+      const match = buffer.match(/PORT ([0-9]+)/);
       if (match) { clearTimeout(timer); resolve(match[1]); }
     });
     server.on('error', reject);
