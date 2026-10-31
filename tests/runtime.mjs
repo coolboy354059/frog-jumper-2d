@@ -129,7 +129,10 @@ function bootGame({ touch = false } = {}) {
     '    getCoins: () => coins,',
     '    getPlayer: () => player,',
     '    getRobot: () => robot,',
-    '    getLives: () => lives,',
+    '    getLives: () => lives,
+    getTotalCoins: () => totalCoins,
+    getCoinsThisLevel: () => coinsThisLevel,
+    getWalletCoins: () => walletCoins,',
     '    getState: () => state,',
     '    getInput: () => input,',
     '    readStoredNumber,',
@@ -300,5 +303,29 @@ const beforeDesktopTimer = desktop.getTimeoutCount();
 desktop.hooks.startGame('level');
 desktop.hooks.showBottomBar();
 assert.ok(desktop.getTimeoutCount() > beforeDesktopTimer, 'Desktop controls may still auto-hide after inactivity');
+
+hooks.startGame('level');
+hooks.completeLevel();
+assert.equal(hooks.getState(), 'playing', 'Level Adventure portal should stay locked until all five coins are collected');
+for (const coin of hooks.getCoins()) {
+  const platform = hooks.getPlatforms()[coin.platformId];
+  const playerOnCoinPlatform = hooks.getPlayer();
+  playerOnCoinPlatform.x = coin.x - playerOnCoinPlatform.w / 2;
+  playerOnCoinPlatform.y = platform.y - playerOnCoinPlatform.h;
+  playerOnCoinPlatform.vx = 0;
+  playerOnCoinPlatform.vy = 0;
+  playerOnCoinPlatform.onGround = false;
+  playerOnCoinPlatform.standingOn = null;
+  hooks.update(1 / 120);
+}
+assert.equal(hooks.getCoinsThisLevel(), 5, 'Standing at each coin platform should collect all five coins');
+assert.equal(hooks.getTotalCoins(), 5, 'Collected coins should update the run score');
+assert.equal(hooks.getWalletCoins(), 5, 'Collected coins should be added to the wallet');
+hooks.completeLevel();
+assert.equal(hooks.getState(), 'levelComplete', 'Collecting all five coins should unlock level completion');
+hooks.restartCurrentLevel();
+assert.equal(hooks.getCoinsThisLevel(), 0, 'Restarting the level should reset the level coin count');
+assert.equal(hooks.getTotalCoins(), 0, 'Restarting the level should remove its coins from the run score');
+assert.equal(hooks.getWalletCoins(), 0, 'Restarting the level should roll back its unbanked coin rewards');
 
 console.log('Frog Jumper runtime checks passed: 35 levels, level geometry, rewards, storage, inputs, mobile controls, and rendering fallback.');
