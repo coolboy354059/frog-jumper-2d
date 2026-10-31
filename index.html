@@ -71,6 +71,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 14: Fix shop purchase/equip buttons by checking equipped state inside each click handler instead of referencing an out-of-scope variable. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 15: Fit the 1536×1024 Jupiter PNG proportionally inside the 36×36 gameplay footprint (36×24), avoiding distortion. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 16: Ignore the restart key while viewing the shop or help screen; R now acts only during gameplay and game-result states. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen">
@@ -645,7 +646,10 @@
     if(code==='ArrowRight'||code==='KeyD')input.right=true;
     if((code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat){if(state==='menu'||state==='gameover'||state==='won')restartRun();else restartCurrentLevel();}
+    if(code==='KeyR'&&!e.repeat){
+      if(state==='menu'||state==='gameover'||state==='won')restartRun();
+      else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
+    }
     if(code==='Enter'&&!e.repeat&&state==='menu')startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
