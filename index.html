@@ -61,6 +61,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 14: Fix shop purchase/equip buttons by checking equipped state inside each click handler instead of referencing an out-of-scope variable. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 15: Resize the Jupiter artwork to the frog's 36×36 gameplay footprint so it no longer looks oversized. -->
 </head>
 <body>
 <div class="app">
@@ -556,7 +557,7 @@
     // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
     if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0){
-      ctx.drawImage(jupiterSkinImage,-6,-6,48,48);
+      ctx.drawImage(jupiterSkinImage,0,0,36,36);
     }else{
       const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
       roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
