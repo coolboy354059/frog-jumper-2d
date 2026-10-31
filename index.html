@@ -104,6 +104,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 37: Add a pause-screen route back to the main menu, since phones hide the desktop exit button. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 38: Fit the 16:10 game view and its touch controls inside short landscape phone screens without scrolling the controls off-screen. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 39: Prevent the maintenance iframe from overflowing its padded full-screen gate on phones. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 40: Give the slower Robot Race rival a small head start instead of starting behind the faster frog. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -254,7 +255,7 @@
     }
     particles=[];
     player=makePlayer(54,platforms[0].y-PLAYER_H);
-    robot = gameMode === 'race' ? {...makePlayer(8,platforms[0].y-PLAYER_H), targetIndex:1, falls:0, stumble:0} : null;
+    robot = gameMode === 'race' ? {...makePlayer(104,platforms[0].y-PLAYER_H), targetIndex:1, falls:0, stumble:0} : null;
     checkpoint={x:54,y:platforms[0].y-PLAYER_H};
     cameraX=0;
     coinsThisLevel=0;
