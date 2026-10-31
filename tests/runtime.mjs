@@ -229,6 +229,14 @@ assert.equal(hooks.getLives(), 2, 'A normal hit should remove exactly one life')
 hooks.returnToMenu();
 const menuButton = new FakeElement('robot-race-button');
 menuButton.interactive = true;
+let spaceWasPrevented = false;
+desktop.document.dispatch('keydown', {
+  code: 'Space',
+  repeat: false,
+  target: menuButton,
+  preventDefault() { spaceWasPrevented = true; }
+});
+assert.equal(spaceWasPrevented, false, 'Space should remain available to activate a focused menu button');
 desktop.document.dispatch('keydown', {
   code: 'Enter',
   repeat: false,
