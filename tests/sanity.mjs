@@ -26,6 +26,9 @@ assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement shoul
 assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should recenter when released');
 assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
 assert.match(scriptMatch[1], /if\(player\)player\.jumpBuffer=0/, 'Clearing input should cancel a queued player jump');
+assert.match(scriptMatch[1], /const keyboardInput = \{left:false,right:false\}/, 'Keyboard directions should have their own input state');
+assert.match(scriptMatch[1], /const joystickInput = \{left:false,right:false\}/, 'Joystick directions should have their own input state');
+assert.match(scriptMatch[1], /syncHorizontalInput\(\)/, 'Keyboard and joystick directions should be combined without overwriting each other');
 assert.match(scriptMatch[1], /state==='playing'&&!touchControlsAvailable/, 'Touchscreen controls should not auto-hide during play');
 assert.match(scriptMatch[1], /releasePointerCapture\(activePointer\)/, 'Joystick pointer capture should be released when reset');
 assert.match(scriptMatch[1], /function syncPauseControl\(\)/, 'Touch players should have a pause/resume control');
