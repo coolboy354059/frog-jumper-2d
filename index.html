@@ -628,15 +628,17 @@
     // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
     if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
-      // Keep the Jupiter artwork slightly smaller than the normal frog sprite,
-      // leaving a little breathing room so its helmet/planet details do not look oversized.
-      const cropX = 520, cropY = 260, cropW = 505, cropH = 500;
-      const fitScale = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
-      const imageW = cropW * fitScale * 0.78;
-      const imageH = cropH * fitScale * 0.78;
+      // Draw the entire original Jupiter image. Do not crop into it or zoom.
+      // Fit the complete image inside the normal player bounds while preserving
+      // its original aspect ratio.
+      const fitScale = Math.min(
+        PLAYER_W / jupiterSkinImage.naturalWidth,
+        PLAYER_H / jupiterSkinImage.naturalHeight
+      );
+      const imageW = jupiterSkinImage.naturalWidth * fitScale;
+      const imageH = jupiterSkinImage.naturalHeight * fitScale;
       ctx.drawImage(
         jupiterSkinImage,
-        cropX, cropY, cropW, cropH,
         (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH
       );
     }else{
