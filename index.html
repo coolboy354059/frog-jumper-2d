@@ -31,14 +31,15 @@
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
   .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
   .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
-  .bar-close{width:86px;height:48px;flex:0 0 86px;border:0;border-radius:5px;background:transparent;color:#ed171f;font-size:34px;line-height:1;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:0 5px}
-  .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px;flex:0 0 38px}
+  .bar-fullscreen,.bar-exit{height:48px;flex:0 0 48px;border:0;border-radius:5px;background:transparent;color:#ed171f;cursor:pointer;display:grid;place-items:center;padding:0}
+  .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px}
+  .bar-exit{font-size:40px;line-height:1;font-weight:500}
   .controls{display:none;flex:1;justify-content:space-between;align-items:center;gap:12px;margin:0;user-select:none;-webkit-user-select:none;touch-action:none}
   .control-group{display:flex;gap:9px}
   .control{appearance:none;border:none;background:linear-gradient(180deg,#fbfeff,#dfeaf0);color:#1b2a33;border-radius:12px;min-width:58px;height:48px;font-size:24px;font-weight:900;box-shadow:inset 0 -4px rgba(0,0,0,.1),0 6px 14px rgba(0,0,0,.12)}
   .control.pressed{transform:translateY(2px);filter:brightness(.96)}
   .control.jump{min-width:64px;height:48px;font-size:25px;padding:0 12px}
-  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:66px;min-height:66px;padding:7px}.bar-close{width:44px;height:44px;flex-basis:44px}}
+  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:66px;min-height:66px;padding:7px}.bar-fullscreen,.bar-exit{width:44px;height:44px;flex-basis:44px}.bar-square{width:34px;height:34px}}
   @media (any-pointer:coarse){.controls{display:flex}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
@@ -56,7 +57,8 @@
       <div class="overlay" id="overlay"></div>
     </div>
     <div class="bottom-bar" id="bottom-bar">
-      <button type="button" class="bar-close" id="bar-close" aria-label="Return to menu"><span class="bar-square" aria-hidden="true"></span><span aria-hidden="true">×</span></button>
+      <button type="button" class="bar-fullscreen" id="bar-fullscreen" aria-label="Toggle fullscreen"><span class="bar-square" aria-hidden="true"></span></button>
+      <button type="button" class="bar-exit" id="bar-exit" aria-label="Exit game tab">×</button>
       <div class="controls" aria-label="Touch game controls">
         <div class="control-group"><button type="button" class="control" id="left-control" aria-label="Move left">◀</button><button type="button" class="control" id="right-control" aria-label="Move right">▶</button></div>
         <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
@@ -225,10 +227,16 @@
   }
   function updateHUD(){
     updateBestCoins();
-    document.getElementById('level-label').textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
-    document.getElementById('coin-label').textContent=totalCoins;
-    document.getElementById('life-label').textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
-    document.getElementById('level-progress').style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
+    // The clean sketch layout has no text HUD; update optional HUD nodes only
+    // if a future version adds them back.
+    const levelLabel=document.getElementById('level-label');
+    const coinLabel=document.getElementById('coin-label');
+    const lifeLabel=document.getElementById('life-label');
+    const progress=document.getElementById('level-progress');
+    if(levelLabel) levelLabel.textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
+    if(coinLabel) coinLabel.textContent=totalCoins;
+    if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
+    if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
   }
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';}
   function showOverlay(kind){
@@ -554,7 +562,19 @@
   document.addEventListener('keydown',noteActivity,{passive:true});
   document.addEventListener('pointermove',noteActivity,{passive:true});
   document.addEventListener('pointerdown',noteActivity,{passive:true});
-  document.getElementById('bar-close').addEventListener('click',()=>{window.clearTimeout(bottomBarTimer);showBottomBar();returnToMenu();});
+  document.getElementById('bar-fullscreen').addEventListener('click',async()=>{
+    try{
+      if(document.fullscreenElement) await document.exitFullscreen();
+      else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+    }catch(_){ /* Fullscreen can be blocked by browser or device policy. */ }
+  });
+  document.getElementById('bar-exit').addEventListener('click',()=>{
+    window.clearTimeout(bottomBarTimer);
+    window.close();
+    // Browsers block closing tabs that were not opened by this game.
+    // If blocked, leave the player at the game's menu instead.
+    returnToMenu();
+  });
   const jumpBtn=document.getElementById('jump-control');
   jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){};});
   const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
