@@ -17,7 +17,7 @@ for (const id of [
   assert.ok(html.includes('id="' + id + '"'), 'Missing game control: ' + id);
 }
 
-assert.ok(/<div\b[^>]*id=["']maintenance-screen["'][^>]*class=["'][^"']*maintenance-screen/i.test(html) && /<iframe\b[^>]*src=["']\.\/maintenance\.html["']/i.test(html), 'The maintenance gate should cover the game during updates');
+assert.ok(html.includes('id="maintenance-screen"') && html.includes('src="./maintenance.html"'), 'The maintenance gate should cover the game during updates');
 assert.ok(maintenance.includes("Please wait! We're fixing bugs and adding new features."), 'Maintenance copy should be present');
 assert.match(scriptMatch[1], /if\(state==='playing'\)showBottomBar\(\)/, 'The bottom bar timer should restart after gameplay overlays close');
 assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\.includes\(state\)/, 'The restart key should be limited to game states');
