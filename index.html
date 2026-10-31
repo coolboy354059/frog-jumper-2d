@@ -235,6 +235,7 @@
   let accumulator = 0;
   let rafId = 0;
   let checkpoint = {x:40,y:479};
+  let infiniteWorld = null;
   let particles = [];
   const input = {left:false,right:false,jumpBuffer:0};
   const keyboardInput = {left:false,right:false};
@@ -245,7 +246,134 @@
   function makePlayer(x, y) {
     return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
   }
+  // Infinite Explore: a deterministic, streaming world made from generated
+  // platform sections plus the original hand-designed level layouts as landmarks.
+  function makeSeededRandom(seed) {
+    let value = seed >>> 0;
+    return function() {
+      value = (value + 0x6D2B79F5) >>> 0;
+      let t = value;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function addInfinitePlatform(x, y, width, moving = null) {
+    const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y,w:width,h:20,prevY:y,moving};
+    platforms.push(p);
+    infiniteWorld.lastPlatform = p;
+    return p;
+  }
+  function addInfiniteCoin(p, phase) {
+    coins.push({x:p.x+p.w*.5,y:p.y-47,baseY:p.y-47,platformId:null,platformRef:p,taken:false,phase});
+  }
+  function addInfiniteEnemy(p, direction, phase) {
+    const enemyWidth = 30;
+    enemies.push({
+      x:p.x+24,y:p.y-24,w:enemyWidth,h:24,platformId:null,platformRef:p,
+      minX:p.x+8,maxX:p.x+p.w-enemyWidth-8,
+      vx:direction*(82+Math.min(48,infiniteWorld.chunkIndex*2)),
+      alive:true,phase
+    });
+  }
+  function generateInfiniteChunk() {
+    const world = infiniteWorld;
+    if (!world || !world.lastPlatform) return;
+    const chunkIndex = world.chunkIndex++;
+    const themeIndex = Math.floor(chunkIndex / 4) % WORLD_TEMPLATES.length;
+    const theme = WORLD_TEMPLATES[themeIndex];
+    const startX = world.lastPlatform.x + world.lastPlatform.w;
+    const rng = makeSeededRandom((world.seed ^ Math.imul(chunkIndex + 1, 0x9E3779B1)) >>> 0);
+
+    // Every fourth section is a landmark built from one of the original
+    // five carefully designed levels. The generated sections connect them.
+    const isLandmark = chunkIndex > 0 && chunkIndex % 4 === 3;
+    if (isLandmark) {
+      const template = theme;
+      const first = template.platforms[0];
+      const shiftX = startX - (first[0] + first[2]);
+      const shiftY = world.lastPlatform.baseY - first[1];
+      for (let i=1;i<template.platforms.length;i++) {
+        const source = template.platforms[i];
+        const mover = template.movers.find(m=>m.index===i);
+        const moving = mover ? {...mover} : null;
+        const p = addInfinitePlatform(
+          source[0]+shiftX,
+          Math.max(340,Math.min(515,source[1]+shiftY)),
+          source[2],
+          moving
+        );
+        if (i < template.platforms.length-1 && i%2===1) addInfiniteCoin(p,chunkIndex*17+i);
+        if (template.enemies.includes(i)) addInfiniteEnemy(p,i%2===0?1:-1,chunkIndex*13+i);
+      }
+    } else {
+      let previous = world.lastPlatform;
+      const platformCount = 7;
+      for (let i=0;i<platformCount;i++) {
+        const gap = 52 + Math.floor(rng()*43);
+        const width = 105 + Math.floor(rng()*46);
+        const verticalChange = Math.floor(rng()*91)-45;
+        const y = Math.max(350,Math.min(510,previous.baseY+verticalChange));
+        let moving = null;
+        if (i>=2 && rng()<.13) {
+          moving = {amp:8+Math.floor(rng()*9),speed:.85+rng()*.55,phase:rng()*Math.PI*2};
+        }
+        const p = addInfinitePlatform(previous.x+previous.w+gap,y,width,moving);
+        if (i%2===1 || rng()<.18) addInfiniteCoin(p,chunkIndex*19+i);
+        if (i>=3 && rng()<.16) addInfiniteEnemy(p,rng()<.5?-1:1,chunkIndex*11+i);
+        previous = p;
+      }
+    }
+    const endX = world.lastPlatform.x + world.lastPlatform.w;
+    world.zones.push({startX:Math.max(0,startX-8),endX,themeIndex,landmark:isLandmark});
+  }
+  function maintainInfiniteWorld() {
+    if (!infiniteWorld || !player) return;
+    const requiredEnd = player.x + W*2.4;
+    while (infiniteWorld.lastPlatform.x + infiniteWorld.lastPlatform.w < requiredEnd) {
+      generateInfiniteChunk();
+    }
+
+    // Keep only nearby collision objects. Preserve the last safe checkpoint
+    // and the platform currently carrying the frog.
+    const pruneBefore = cameraX - 420;
+    if (pruneBefore > 0) {
+      const safePlatform = checkpoint.platformRef || null;
+      platforms = platforms.filter(p =>
+        p.x+p.w >= pruneBefore || p === safePlatform || p === player.standingOn
+      );
+      const livePlatforms = new Set(platforms);
+      coins = coins.filter(c => c.x >= pruneBefore-80 && (!c.platformRef || livePlatforms.has(c.platformRef)));
+      enemies = enemies.filter(e => e.x+e.w >= pruneBefore-80 && livePlatforms.has(e.platformRef));
+      infiniteWorld.zones = infiniteWorld.zones.filter(z => z.endX >= pruneBefore-160);
+    }
+
+    const zone = infiniteWorld.zones.find(z=>player.x>=z.startX && player.x<z.endX) ||
+      infiniteWorld.zones[infiniteWorld.zones.length-1];
+    if (zone && level !== WORLD_TEMPLATES[zone.themeIndex]) {
+      level = WORLD_TEMPLATES[zone.themeIndex];
+      updateHUD();
+    }
+  }
+  function setupInfiniteExplore(seed) {
+    infiniteWorld = {
+      seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
+      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[]
+    };
+    elapsed=0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
+    levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;
+    const start={id:0,x:0,baseY:515,y:515,w:260,h:20,prevY:515,moving:null};
+    platforms.push(start);
+    infiniteWorld.lastPlatform=start;
+    player=makePlayer(54,start.y-PLAYER_H);
+    checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
+    cameraX=0;coinsThisLevel=0;
+    maintainInfiniteWorld();
+    updateHUD();
+  }
+
   function setupLevel(index) {
+    infiniteWorld = null;
     levelIndex = index;
     level = LEVELS[levelIndex];
     elapsed = 0; ticks = 0;
@@ -274,17 +402,24 @@
   }
   function startGame(mode='level'){
     gameMode = mode;
-    lives=MAX_LIVES;totalCoins=0;setupLevel(0);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+    lives=MAX_LIVES;totalCoins=0;
+    if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
+    state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
   function restartCurrentLevel(){
+    if (gameMode === 'infinite') {
+      const seed = infiniteWorld ? infiniteWorld.seed : undefined;
+      lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore(seed);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+      return;
+    }
     // Restarting discards this level's coins from both the run score and wallet.
     totalCoins = Math.max(0, totalCoins - coinsThisLevel);
     walletCoins = Math.max(0, walletCoins - coinsThisLevel);saveWallet();
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
-  function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
+  function returnToMenu(){clearInputs();gameMode='level';infiniteWorld=null;robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
@@ -383,7 +518,7 @@
     const coinLabel=document.getElementById('coin-label');
     const lifeLabel=document.getElementById('life-label');
     const progress=document.getElementById('level-progress');
-    if(levelLabel) levelLabel.textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
+    if(levelLabel) levelLabel.textContent=gameMode==='infinite' ? `Infinite Explore · ${level.name}` : `${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
     if(coinLabel) coinLabel.textContent=totalCoins;
     if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
     if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
@@ -396,12 +531,12 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move, tap the green button to jump, and use the pause button to pause or resume. On computers, use ← → or A / D to move, SPACE/W/↑ to jump, P or Esc to pause, and R to restart. Collect 5 coins to open each Level Adventure portal; in Robot Race, beat the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
-      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure takes you through 35 hand-built levels. Robot Race puts you against a speedy bot. Infinite Explore lets you hop through a world that keeps generating as you travel.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. Collect 5 coins to open Level Adventure portals, beat the robot in Robot Race, or keep exploring in Infinite Explore.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins on the way.`:`You finished all ${TOTAL_LEVELS} levels and completed the frog adventure with ${totalCoins} coins.`,buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:`You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
@@ -476,14 +611,18 @@
       if(player.standingOn===p && player.onGround) player.y+=p.y-p.prevY;
       if(robot && robot.standingOn===p && robot.onGround) robot.y+=p.y-p.prevY;
     }
-    for(const c of coins){if(c.platformId!==null){const p=platforms[c.platformId];if(p)c.y=p.y-47;}}
+    for(const c of coins){
+      if(c.platformRef) c.y=c.platformRef.y-47;
+      else if(c.platformId!==null){const p=platforms[c.platformId];if(p)c.y=p.y-47;}
+    }
 
     const axis=(input.right?1:0)-(input.left?1:0);
     const speed=292 + Math.min(12, Math.floor(levelIndex/5)*2);
     player.vx=axis*speed;
     if(axis)player.face=axis;
     player.x+=player.vx*dt;
-    player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
+    if(gameMode==='infinite') player.x=Math.max(0,player.x);
+    else player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
 
     const previousBottom=player.y+player.h;
     player.vy=Math.min(900,player.vy+1580*dt);
@@ -513,13 +652,13 @@
     for(const c of coins){
       if(c.taken)continue;
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
-      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
+      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
     }
 
     // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
     for(const e of enemies){
       if(!e.alive)continue;
-      const ep=platforms[e.platformId];if(!ep)continue;
+      const ep=e.platformRef || platforms[e.platformId];if(!ep)continue;
       e.y=ep.y-e.h;
       e.x+=e.vx*dt;
       if(e.x<e.minX){e.x=e.minX;e.vx=Math.abs(e.vx)}
@@ -532,8 +671,8 @@
     }
 
     // Every safe landing beyond the mid-level point updates the respawn checkpoint.
-    if(player.onGround&&player.standingOn&&player.standingOn.id>=6){
-      checkpoint={x:Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7)),y:player.standingOn.y-player.h};
+    if(player.onGround&&player.standingOn&&(gameMode==='infinite'||player.standingOn.id>=6)){
+      checkpoint={x:Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7)),y:player.standingOn.y-player.h,platformRef:player.standingOn};
     }
 
     for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
@@ -544,17 +683,21 @@
     const lava=level.themeIndex===3&&player.y+player.h>585;
     if(fallen||lava){hurt();if(state!=='playing')return;}
 
-    const target=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
+    const maxCameraX=gameMode==='infinite'?Infinity:Math.max(0,level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W);
+    const target=Math.max(0,Math.min(maxCameraX,player.x-W*.34));
     cameraX+=(target-cameraX)*Math.min(1,dt*7.5);
-    const endPlatform=platforms[platforms.length-1];
-    const portalX=endPlatform.x+endPlatform.w*.68;
-    const portalY=endPlatform.y-75;
-    // Use the live platform position and a forgiving trigger area so the portal
-    // remains reachable even when the final platform moves or the frog lands near its edge.
-    const playerCenterX=player.x+player.w/2;
-    const playerCenterY=player.y+player.h/2;
-    const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
-    if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
+    if(gameMode==='infinite'){
+      maintainInfiniteWorld();
+    }else{
+      const endPlatform=platforms[platforms.length-1];
+      const portalX=endPlatform.x+endPlatform.w*.68;
+      const portalY=endPlatform.y-75;
+      // The original fixed-level portal remains unchanged in Adventure and Race.
+      const playerCenterX=player.x+player.w/2;
+      const playerCenterY=player.y+player.h/2;
+      const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
+      if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
+    }
   }
 
   function roundedRect(x,y,w,h,r,fill,stroke){
@@ -617,6 +760,7 @@
     ctx.fillStyle='#203c2a';ctx.fillRect(x+10,y+10+wobble,3,4);ctx.fillRect(x+21,y+10+wobble,3,4);
   }
   function drawPortal(){
+    if(gameMode==='infinite' || !platforms.length) return;
     const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
     ctx.save();ctx.translate(x,y);const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
     ctx.scale(pulse,1);
