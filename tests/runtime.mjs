@@ -223,6 +223,15 @@ assert.equal(JSON.stringify(shop.ownedSkins), JSON.stringify(['red', 'jupiter'])
 assert.equal(JSON.stringify(shop.ownedHats), JSON.stringify(['tv', 'black']), 'Shop should remove unknown/duplicate hats');
 assert.equal(shop.equippedSkin, 'jupiter');
 assert.equal(shop.equippedHat, 'tv');
+desktop.storage.set('frogJumperShop', JSON.stringify({
+  ownedSkins: 'jupiter',
+  ownedHats: 'tv',
+  equippedSkin: 'jupiter',
+  equippedHat: 'tv'
+}));
+const malformedShop = hooks.loadShopData();
+assert.equal(malformedShop.equippedSkin, 'red', 'Malformed cosmetic data must not equip an unowned skin');
+assert.equal(malformedShop.equippedHat, 'none', 'Malformed cosmetic data must not equip an unowned hat');
 
 hooks.startGame('race');
 const player = hooks.getPlayer();
