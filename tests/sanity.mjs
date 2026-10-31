@@ -34,7 +34,7 @@ assert.match(scriptMatch[1], /const COINS_PER_LEVEL = 5/);
 assert.match(scriptMatch[1], /const cropX = 520, cropY = 260, cropW = 505, cropH = 500/, 'Jupiter should use the character-focused crop');
 assert.match(scriptMatch[1], /player\.jumpBuffer=0;player\.onGround=false/, 'Damage recovery should clear an old jump tap');
 assert.match(scriptMatch[1], /!interactiveTarget\)startGame\('level'\)/, 'Enter should not override a focused menu button');
-assert.match(scriptMatch[1], /drag the round joystick to move and tap the green button to jump/, 'Help should explain touch controls');
+assert.match(scriptMatch[1], /drag the round joystick to move, tap the green button to jump/, 'Help should explain touch controls');
 assert.match(scriptMatch[1], /makePlayer\(8,platforms\[0\]\.y-PLAYER_H\)/, 'Robot and frog should not overlap at the race start');
 assert.match(scriptMatch[1], /Number\.isSafeInteger\(parsed\)/, 'Saved coin values should reject unsafe or partly numeric data');
 assert.match(scriptMatch[1], /typeof ctx\.roundRect==='function'/, 'Canvas rounded rectangles should have a compatibility fallback');
