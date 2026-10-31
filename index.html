@@ -16,7 +16,7 @@
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
-  .app{width:min(100%,1200px);min-height:100vh;margin:0 auto;padding:10px;border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
+  .app{width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
   body{padding:0}
   header{display:none}
   .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
@@ -51,8 +51,12 @@
   .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
   .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
-  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:82px;min-height:82px;padding:7px}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
+  @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.bottom-bar{height:82px;min-height:82px;padding:7px}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
   @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
+  html.touch-device .controls{display:flex}
+  html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}
+  html.touch-device .stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}
+  html.touch-device .stage canvas{min-height:0}
   @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
@@ -86,6 +90,10 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 25: Parse saved coin totals strictly and safely instead of accepting partly numeric or unsafe values. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 26: Add a rounded-rectangle fallback for browsers whose canvas context lacks roundRect. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 27: Respect live changes to the device reduced-motion preference without reloading the game. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 28: Detect touch devices through both pointer media queries and maxTouchPoints so hybrid phones/tablets still get controls. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 29: Keep the 16:10 game stage on touch screens at any viewport width, not just narrow phones. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 30: Keep mobile controls inside iPhone safe areas and use the dynamic viewport height when available. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 31: Limit joystick travel to the knob's true inner radius and reduce its dead zone for easier movement. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -135,6 +143,8 @@
     if (motionPreference.addEventListener) motionPreference.addEventListener('change', syncMotionPreference);
     else if (motionPreference.addListener) motionPreference.addListener(syncMotionPreference);
   }
+  const touchControlsAvailable = !!((window.matchMedia && window.matchMedia('(any-pointer: coarse)').matches) || (navigator && navigator.maxTouchPoints > 0));
+  if (touchControlsAvailable) document.documentElement.classList.add('touch-device');
 
   const LEVELS = [
     {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#d3f9c8', enemies:[], movers:[], platforms:[[0,515,270],[320,460,135],[515,405,130],[705,450,140],[900,380,130],[1090,435,140],[1290,370,135],[1490,435,150],[1710,505,430]]},
@@ -699,7 +709,7 @@
   let stickPointer=null;
   function moveJoystick(e){
     const rect=moveStick.getBoundingClientRect();
-    const radius=rect.width*.34;
+    const radius=Math.max(0,(rect.width-30)/2);
     const dx=e.clientX-(rect.left+rect.width/2);
     const dy=e.clientY-(rect.top+rect.height/2);
     const distance=Math.hypot(dx,dy);
@@ -707,14 +717,15 @@
     const x=dx*scale,y=dy*scale;
     stickKnob.style.left=`calc(50% + ${x}px)`;
     stickKnob.style.top=`calc(50% + ${y}px)`;
-    input.left=x < -8;
-    input.right=x > 8;
+    const deadZone=Math.max(4,rect.width*.075);
+    input.left=x < -deadZone;
+    input.right=x > deadZone;
   }
   function resetJoystick(){
     const activePointer=stickPointer;
     stickPointer=null;input.left=false;input.right=false;
     stickKnob.style.left='50%';stickKnob.style.top='50%';
-    if(activePointer!==null&&moveStick.hasPointerCapture(activePointer)){
+    if(activePointer!==null&&typeof moveStick.hasPointerCapture==='function'&&moveStick.hasPointerCapture(activePointer)){
       try{moveStick.releasePointerCapture(activePointer);}catch(_){}
     }
   }
@@ -730,8 +741,7 @@
   function showBottomBar(){
     bottomBar.classList.remove('is-hidden');
     window.clearTimeout(bottomBarTimer);
-    const touchDevice=window.matchMedia&&window.matchMedia('(any-pointer: coarse)').matches;
-    if(state==='playing'&&!touchDevice) bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
+    if(state==='playing'&&!touchControlsAvailable) bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
   }
   function noteActivity(){showBottomBar();}
   document.addEventListener('keydown',noteActivity,{passive:true});
