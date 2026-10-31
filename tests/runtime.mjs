@@ -288,6 +288,7 @@ assert.equal(pauseButton.hidden, false, 'Touchscreen pause button should appear 
 pauseButton.dispatch('click');
 assert.equal(touch.hooks.getState(), 'paused', 'Touchscreen pause button should pause gameplay');
 assert.equal(pauseButton.textContent, '▶', 'Paused state should show a resume symbol');
+assert.ok(touch.elements.get('overlay').innerHTML.includes('MENU'), 'Pause screen should offer a way back to the main menu');
 pauseButton.dispatch('click');
 assert.equal(touch.hooks.getState(), 'playing', 'Touchscreen pause button should resume gameplay');
 assert.equal(pauseButton.textContent, 'Ⅱ', 'Playing state should show a pause symbol');
