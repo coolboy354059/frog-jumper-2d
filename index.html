@@ -37,6 +37,7 @@
 </style>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->
 </head>
 <body>
 <div class="app">
@@ -398,7 +399,7 @@
     const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,level.sky[0]);g.addColorStop(1,level.sky[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
     if(level.themeIndex===2){ // fireflies and moonlit glints
       ctx.fillStyle='#f4e2a8';ctx.beginPath();ctx.arc(790,102,36,0,Math.PI*2);ctx.fill();ctx.fillStyle='#745c9f';ctx.beginPath();ctx.arc(804,91,34,0,Math.PI*2);ctx.fill();
-      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;ctx.fillStyle=`rgba(255,242,151,${.25+.5*(.5+.5*Math.sin(elapsed*2+i))})`;ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
+      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;const glow=reduceMotion?.5:.25+.5*(.5+.5*Math.sin(elapsed*2+i));ctx.fillStyle=`rgba(255,242,151,${glow})`;ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
     }else{
       // soft pixel-inspired clouds, moving at a slower parallax rate
       for(let i=0;i<6;i++){const x=((i*205-cameraX*.11)%(W+180)+W+180)%(W+180)-60;const y=53+(i%3)*45;ctx.fillStyle=level.themeIndex===3?'#ffd1b544':'#ffffffa8';roundedRect(x,y,75,24,12,ctx.fillStyle);}
@@ -430,8 +431,8 @@
     if(p.moving){ctx.strokeStyle='#e4ff8a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+12,y+5);ctx.lineTo(x+p.w-12,y+5);ctx.stroke();}
   }
   function drawCoin(c){
-    if(c.taken)return;const x=c.x-cameraX,y=c.y+Math.sin(elapsed*3+c.phase)*4;if(x<-20||x>W+20)return;
-    const spin=.35+.65*Math.abs(Math.sin(elapsed*5+c.phase));
+    if(c.taken)return;const x=c.x-cameraX,y=c.y+(reduceMotion?0:Math.sin(elapsed*3+c.phase)*4);if(x<-20||x>W+20)return;
+    const spin=reduceMotion?1:.35+.65*Math.abs(Math.sin(elapsed*5+c.phase));
     ctx.save();ctx.translate(x,y);ctx.scale(spin,1);
     ctx.fillStyle='#b77613';ctx.beginPath();ctx.ellipse(1,2,11,15,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=level.accent;ctx.beginPath();ctx.ellipse(0,0,10,14,0,0,Math.PI*2);ctx.fill();
@@ -440,7 +441,7 @@
   }
   function drawEnemy(e){
     if(!e.alive)return;const x=e.x-cameraX,y=e.y;if(x<-40||x>W+40)return;
-    const wobble=Math.sin(elapsed*10+e.phase)*2;
+    const wobble=reduceMotion?0:Math.sin(elapsed*10+e.phase)*2;
     roundedRect(x,y+wobble,e.w,e.h,10,'#579b42','#275d38');
     roundedRect(x+4,y+3+wobble,e.w-8,8,5,'#a7ef59');
     ctx.fillStyle='#fff';ctx.fillRect(x+7,y+8+wobble,6,7);ctx.fillRect(x+19,y+8+wobble,6,7);
@@ -448,18 +449,18 @@
   }
   function drawPortal(){
     const end=level.platforms[level.platforms.length-1];const x=end[0]+end[2]*.68-cameraX,y=end[1]-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
-    ctx.save();ctx.translate(x,y);const pulse=1+Math.sin(elapsed*4)*.055;
+    ctx.save();ctx.translate(x,y);const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
     ctx.scale(pulse,1);
     ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     ctx.strokeStyle=unlocked?'#e1c7ff':'#b0c0c9';ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.stroke();
     const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,16,29,0,0,Math.PI*2);ctx.fill();
-    if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=elapsed*2+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
+    if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=(reduceMotion?0:elapsed*2)+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
     ctx.restore();
     ctx.textAlign='center';ctx.font='900 12px system-ui';ctx.fillStyle=unlocked?'#ffffff':'#e2e9eb';ctx.fillText(gameMode==='race'?'FINISH':(unlocked?'GO!':'5 COINS'),x,y-12);
   }
   function drawPlayer(){
-    const blink=player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
-    const x=Math.round(player.x-cameraX),squash=player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
+    const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
+    const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
     // legs and body
     roundedRect(2,20,12,14,5,'#218447');roundedRect(22,20,12,14,5,'#218447');
@@ -477,7 +478,7 @@
     if(!robot || gameMode!=='race')return;
     const x=Math.round(robot.x-cameraX),y=Math.round(robot.y);
     if(x<-50||x>W+50)return;
-    const bob=robot.onGround?Math.sin(elapsed*13)*1.2:0;
+    const bob=!reduceMotion&&robot.onGround?Math.sin(elapsed*13)*1.2:0;
     ctx.save();ctx.translate(x,y+bob);
     // Tiny silver rival robot with antenna, glowing eyes, and little wheels.
     ctx.strokeStyle='#dce8ef';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(18,8);ctx.lineTo(18,2);ctx.stroke();
@@ -490,7 +491,7 @@
     ctx.restore();
     ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#183b48';ctx.fillText('BOT',x+18,y-5);
   }
-  function drawParticles(){for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
+  function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
   function render(){
     drawBackground();
     for(const p of platforms)drawPlatform(p);
