@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-10-31 — Fix 52: Add five saved achievements with progress tracking, an achievements screen, and in-game unlock notices. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 51: Add a lightweight Halloween scene with animated bats and pumpkins, without changing platform physics or controls. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 50: Restrict the developer coin-grant helper to local development so it is not exposed on the public game. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 49: Recalculate respawn height from the checkpoint platform's current position so moving-platform checkpoints remain safe. -->
@@ -231,6 +232,16 @@
   let cameraX = 0;
   let totalCoins = 0;
   let coinsThisLevel = 0;
+  let achievementData = loadAchievementData();
+  let achievementNotice = '';
+  let achievementNoticeTime = 0;
+  const ACHIEVEMENTS = [
+    {id:'first_jump',name:'First Jump',emoji:'🐸',description:'Take your very first leap.'},
+    {id:'coin_collector',name:'Coin Collector',emoji:'🪙',description:'Collect 10 coins.'},
+    {id:'platform_hopper',name:'Platform Hopper',emoji:'🪜',description:'Land on 10 platforms.'},
+    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'},
+    {id:'halloween_explorer',name:'Halloween Explorer',emoji:'🎃',description:'Visit Infinite Explore during the spooky season.'}
+  ];
   let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
   let shopData = loadShopData();
   let equippedSkin = shopData.equippedSkin;
@@ -250,6 +261,45 @@
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left;input.right=keyboardInput.right||joystickInput.right;}
   const MAX_LIVES = 3;
 
+  function loadAchievementData(){
+    const defaults={earned:[],coinsCollected:0,platformsLanded:0};
+    try{
+      const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
+      if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      return {
+        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
+        coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
+        platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0
+      };
+    }catch(_){return defaults;}
+  }
+  function saveAchievementData(){
+    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){}
+  }
+  function awardAchievement(id){
+    if(achievementData.earned.includes(id))return;
+    const item=ACHIEVEMENTS.find(a=>a.id===id);if(!item)return;
+    achievementData.earned.push(id);saveAchievementData();
+    achievementNotice=`\${item.emoji} \${item.name} unlocked!`;
+    achievementNoticeTime=3.2;
+  }
+  function recordCoinAchievement(){
+    achievementData.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,achievementData.coinsCollected+1);
+    if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
+    saveAchievementData();
+  }
+  function recordPlatformLanding(){
+    achievementData.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,achievementData.platformsLanded+1);
+    if(achievementData.platformsLanded>=10)awardAchievement('platform_hopper');
+    if(achievementData.platformsLanded>=100)awardAchievement('platform_master');
+    saveAchievementData();
+  }
+  function showAchievements(){
+    const earned=achievementData.earned;
+    state='achievements';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
+    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>\${earned.length} of \${ACHIEVEMENTS.length} unlocked</p><div class="shop-grid">\${ACHIEVEMENTS.map(a=>{const unlocked=earned.includes(a.id);return \`<div class="shop-item"><div class="shop-emoji">\${unlocked?a.emoji:'🔒'}</div><strong>\${a.name}</strong><small>\${unlocked?a.description:'Not unlocked yet'}</small><small>\${unlocked?'UNLOCKED':'LOCKED'}</small></div>\`;}).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>`;
+    document.getElementById('achievements-back').addEventListener('click',()=>showOverlay('menu'));
+  }
   function makePlayer(x, y) {
     return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
   }
@@ -410,7 +460,7 @@
   function startGame(mode='level'){
     gameMode = mode;
     lives=MAX_LIVES;totalCoins=0;
-    if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
+    if (mode === 'infinite') { setupInfiniteExplore(); awardAchievement('halloween_explorer'); } else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
@@ -547,7 +597,7 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure takes you through 35 hand-built levels. Robot Race puts you against a speedy bot. Infinite Explore lets you hop through a world that keeps generating as you travel.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure takes you through 35 hand-built levels. Robot Race puts you against a speedy bot. Infinite Explore lets you hop through a world that keeps generating as you travel.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. Collect 5 coins to open Level Adventure portals, beat the robot in Robot Race, or keep exploring in Infinite Explore.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
@@ -669,9 +719,11 @@
         }
       }
     }
+    if(player.onGround&&!player.wasOnGround)recordPlatformLanding();
     if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
     if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
       player.vy=-655;player.onGround=false;player.standingOn=null;player.coyote=0;player.jumpBuffer=0;player.y-=1;
+      awardAchievement('first_jump');
       particles.push(...makeBurst(player.x+player.w/2,player.y+player.h, '#c9ff67',4));
     }
 
@@ -682,7 +734,7 @@
     for(const c of coins){
       if(c.taken)continue;
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
-      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
+      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;recordCoinAchievement();totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
     }
 
     // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
@@ -907,6 +959,12 @@
   function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
   function render(){
     drawBackground();
+    if(achievementNoticeTime>0){
+      ctx.save();ctx.font='bold 18px system-ui';ctx.textAlign='center';
+      const label=achievementNotice;const width=Math.min(W-32,ctx.measureText(label).width+34);
+      roundedRect((W-width)/2,16,width,42,12,'#102b36eF','#d5ff7d');
+      ctx.fillStyle='#f4ffd9';ctx.fillText(label,W/2,43);ctx.restore();
+    }
     for(const p of platforms)drawPlatform(p);
     drawPortal();
     for(const c of coins)drawCoin(c);
@@ -922,6 +980,7 @@
   function frame(now){
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    if(achievementNoticeTime>0)achievementNoticeTime=Math.max(0,achievementNoticeTime-delta);
     if(state==='playing'){
       accumulator+=delta;
       let count=0;
