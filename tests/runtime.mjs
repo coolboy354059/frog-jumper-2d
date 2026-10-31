@@ -255,6 +255,14 @@ assert.ok(desktop.contextCalls.arcTo > 0, 'Rounded-rectangle fallback should ren
 
 const touch = bootGame({ touch: true });
 touch.hooks.startGame('level');
+const pauseButton = touch.elements.get('pause-control');
+assert.equal(pauseButton.hidden, false, 'Touchscreen pause button should appear during gameplay');
+pauseButton.dispatch('click');
+assert.equal(touch.hooks.getState(), 'paused', 'Touchscreen pause button should pause gameplay');
+assert.equal(pauseButton.textContent, '▶', 'Paused state should show a resume symbol');
+pauseButton.dispatch('click');
+assert.equal(touch.hooks.getState(), 'playing', 'Touchscreen pause button should resume gameplay');
+assert.equal(pauseButton.textContent, 'Ⅱ', 'Playing state should show a pause symbol');
 const beforeTouchTimer = touch.getTimeoutCount();
 touch.hooks.showBottomBar();
 assert.equal(touch.getTimeoutCount(), beforeTouchTimer, 'Touch controls should not schedule an auto-hide timer');
