@@ -98,6 +98,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 32: Add a real touchscreen pause/resume button so phone players can pause without leaving the game. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 33: Document phone, keyboard pause, and restart controls directly in the Help screen. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 34: Preserve native Space/arrow-key behavior on focused buttons while keeping keyboard game controls active on the canvas. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 35: Validate equipped cosmetics against sanitized ownership lists so malformed saved shop data cannot equip unowned items. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -292,12 +293,14 @@
     const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
     try{
       const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
-      if(!saved||typeof saved!=='object')return defaults;
+      if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>v==='jupiter')])]:defaults.ownedSkins;
+      const ownedHats=Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:defaults.ownedHats;
       return {
-        ownedSkins:Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>v==='jupiter')])]:defaults.ownedSkins,
-        ownedHats:Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:[],
-        equippedSkin:saved.equippedSkin==='jupiter'&&saved.ownedSkins?.includes('jupiter')?'jupiter':'red',
-        equippedHat:['black','tv'].includes(saved.equippedHat)&&saved.ownedHats?.includes(saved.equippedHat)?saved.equippedHat:'none'
+        ownedSkins,
+        ownedHats,
+        equippedSkin:saved.equippedSkin==='jupiter'&&ownedSkins.includes('jupiter')?'jupiter':'red',
+        equippedHat:['black','tv'].includes(saved.equippedHat)&&ownedHats.includes(saved.equippedHat)?saved.equippedHat:'none'
       };
     }catch(_){return defaults;}
   }
