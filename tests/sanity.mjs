@@ -42,6 +42,7 @@ assert.match(scriptMatch[1], /motionPreference\.addEventListener\('change'/, 'Re
 assert.match(scriptMatch[1], /navigator\.maxTouchPoints > 0/, 'Touch devices should be detected even without coarse-pointer media support');
 assert.match(html, /html\.touch-device \.stage\{flex:0 0 auto;aspect-ratio:16\/10/, 'Touch gameplay should keep its correct aspect ratio');
 assert.match(html, /env\(safe-area-inset-bottom\)/, 'Mobile layout should respect bottom safe-area insets');
+assert.match(html, /orientation:landscape\) and \(max-height:520px\)/, 'Short landscape touch screens should fit the whole game and controls');
 assert.match(scriptMatch[1], /rect\.width-30/, 'Joystick knob should stay inside its outer ring');
 assert.match(scriptMatch[1], /const deadZone=Math\.max\(4,rect\.width\*\.075\)/, 'Joystick should respond without a large dead zone');
 
