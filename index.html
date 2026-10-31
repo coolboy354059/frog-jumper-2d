@@ -73,6 +73,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 15: Fit the 1536×1024 Jupiter PNG proportionally inside the 36×36 gameplay footprint (36×24), avoiding distortion. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 16: Ignore the restart key while viewing the shop or help screen; R now acts only during gameplay and game-result states. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 17: Restart the bottom-bar inactivity timer whenever an overlay closes back into gameplay, including resume and next-level actions. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 18: Crop the Jupiter sprite to its central astronaut-frog porthole so the full planet disc no longer dominates the character. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen">
@@ -571,12 +572,18 @@
     // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
     if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
-      // Fit the original PNG inside the 36×36 player footprint without distorting it.
-      // The uploaded Jupiter artwork is 1536×1024 (3:2), so it renders at 36×24.
-      const imageScale = Math.min(PLAYER_W / jupiterSkinImage.naturalWidth, PLAYER_H / jupiterSkinImage.naturalHeight);
-      const imageW = jupiterSkinImage.naturalWidth * imageScale;
-      const imageH = jupiterSkinImage.naturalHeight * imageScale;
-      ctx.drawImage(jupiterSkinImage, (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH);
+      // Draw a square crop around the astronaut frog, rather than shrinking the
+      // entire 1536×1024 planet illustration into the character slot.
+      // Source crop measured from the uploaded PNG: x=520, y=260, width=505, height=500.
+      const cropX = 520, cropY = 260, cropW = 505, cropH = 500;
+      const imageScale = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
+      const imageW = cropW * imageScale;
+      const imageH = cropH * imageScale;
+      ctx.drawImage(
+        jupiterSkinImage,
+        cropX, cropY, cropW, cropH,
+        (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH
+      );
     }else{
       const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
       roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
