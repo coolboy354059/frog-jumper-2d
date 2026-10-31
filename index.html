@@ -106,6 +106,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 39: Prevent the maintenance iframe from overflowing its padded full-screen gate on phones. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 40: Give the slower Robot Race rival a small head start instead of starting behind the faster frog. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 41: Apply landscape-phone sizing through the shared touch-device class so the maxTouchPoints fallback works too. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 42: Clear the real player's buffered jump on pause, blur, and menu transitions so it cannot fire unexpectedly after resuming. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -275,7 +276,7 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
     try {
