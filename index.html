@@ -52,6 +52,14 @@
   @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:66px;min-height:66px;padding:7px}.bar-fullscreen,.bar-exit{width:44px;height:44px;flex-basis:44px}.bar-square{width:34px;height:34px}}
   @media (any-pointer:coarse){.controls{display:flex}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+  /* Temporary maintenance gate: keep players informed while updates are in progress. */
+  .maintenance-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at top,#245965 0,#102b36 60%,#091c25 100%);color:#effff8;text-align:center}
+  .maintenance-card{width:min(100%,520px);padding:32px 24px;border:2px solid #ed171f;border-radius:22px;background:#173b45;box-shadow:0 24px 70px #0008}
+  .maintenance-card h1{font-size:clamp(28px,6vw,42px);margin:0 0 14px}
+  .maintenance-card p{font-size:17px;line-height:1.55;color:#d8eee9;margin:0}
+  .maintenance-icon{font-size:52px;margin-bottom:12px}
+
 </style>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
@@ -64,6 +72,13 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 15: Resize the Jupiter artwork to the frog's 36×36 gameplay footprint so it no longer looks oversized. -->
 </head>
 <body>
+<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
+  <div class="maintenance-card">
+    <div class="maintenance-icon" aria-hidden="true">🐸 🔧</div>
+    <h1>Maintenance</h1>
+    <p>Please wait! We're fixing bugs and adding new features.</p>
+  </div>
+</div>
 <div class="app">
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
