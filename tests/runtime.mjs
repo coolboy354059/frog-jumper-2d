@@ -191,6 +191,10 @@ for (const [index, level] of levels.entries()) {
       const gravity = 1580;
       const jumpHeight = (jumpSpeed * jumpSpeed) / (2 * gravity);
       assert.ok(rise <= jumpHeight, levelName + ' platform rise ' + i + ' must not exceed the frog jump height');
+      const previousMover = level.movers.find(mover => mover.index === i - 1);
+      const currentMover = level.movers.find(mover => mover.index === i);
+      const worstMovingRise = rise + (previousMover?.amp || 0) + (currentMover?.amp || 0);
+      assert.ok(worstMovingRise <= jumpHeight, levelName + ' platform ' + i + ' should remain reachable at the worst moving-platform positions');
       const discriminant = jumpSpeed * jumpSpeed - 2 * gravity * rise;
       const landingTime = (jumpSpeed + Math.sqrt(discriminant)) / gravity;
       const moveSpeed = 292 + Math.min(12, Math.floor(index / 5) * 2);
