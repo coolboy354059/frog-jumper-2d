@@ -59,6 +59,7 @@
   html.touch-device .stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}
   html.touch-device .stage canvas{min-height:0}
   @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
+  @media(orientation:landscape) and (max-height:520px) and (any-pointer:coarse){.stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}.bottom-bar{flex:0 0 82px}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
   /* Temporary maintenance gate: keep players informed while updates are in progress. */
@@ -101,6 +102,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 35: Validate equipped cosmetics against sanitized ownership lists so malformed saved shop data cannot equip unowned items. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 36: Keep R from starting a new game on the title screen or interrupting a focused menu button; reserve it for restarting active/result games. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 37: Add a pause-screen route back to the main menu, since phones hide the desktop exit button. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 38: Fit the 16:10 game view and its touch controls inside short landscape phone screens without scrolling the controls off-screen. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
