@@ -244,6 +244,14 @@
     try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));}catch(_){}
   }
   function saveWallet(){writeStoredNumber('frogJumperWalletCoins',walletCoins);}
+  // PC developer-console helper: run coinDev() to grant a huge test balance.
+  window.coinDev=function(){
+    walletCoins=Number.MAX_SAFE_INTEGER;
+    saveWallet();
+    console.info('🐸 Frog Jumper dev mode: huge coin balance granted!');
+    if(state==='shop')showShop();
+    return walletCoins;
+  };
   function showShop(){
     state='shop';window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
