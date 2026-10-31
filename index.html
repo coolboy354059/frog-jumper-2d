@@ -297,7 +297,11 @@
   function showAchievements(){
     const earned=achievementData.earned;
     state='achievements';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
-    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>\${earned.length} of \${ACHIEVEMENTS.length} unlocked</p><div class="shop-grid">\${ACHIEVEMENTS.map(a=>{const unlocked=earned.includes(a.id);return \`<div class="shop-item"><div class="shop-emoji">\${unlocked?a.emoji:'🔒'}</div><strong>\${a.name}</strong><small>\${unlocked?a.description:'Not unlocked yet'}</small><small>\${unlocked?'UNLOCKED':'LOCKED'}</small></div>\`;}).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>`;
+    const cards=ACHIEVEMENTS.map(a=>{
+      const unlocked=earned.includes(a.id);
+      return '<div class="shop-item"><div class="shop-emoji">'+(unlocked?a.emoji:'🔒')+'</div><strong>'+a.name+'</strong><small>'+(unlocked?a.description:'Not unlocked yet')+'</small><small>'+(unlocked?'UNLOCKED':'LOCKED')+'</small></div>';
+    }).join('');
+    overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>'+earned.length+' of '+ACHIEVEMENTS.length+' unlocked</p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
     document.getElementById('achievements-back').addEventListener('click',()=>showOverlay('menu'));
   }
   function makePlayer(x, y) {
