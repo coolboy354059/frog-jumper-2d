@@ -32,9 +32,11 @@
   .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 2px 0}.tip{border-radius:12px;border:1px solid #ffffff14;background:#ffffff07;padding:11px 12px}.tip b{display:block;color:#ebffdf;margin-bottom:5px;font-size:13px}.tip span{display:block;color:#d3e5df;line-height:1.45;font-size:12px}
   footer{text-align:center;color:#8fafa6;font-size:11px;margin:14px 0 0;line-height:1.5}
   @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.controls{display:flex}.tips{grid-template-columns:1fr}.below{font-size:11px}} 
+  @media (any-pointer:coarse){.controls{display:flex}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
 </head>
 <body>
 <div class="app">
