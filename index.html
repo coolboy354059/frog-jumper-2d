@@ -50,6 +50,7 @@
   .joystick::before{width:1px;height:80%;left:50%;top:10%}.joystick::after{height:1px;width:80%;top:50%;left:10%}
   .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
   .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
+  .control.pause{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(180deg,#e7f2f7,#afc7d1);color:#163746;font-size:19px}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
   @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.bottom-bar{height:82px;min-height:82px;padding:7px}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
   @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
@@ -94,6 +95,8 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 29: Keep the 16:10 game stage on touch screens at any viewport width, not just narrow phones. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 30: Keep mobile controls inside iPhone safe areas and use the dynamic viewport height when available. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 31: Limit joystick travel to the knob's true inner radius and reduce its dead zone for easier movement. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 32: Add a real touchscreen pause/resume button so phone players can pause without leaving the game. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 33: Document phone, keyboard pause, and restart controls directly in the Help screen. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -110,6 +113,7 @@
       <button type="button" class="bar-exit" id="bar-exit" aria-label="Exit game tab">×</button>
       <div class="controls" aria-label="Touch game controls">
         <div class="joystick" id="move-stick" role="group" aria-label="Movement joystick"><span class="stick-knob" id="stick-knob"></span></div>
+        <button type="button" class="control pause" id="pause-control" aria-label="Pause game" hidden>Ⅱ</button>
         <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
       </div>
     </div>
@@ -309,7 +313,7 @@
     return walletCoins;
   };
   function showShop(){
-    state='shop';window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
+    state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
       {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
@@ -363,15 +367,16 @@
     if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
     if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
   }
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';if(state==='playing')showBottomBar();}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';syncPauseControl();if(state==='playing')showBottomBar();}
   function showOverlay(kind){
     state=kind;
+    syncPauseControl();
     window.clearTimeout(bottomBarTimer);
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
       menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE, W, or ↑ to jump. Collect 5 coins to open each Level Adventure portal; in Robot Race, beat the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move, tap the green button to jump, and use the pause button to pause or resume. On computers, use ← → or A / D to move, SPACE/W/↑ to jump, P or Esc to pause, and R to restart. Collect 5 coins to open each Level Adventure portal; in Robot Race, beat the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['RESTART LEVEL','ghost',()=>restartCurrentLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins on the way.`:`You finished all ${TOTAL_LEVELS} levels and completed the frog adventure with ${totalCoins} coins.`,buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
@@ -704,6 +709,18 @@
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
 
+  const pauseControl=document.getElementById('pause-control');
+  function syncPauseControl(){
+    const canPause=touchControlsAvailable&&(state==='playing'||state==='paused');
+    pauseControl.hidden=!canPause;
+    const paused=state==='paused';
+    pauseControl.textContent=paused?'▶':'Ⅱ';
+    pauseControl.setAttribute('aria-label',paused?'Resume game':'Pause game');
+  }
+  pauseControl.addEventListener('click',()=>{
+    if(state==='playing'){clearInputs();showOverlay('paused');}
+    else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}
+  });
   const moveStick=document.getElementById('move-stick');
   const stickKnob=document.getElementById('stick-knob');
   let stickPointer=null;
