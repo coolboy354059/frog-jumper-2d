@@ -16,22 +16,28 @@
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
-  .app{max-width:1000px;margin:0 auto}
-  header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 14px;padding:0 2px}
+  .app{width:min(100%,1200px);min-height:100vh;margin:0 auto;padding:10px;border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
+  body{padding:0}
+  header{display:none}
   .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
-  .cabinet{background:linear-gradient(180deg,#1e4c56,#12333e);border:1px solid #ffffff22;border-radius:22px;padding:12px;box-shadow:0 16px 50px #0004, inset 0 1px #ffffff15}
+  .cabinet{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;display:flex;flex:1;min-height:0;flex-direction:column}
   .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b2d2c6;margin-bottom:4px;font-weight:800}.stat strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.progress-outer{margin-top:7px;width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#d9ff7d,#7ae38f);border-radius:999px;box-shadow:0 0 16px rgba(201,255,103,.5)}.best-run{margin-top:4px;font-size:11px;color:#a9c8bb}
-  .stage{position:relative;width:100%;overflow:hidden;border-radius:15px;background:#88dfff;outline:1px solid #ffffff2a;isolation:isolate}.stage canvas{display:block;width:100%;height:auto;aspect-ratio:16/10;background:#88dfff}
+  .stage{position:relative;width:100%;flex:1;min-height:240px;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}.stage canvas{display:block;width:100%;height:100%;min-height:240px;aspect-ratio:16/10;object-fit:fill;background:#88dfff}
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
   .overlay-card{max-width:440px;width:min(90%,420px);padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
   .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;margin:12px 0 0;line-height:1.5;font-size:15px}.button-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}.action{cursor:pointer;border:none;border-radius:999px;padding:11px 18px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;font-size:11px;transition:transform .12s ease,filter .12s ease;background:#7bd1a0;color:#093121}.action.primary{background:linear-gradient(180deg,#d5ff7d,#9de053);color:#1d3603;box-shadow:0 10px 25px rgba(159,224,83,.25)}.action.secondary{background:linear-gradient(180deg,#eff8ff,#bfdff5);color:#143547}.action.ghost{background:rgba(255,255,255,.06);color:#ebfffa;border:1px solid rgba(255,255,255,.12)}.action:active{transform:translateY(1px) scale(.98)}
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
-  .controls{display:none;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;user-select:none;-webkit-user-select:none;touch-action:none}.control-group{display:flex;gap:9px}.control{appearance:none;border:none;background:linear-gradient(180deg,#fbfeff,#dfeaf0);color:#1b2a33;border-radius:14px;min-width:64px;height:56px;font-size:26px;font-weight:900;box-shadow:inset 0 -4px rgba(0,0,0,.1),0 10px 24px rgba(0,0,0,.12)}.control.pressed{transform:translateY(2px);filter:brightness(.96)}.control.jump{min-width:120px;height:56px;font-size:16px;padding:0 18px;letter-spacing:.08em;text-transform:uppercase}
-  .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:13px 2px 0}.tip{border-radius:12px;border:1px solid #ffffff14;background:#ffffff07;padding:11px 12px}.tip b{display:block;color:#ebffdf;margin-bottom:5px;font-size:13px}.tip span{display:block;color:#d3e5df;line-height:1.45;font-size:12px}
-  footer{text-align:center;color:#8fafa6;font-size:11px;margin:14px 0 0;line-height:1.5}
-  @media(max-width:620px){body{padding:12px 8px 20px}.cabinet{padding:8px;border-radius:17px}.hud{grid-template-columns:1.3fr 1fr 1fr;gap:5px}.stat{padding:7px 8px}.stat label{font-size:9px}.stat strong{font-size:13px}.controls{display:flex}.tips{grid-template-columns:1fr}.below{font-size:11px}} 
+  .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
+  .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
+  .bar-close{width:48px;height:48px;flex:0 0 48px;border:0;border-radius:5px;background:#ed171f;color:#fff;font-size:34px;line-height:1;font-weight:500;cursor:pointer}
+  .controls{display:none;flex:1;justify-content:space-between;align-items:center;gap:12px;margin:0;user-select:none;-webkit-user-select:none;touch-action:none}
+  .control-group{display:flex;gap:9px}
+  .control{appearance:none;border:none;background:linear-gradient(180deg,#fbfeff,#dfeaf0);color:#1b2a33;border-radius:12px;min-width:58px;height:48px;font-size:24px;font-weight:900;box-shadow:inset 0 -4px rgba(0,0,0,.1),0 6px 14px rgba(0,0,0,.12)}
+  .control.pressed{transform:translateY(2px);filter:brightness(.96)}
+  .control.jump{min-width:64px;height:48px;font-size:25px;padding:0 12px}
+  @media(max-width:620px){.app{padding:7px;border-width:8px;border-radius:14px}.bottom-bar{height:66px;min-height:66px;padding:7px}.bar-close{width:44px;height:44px;flex-basis:44px}}
   @media (any-pointer:coarse){.controls{display:flex}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 </style>
@@ -39,35 +45,23 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 10: Give each particle matching current and maximum lifetimes so every burst particle starts fully visible and fades consistently. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 11: Match the user's red-framed, text-free game layout with a slim auto-hiding bottom bar and X menu control. -->
 </head>
 <body>
 <div class="app">
-  <header>
-    <div class="brand"><div class="logo" aria-hidden="true">🐸</div><div><h1>FROG JUMPER</h1><div class="sub">A tiny frog. 35 levels. One robot rival.</div></div></div>
-    <div class="version">35 LEVELS</div>
-  </header>
   <main class="cabinet" aria-label="Frog Jumper game">
-    <div class="hud" aria-live="polite">
-      <div class="stat"><label>Mode / Level</label><strong id="level-label">Level 1 · Froggy Fields</strong><div class="progress-outer"><div id="level-progress" class="progress-fill"></div></div></div>
-      <div class="stat"><label>Coins</label><strong>🪙 <span id="coin-label">0</span><span style="color:#93b7a9"> / 175</span></strong><div class="best-run">Personal best: <span id="best-label">0</span></div></div>
-      <div class="stat"><label>Lives</label><strong id="life-label">❤️ ❤️ ❤️</strong></div>
-    </div>
     <div class="stage" id="stage">
       <canvas id="game" width="960" height="600" tabindex="0" role="img" aria-label="Frog Jumper platform game. Use arrow keys to move and space to jump."></canvas>
       <div class="overlay" id="overlay"></div>
     </div>
-    <div class="controls" aria-label="Touch game controls">
-      <div class="control-group"><button type="button" class="control" id="left-control" aria-label="Move left">◀</button><button type="button" class="control" id="right-control" aria-label="Move right">▶</button></div>
-      <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆ JUMP</button>
+    <div class="bottom-bar" id="bottom-bar">
+      <button type="button" class="bar-close" id="bar-close" aria-label="Return to menu">×</button>
+      <div class="controls" aria-label="Touch game controls">
+        <div class="control-group"><button type="button" class="control" id="left-control" aria-label="Move left">◀</button><button type="button" class="control" id="right-control" aria-label="Move right">▶</button></div>
+        <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
+      </div>
     </div>
-    <div class="below"><div><span class="key">←</span><span class="key">→</span> move &nbsp; <span class="key">SPACE</span> jump</div><div><span class="key">P</span> pause &nbsp; <span class="key">R</span> restart</div></div>
   </main>
-  <section class="tips" aria-label="How to play">
-    <div class="tip"><b>① Level Adventure</b><span>Start at Level 1 and hop through all 35 levels. Collect 5 coins to open each portal.</span></div>
-    <div class="tip"><b>② Race with Robot</b><span>Race a little robot to the finish portal. Coins are bonus points in race mode.</span></div>
-    <div class="tip"><b>③ More worlds</b><span>Explore seven rounds of five colorful worlds, with trickier gaps and extra slimes.</span></div>
-  </section>
-  <footer>One HTML file · 35 levels · Two game modes</footer>
 </div>
 <script>
 (() => {
@@ -186,6 +180,7 @@
   function startGame(mode='level'){
     gameMode = mode;
     lives=MAX_LIVES;totalCoins=0;setupLevel(0);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+    showBottomBar();
   }
   function restartCurrentLevel(){
     // Restarting discards this level's coins but keeps coins from earlier levels.
@@ -237,6 +232,8 @@
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';}
   function showOverlay(kind){
     state=kind;
+    window.clearTimeout(bottomBarTimer);
+    bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
       menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
@@ -457,7 +454,7 @@
     const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,16,29,0,0,Math.PI*2);ctx.fill();
     if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=(reduceMotion?0:elapsed*2)+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
     ctx.restore();
-    ctx.textAlign='center';ctx.font='900 12px system-ui';ctx.fillStyle=unlocked?'#ffffff':'#e2e9eb';ctx.fillText(gameMode==='race'?'FINISH':(unlocked?'GO!':'5 COINS'),x,y-12);
+    // Portal state is communicated by its color and glow, without a text label.
   }
   function drawPlayer(){
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
@@ -490,7 +487,7 @@
     ctx.fillStyle='#445b69';ctx.fillRect(2,31,11,5);ctx.fillRect(23,31,11,5);
     ctx.fillStyle='#eafaff';ctx.fillRect(7,26,5,2);ctx.fillRect(24,26,5,2);
     ctx.restore();
-    ctx.font='900 11px system-ui';ctx.textAlign='center';ctx.fillStyle='#183b48';ctx.fillText('BOT',x+18,y-5);
+    // The robot is identified by its appearance, without a text label.
   }
   function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
   function render(){
@@ -502,9 +499,7 @@
     drawParticles();
     drawRobot();
     if(player)drawPlayer();
-    // Small in-world status reminder, always visible on the top right.
-    ctx.textAlign='right';ctx.font='900 14px system-ui';ctx.fillStyle='#123e41';
-    ctx.fillText(gameMode==='race'?`RACE ${levelIndex+1}/${TOTAL_LEVELS}  ·  YOU vs BOT`:`LEVEL ${levelIndex+1}/${TOTAL_LEVELS}  ·  ${coinsThisLevel}/${COINS_PER_LEVEL} COINS`,W-17,26);
+    // Keep the gameplay view free of extra text labels, as in the sketch.
     if(state==='paused'){
       ctx.fillStyle='#061c28a8';ctx.fillRect(0,0,W,H);
     }
@@ -547,6 +542,18 @@
     el.addEventListener('contextmenu',e=>e.preventDefault());
   }
   bindHold('left-control','left');bindHold('right-control','right');
+  const bottomBar=document.getElementById('bottom-bar');
+  let bottomBarTimer=0;
+  function showBottomBar(){
+    bottomBar.classList.remove('is-hidden');
+    window.clearTimeout(bottomBarTimer);
+    if(state==='playing') bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
+  }
+  function noteActivity(){showBottomBar();}
+  document.addEventListener('keydown',noteActivity,{passive:true});
+  document.addEventListener('pointermove',noteActivity,{passive:true});
+  document.addEventListener('pointerdown',noteActivity,{passive:true});
+  document.getElementById('bar-close').addEventListener('click',()=>{window.clearTimeout(bottomBarTimer);showBottomBar();returnToMenu();});
   const jumpBtn=document.getElementById('jump-control');
   jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){};});
   const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
