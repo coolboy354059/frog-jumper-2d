@@ -19,6 +19,7 @@ for (const id of [
 
 assert.ok(html.includes('id="maintenance-screen"') && html.includes('src="./maintenance.html"'), 'The maintenance gate should cover the game during updates');
 assert.ok(maintenance.includes("Please wait! We're fixing bugs and adding new features."), 'Maintenance copy should be present');
+assert.match(html, /\.maintenance-frame\{[^}]*min-height:0/, 'Maintenance iframe should fit inside the padded gate without overflow');
 assert.match(scriptMatch[1], /if\(state==='playing'\)showBottomBar\(\)/, 'The bottom bar timer should restart after gameplay overlays close');
 assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\.includes\(state\)/, 'The restart key should be limited to game states');
 assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement should use a draggable joystick');
