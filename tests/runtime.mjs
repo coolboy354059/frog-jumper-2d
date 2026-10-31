@@ -216,6 +216,14 @@ for (const [index, level] of levels.entries()) {
   assert.equal(JSON.stringify(hooks.getCoins().map(coin => coin.platformId)), JSON.stringify([1, 2, 3, 4, 5]), levelName + ' coins should attach to the expected platforms');
 }
 
+hooks.setupLevel(2);
+const movingPlatform = hooks.getPlatforms()[2];
+const movingCoin = hooks.getCoins().find(coin => coin.platformId === 2);
+const oldCoinY = movingCoin.y;
+hooks.update(0.05);
+assert.notEqual(movingPlatform.y, movingPlatform.baseY, 'Moving platform should move during gameplay');
+assert.equal(movingCoin.y, movingPlatform.y - 47, 'Coin should follow its moving platform');
+
 desktop.storage.set('bad-number', '17coins');
 assert.equal(hooks.readStoredNumber('bad-number', 9), 9, 'Partly numeric saved values should use the fallback');
 desktop.storage.set('unsafe-number', '9007199254740993');
@@ -363,6 +371,12 @@ testPlayer.onGround = false;
 hooks.update(1 / 120);
 assert.equal(hooks.getLives(), 2, 'A side collision with a slime should cost one life');
 assert.equal(testEnemy.alive, true, 'A side collision should not defeat the slime');
+testPlayer.x = testEnemy.x + 1;
+testPlayer.y = testEnemy.y - 20;
+testPlayer.vx = 0;
+testPlayer.vy = 0;
+hooks.update(1 / 120);
+assert.equal(hooks.getLives(), 2, 'Temporary invulnerability should prevent repeated damage from the same slime');
 
 hooks.startGame('level');
 hooks.setupLevel(2);
