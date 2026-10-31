@@ -77,6 +77,8 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 16: Ignore the restart key while viewing the shop or help screen; R now acts only during gameplay and game-result states. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 17: Restart the bottom-bar inactivity timer whenever an overlay closes back into gameplay, including resume and next-level actions. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 18: Crop the Jupiter sprite to its central astronaut-frog porthole so the full planet disc no longer dominates the character. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 19: Keep touchscreen controls visible instead of auto-hiding the only movement buttons during play. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 20: Recenter and release the mobile joystick whenever inputs are cleared, including pause and focus loss. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
@@ -237,7 +239,7 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){input.left=false;input.right=false;input.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
     try {
@@ -687,8 +689,12 @@
     input.right=x > 8;
   }
   function resetJoystick(){
+    const activePointer=stickPointer;
     stickPointer=null;input.left=false;input.right=false;
     stickKnob.style.left='50%';stickKnob.style.top='50%';
+    if(activePointer!==null&&moveStick.hasPointerCapture(activePointer)){
+      try{moveStick.releasePointerCapture(activePointer);}catch(_){}
+    }
   }
   moveStick.addEventListener('pointerdown',e=>{
     if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
@@ -702,7 +708,8 @@
   function showBottomBar(){
     bottomBar.classList.remove('is-hidden');
     window.clearTimeout(bottomBarTimer);
-    if(state==='playing') bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
+    const touchDevice=window.matchMedia&&window.matchMedia('(any-pointer: coarse)').matches;
+    if(state==='playing'&&!touchDevice) bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
   }
   function noteActivity(){showBottomBar();}
   document.addEventListener('keydown',noteActivity,{passive:true});
