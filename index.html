@@ -59,6 +59,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 10: Give each particle matching current and maximum lifetimes so every burst particle starts fully visible and fades consistently. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 11: Match the user's red-framed, text-free game layout with a slim auto-hiding bottom bar and X menu control. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
 </head>
 <body>
 <div class="app">
@@ -85,6 +86,14 @@
   const overlay = document.getElementById('overlay');
   const stage = document.getElementById('stage');
   const W = canvas.width, H = canvas.height;
+  // Cosmetic PNG assets. The Jupiter artwork was uploaded by the user.
+  const jupiterSkinImage = new Image();
+  jupiterSkinImage.src = 'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png';
+  const blackHatImage = new Image();
+  blackHatImage.src = 'assets/black-hat.png';
+  const tvHatImage = new Image();
+  tvHatImage.src = 'assets/tv-hat.png';
+
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
   const TOTAL_LEVELS = 35;
@@ -533,30 +542,26 @@
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
     const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
-    // Froggy stays red by default; the Jupiter skin changes the body colors.
+    // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
     const jupiter=equippedSkin==='jupiter';
-    const legColor=jupiter?'#9a5738':'#b51f35';
-    const bodyColor=jupiter?'#d99a52':'#ef334b';
-    const outlineColor=jupiter?'#75402e':'#941b30';
-    const bellyColor=jupiter?'#f3d18b':'#ff9b9b';
-    const headColor=jupiter?'#c47b43':'#d92743';
-    roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
-    roundedRect(3,14,30,20,10,bodyColor,outlineColor);roundedRect(8,23,20,8,4,bellyColor);
-    if(jupiter){ctx.save();ctx.globalAlpha=.85;ctx.strokeStyle='#fff0bd';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(5,18);ctx.quadraticCurveTo(18,13,31,18);ctx.moveTo(7,29);ctx.quadraticCurveTo(18,25,29,29);ctx.stroke();ctx.fillStyle='#a64d3b';ctx.beginPath();ctx.ellipse(25,25,4,3,0,0,Math.PI*2);ctx.fill();ctx.restore();}
-    // eye stalks and big eyes
-    roundedRect(4,4,11,16,5,headColor);roundedRect(21,4,11,16,5,headColor);
-    ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
-    ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
-    ctx.fillStyle=jupiter?'#d98a62':'#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-    // Hats are drawn above the frog's eyes so they stay visible while hopping.
-    if(equippedHat==='black'){
-      roundedRect(2,-2,32,6,3,'#171717','#050505');roundedRect(9,-13,18,13,5,'#202020','#050505');
-    }else if(equippedHat==='tv'){
-      ctx.strokeStyle='#d7e7ef';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(13,-7);ctx.lineTo(8,-14);ctx.moveTo(23,-7);ctx.lineTo(28,-14);ctx.stroke();
-      roundedRect(3,-17,30,18,4,'#253744','#0b1820');roundedRect(7,-14,22,12,2,'#77d8e8','#d8faff');
-      ctx.fillStyle='#1a3845';ctx.fillRect(12,-11,3,3);ctx.fillRect(21,-11,3,3);ctx.fillRect(15,-5,7,1);
+    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0){
+      ctx.drawImage(jupiterSkinImage,-27,-28,90,90);
+    }else{
+      const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
+      roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
+      roundedRect(3,14,30,20,10,bodyColor,outlineColor);roundedRect(8,23,20,8,4,bellyColor);
+      roundedRect(4,4,11,16,5,headColor);roundedRect(21,4,11,16,5,headColor);
+      ctx.fillStyle='#f9fff0';ctx.beginPath();ctx.ellipse(10,10,7,8,0,0,Math.PI*2);ctx.ellipse(26,10,7,8,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
+      ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
+      ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
+    }
+    // PNG hats are positioned above the frog and can be worn with either skin.
+    if(equippedHat==='black' && blackHatImage.complete && blackHatImage.naturalWidth>0){
+      ctx.drawImage(blackHatImage,-4,-12,44,28);
+    }else if(equippedHat==='tv' && tvHatImage.complete && tvHatImage.naturalWidth>0){
+      ctx.drawImage(tvHatImage,-4,-17,44,31);
     }
     ctx.restore();
   }
