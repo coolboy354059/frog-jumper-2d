@@ -191,7 +191,7 @@ for (const [index, level] of levels.entries()) {
   }
   hooks.setupLevel(index);
   assert.equal(hooks.getCoins().length, 5, levelName + ' should create five coins');
-  assert.deepEqual(hooks.getCoins().map(coin => coin.platformId), [1, 2, 3, 4, 5], levelName + ' coins should attach to the expected platforms');
+  assert.equal(JSON.stringify(hooks.getCoins().map(coin => coin.platformId)), JSON.stringify([1, 2, 3, 4, 5]), levelName + ' coins should attach to the expected platforms');
 }
 
 desktop.storage.set('bad-number', '17coins');
@@ -210,8 +210,8 @@ desktop.storage.set('frogJumperShop', JSON.stringify({
   equippedHat: 'tv'
 }));
 const shop = hooks.loadShopData();
-assert.deepEqual(shop.ownedSkins, ['red', 'jupiter'], 'Shop should remove unknown/duplicate skins');
-assert.deepEqual(shop.ownedHats, ['tv', 'black'], 'Shop should remove unknown/duplicate hats');
+assert.equal(JSON.stringify(shop.ownedSkins), JSON.stringify(['red', 'jupiter']), 'Shop should remove unknown/duplicate skins');
+assert.equal(JSON.stringify(shop.ownedHats), JSON.stringify(['tv', 'black']), 'Shop should remove unknown/duplicate hats');
 assert.equal(shop.equippedSkin, 'jupiter');
 assert.equal(shop.equippedHat, 'tv');
 
