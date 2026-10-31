@@ -271,15 +271,19 @@
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
       const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
-      const label=equipped?'EQUIPPED':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
-      const disabled=equipped||(!owned&&walletCoins<item.price);
+      const label=equipped?'UNEQUIP':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
+      const disabled=!equipped&&!owned&&walletCoins<item.price;
       return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
     }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
     overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
       const id=button.dataset.shopItem;const item=items.find(entry=>entry.id===id);if(!item)return;
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-      if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
-      if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
+      if(equipped){
+        if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
+      }else{
+        if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
+        if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
+      }
       shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop();
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
@@ -468,9 +472,14 @@
 
     const target=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     cameraX+=(target-cameraX)*Math.min(1,dt*7.5);
-    const portalX=level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]*.68;
-    const portalY=level.platforms[level.platforms.length-1][1]-74;
-    const portalOverlap=player.x+player.w>portalX-24&&player.x<portalX+24&&player.y+player.h>portalY&&player.y<portalY+88;
+    const endPlatform=platforms[platforms.length-1];
+    const portalX=endPlatform.x+endPlatform.w*.68;
+    const portalY=endPlatform.y-75;
+    // Use the live platform position and a forgiving trigger area so the portal
+    // remains reachable even when the final platform moves or the frog lands near its edge.
+    const playerCenterX=player.x+player.w/2;
+    const playerCenterY=player.y+player.h/2;
+    const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
     if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
   }
 
@@ -528,7 +537,7 @@
     ctx.fillStyle='#203c2a';ctx.fillRect(x+10,y+10+wobble,3,4);ctx.fillRect(x+21,y+10+wobble,3,4);
   }
   function drawPortal(){
-    const end=level.platforms[level.platforms.length-1];const x=end[0]+end[2]*.68-cameraX,y=end[1]-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
+    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
     ctx.save();ctx.translate(x,y);const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
     ctx.scale(pulse,1);
     ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
