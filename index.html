@@ -59,7 +59,7 @@
   html.touch-device .stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}
   html.touch-device .stage canvas{min-height:0}
   @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
-  @media(orientation:landscape) and (max-height:520px) and (any-pointer:coarse){.stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}.bottom-bar{flex:0 0 82px}}
+  @media(orientation:landscape) and (max-height:520px){html.touch-device .stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}html.touch-device .bottom-bar{flex:0 0 82px}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
   /* Temporary maintenance gate: keep players informed while updates are in progress. */
@@ -105,6 +105,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 38: Fit the 16:10 game view and its touch controls inside short landscape phone screens without scrolling the controls off-screen. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 39: Prevent the maintenance iframe from overflowing its padded full-screen gate on phones. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 40: Give the slower Robot Race rival a small head start instead of starting behind the faster frog. -->
+<!-- CHANGE LOG: 2026-10-31 — Fix 41: Apply landscape-phone sizing through the shared touch-device class so the maxTouchPoints fallback works too. -->
 </head>
 <body>
 <div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
