@@ -548,7 +548,8 @@
     if(player.invulnerable>0)return;
     lives--;updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
+    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
+    cameraX=gameMode==='infinite'?Math.max(0,player.x-W*.34):Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
   function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
