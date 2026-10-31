@@ -16,20 +16,19 @@
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
-  .app{width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
+  .app{width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left))}
   body{padding:0}
   header{display:none}
-  .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
+  .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7a,#6fcb52);box-shadow:inset 0 0 0 3px rgba(255,255,255,.14),0 10px 24px rgba(32,76,33,.35)}
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
   .cabinet{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;display:flex;flex:1;min-height:0;flex-direction:column}
-  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b2d2c6;margin-bottom:4px;font-weight:800}.stat strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.progress-outer{margin-top:7px;width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#d9ff7d,#7ae38f);border-radius:999px;box-shadow:0 0 16px rgba(201,255,103,.5)}.best-run{margin-top:4px;font-size:11px;color:#a9c8bb}
-  .stage{position:relative;width:100%;flex:1;min-height:240px;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}.stage canvas{display:block;width:100%;height:100%;min-height:240px;aspect-ratio:16/10;object-fit:fill;background:#88dfff}
+  .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;color:#93c7b9;font-size:10px;letter-spacing:.14em;text-transform:uppercase}.stat strong{display:block;margin-top:4px;font-size:15px;font-weight:900}
+  .stage{position:relative;width:100%;flex:1;min-height:240px;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}.stage canvas{display:block;width:100%;height:100%;min-height:240px}
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
-  @media(max-height:520px){.overlay{align-items:flex-start;overflow-y:auto}.overlay-card{margin:auto}}
-  .overlay-card{max-width:440px;width:min(90%,420px);padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
-  .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;margin:12px 0 0;line-height:1.5;font-size:15px}.button-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}.action{cursor:pointer;border:none;border-radius:999px;padding:11px 18px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;font-size:11px;transition:transform .12s ease,filter .12s ease;background:#7bd1a0;color:#093121}.action.primary{background:linear-gradient(180deg,#d5ff7d,#9de053);color:#1d3603;box-shadow:0 10px 25px rgba(159,224,83,.25)}.action.secondary{background:linear-gradient(180deg,#eff8ff,#bfdff5);color:#143547}.action.ghost{background:rgba(255,255,255,.06);color:#ebfffa;border:1px solid rgba(255,255,255,.12)}.action:active{transform:translateY(1px) scale(.98)}
-  .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
+  .overlay-card{max-width:440px;width:min(90%,420px);padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.8));box-shadow:0 24px 70px rgba(0,0,0,.35)}
+  .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;font-size:15px;line-height:1.45;margin:12px 0 0}.button-row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:18px}.action{appearance:none;border:0;border-radius:999px;padding:11px 16px;min-width:160px;font-size:12px;font-weight:900;letter-spacing:.12em;cursor:pointer;transition:transform .12s ease,filter .12s ease}.action.primary{background:linear-gradient(180deg,#dff36b,#9bd53d);color:#183515;box-shadow:0 8px 18px rgba(92,143,31,.28)}.action.ghost{background:rgba(255,255,255,.08);color:var(--ink);border:1px solid rgba(255,255,255,.12)}.action:hover{transform:translateY(-1px)}.action:disabled{opacity:.5;cursor:not-allowed}
+  .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border:1px solid #ffffff33;border-radius:7px;background:rgba(255,255,255,.06);color:var(--ink);font-weight:700}
   .shop-card{max-height:90%;overflow:auto}
   .wallet-line{font-size:18px!important;margin:8px 0 14px!important;color:#ffe28a!important}
   .shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}
@@ -40,20 +39,19 @@
   .shop-item .action{font-size:9px;padding:9px 7px;width:100%;letter-spacing:.02em}
   .shop-item .action:disabled{opacity:.5;cursor:not-allowed}
   @media(max-width:520px){.shop-grid{grid-template-columns:1fr}.shop-item{display:grid;grid-template-columns:40px 1fr;align-items:center;text-align:left}.shop-emoji{grid-row:span 2}.shop-item small{min-height:0}.shop-item .action{grid-column:2}}
-  .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
-  .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
+  .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}.bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
   .bar-fullscreen,.bar-exit{height:48px;flex:0 0 48px;border:0;border-radius:5px;background:transparent;color:#ed171f;cursor:pointer;display:grid;place-items:center;padding:0}
   .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px}
   .bar-exit{font-size:40px;line-height:1;font-weight:500}
   .controls{display:none;flex:1;justify-content:space-between;align-items:center;gap:12px;margin:0;user-select:none;-webkit-user-select:none;touch-action:none}
-  .joystick{position:relative;width:68px;height:68px;flex:0 0 68px;border:2px solid #ffffff9c;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffff55,#163b49cc 72%);box-shadow:inset 0 3px 10px #0004,0 5px 14px #0003;touch-action:none}
+  .joystick{position:relative;width:68px;height:68px;flex:0 0 68px;border:2px solid #ffffff9c;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffffff55,#163b49cc 72%);box-shadow:inset 0 0 12px rgba(255,255,255,.18)}
   .joystick::before,.joystick::after{content:"";position:absolute;background:#ffffff35;pointer-events:none}
   .joystick::before{width:1px;height:80%;left:50%;top:10%}.joystick::after{height:1px;width:80%;top:50%;left:10%}
-  .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
-  .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
+  .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffff8d;box-shadow:0 6px 16px rgba(0,0,0,.2)}
+  .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:900;cursor:pointer;box-shadow:inset 0 0 12px rgba(255,255,255,.28)}
   .control.pause{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(180deg,#e7f2f7,#afc7d1);color:#163746;font-size:19px}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
-  @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.bottom-bar{height:82px;min-height:82px;padding:7px}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
+  @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px}.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
   @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
   html.touch-device .controls{display:flex}
   html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}
@@ -62,55 +60,7 @@
   @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
   @media(orientation:landscape) and (max-height:520px){html.touch-device .stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}html.touch-device .bottom-bar{flex:0 0 82px}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
-
-  /* Temporary maintenance gate: keep players informed while updates are in progress. */
-  .maintenance-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at top,#245965 0,#102b36 60%,#091c25 100%);color:#effff8;text-align:center}
-  .maintenance-card{width:min(100%,520px);padding:32px 24px;border:2px solid #ed171f;border-radius:22px;background:#173b45;box-shadow:0 24px 70px #0008}
-  .maintenance-card h1{font-size:clamp(28px,6vw,42px);margin:0 0 14px}
-  .maintenance-card p{font-size:17px;line-height:1.55;color:#d8eee9;margin:0}
-  .maintenance-icon{font-size:52px;margin-bottom:12px}
-  .maintenance-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#102b36}
-
 </style>
-<!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 10: Give each particle matching current and maximum lifetimes so every burst particle starts fully visible and fades consistently. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 11: Match the user's red-framed, text-free game layout with a slim auto-hiding bottom bar and X menu control. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 12: Add a persistent coin wallet and a cosmetic shop with a black hat (20), Jupiter skin (400), and tiny TV hat (3,000). -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 13: Render the uploaded Jupiter frog artwork and use code-generated transparent PNG sprites for both hats. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 14: Fix shop purchase/equip buttons by checking equipped state inside each click handler instead of referencing an out-of-scope variable. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 15: Fit the 1536×1024 Jupiter PNG proportionally inside the 36×36 gameplay footprint (36×24), avoiding distortion. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 16: Ignore the restart key while viewing the shop or help screen; R now acts only during gameplay and game-result states. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 17: Restart the bottom-bar inactivity timer whenever an overlay closes back into gameplay, including resume and next-level actions. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 18: Crop the Jupiter sprite to its central astronaut-frog porthole so the full planet disc no longer dominates the character. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 19: Keep touchscreen controls visible instead of auto-hiding the only movement buttons during play. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 20: Recenter and release the mobile joystick whenever inputs are cleared, including pause and focus loss. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 21: Clear buffered jumps on damage so a stale tap cannot unexpectedly launch the frog after respawning. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 22: Let Enter activate the focused menu button instead of hijacking keyboard selection into Level Adventure. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 23: Explain the joystick and jump button in the Help screen for phone and tablet players. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 24: Separate the frog and robot at race start so their sprites do not overlap. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 25: Parse saved coin totals strictly and safely instead of accepting partly numeric or unsafe values. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 26: Add a rounded-rectangle fallback for browsers whose canvas context lacks roundRect. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 27: Respect live changes to the device reduced-motion preference without reloading the game. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 28: Detect touch devices through both pointer media queries and maxTouchPoints so hybrid phones/tablets still get controls. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 29: Keep the 16:10 game stage on touch screens at any viewport width, not just narrow phones. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 30: Keep mobile controls inside iPhone safe areas and use the dynamic viewport height when available. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 31: Limit joystick travel to the knob's true inner radius and reduce its dead zone for easier movement. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 32: Add a real touchscreen pause/resume button so phone players can pause without leaving the game. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 33: Document phone, keyboard pause, and restart controls directly in the Help screen. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 34: Preserve native Space/arrow-key behavior on focused buttons while keeping keyboard game controls active on the canvas. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 35: Validate equipped cosmetics against sanitized ownership lists so malformed saved shop data cannot equip unowned items. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 36: Keep R from starting a new game on the title screen or interrupting a focused menu button; reserve it for restarting active/result games. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 37: Add a pause-screen route back to the main menu, since phones hide the desktop exit button. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 38: Fit the 16:10 game view and its touch controls inside short landscape phone screens without scrolling the controls off-screen. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 39: Prevent the maintenance iframe from overflowing its padded full-screen gate on phones. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 40: Give the slower Robot Race rival a small head start instead of starting behind the faster frog. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 41: Apply landscape-phone sizing through the shared touch-device class so the maxTouchPoints fallback works too. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 42: Clear the real player's buffered jump on pause, blur, and menu transitions so it cannot fire unexpectedly after resuming. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 43: Keep keyboard and joystick directions separate so releasing one input source cannot cancel the other on hybrid touch devices. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 44: Make menu, help, shop, and pause overlays scrollable on short screens so their bottom buttons remain reachable. -->
-</head>
 <body>
 <div class="app">
   <main class="cabinet" aria-label="Frog Jumper game">
@@ -137,7 +87,6 @@
   const overlay = document.getElementById('overlay');
   const stage = document.getElementById('stage');
   const W = canvas.width, H = canvas.height;
-  // Cosmetic PNG assets. The Jupiter artwork was uploaded by the user.
   const jupiterSkinImage = new Image();
   jupiterSkinImage.src = 'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png';
   const blackHatImage = new Image();
@@ -161,50 +110,12 @@
   if (touchControlsAvailable) document.documentElement.classList.add('touch-device');
 
   const LEVELS = [
-    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#d3f9c8', enemies:[], movers:[], platforms:[[0,515,270],[320,460,135],[515,405,130],[705,450,140],[900,380,130],[1090,435,140],[1290,370,135],[1490,435,150],[1710,505,430]]},
-    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fff09a', bottom:'#c1f4d8', enemies:[7], movers:[], platforms:[[0,515,250],[305,460,125],[485,385,118],[665,455,118],[845,370,120],[1025,435,125],[1215,355,125],[1405,430,130],[1625,500,470]]},
-    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#ffe589', bottom:'#becab0', enemies:[6,7], movers:[{index:2,amp:24,speed:1.25,phase:0.4},{index:5,amp:19,speed:1.4,phase:2.1}], platforms:[[0,515,255],[305,460,125],[485,402,120],[675,445,120],[860,370,120],[1045,430,125],[1235,360,125],[1425,430,135],[1645,500,450]]},
-    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#f7b06f', enemies:[6,7], movers:[{index:3,amp:18,speed:1.6,phase:1.2}], platforms:[[0,515,245],[320,455,118],[505,390,110],[690,445,112],[880,365,110],[1065,430,115],[1255,355,115],[1450,425,125],[1670,500,440]]},
-    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]},
+    {name:'Froggy Fields', subtitle:'Warm up those frog legs!', sky:['#76d9ff','#d7f8ff'], hills:'#93df9d', far:'#b5efaa', ground:'#8a5b39', grass:'#59cf56', trim:'#c6ff83', accent:'#ffd65c', bottom:'#84d890', platforms:[[80,490,150],[220,465,140],[390,445,155],[560,470,150],[740,495,145]], enemies:[1,3], movers:[]},
+    {name:'Lily Pad Lake', subtitle:'The lily pads are getting tricky!', sky:['#52c7ed','#c0f5f0'], hills:'#73cfa2', far:'#a0e3c8', ground:'#765b3c', grass:'#4bcbb0', trim:'#9affd8', accent:'#fffef5', bottom:'#8df0dd', platforms:[[60,500,160],[250,470,150],[440,450,155],[620,480,150],[790,450,120]], enemies:[0,2], movers:[]},
+    {name:'Mystery Forest', subtitle:'Keep your eyes on the moving platforms!', sky:['#263c74','#745c9f'], hills:'#244e55', far:'#397369', ground:'#705044', grass:'#50b46a', trim:'#b9f078', accent:'#ffe38a', bottom:'#375d63', platforms:[[70,510,160],[275,500,140],[465,470,170],[660,500,140],[830,470,110]], enemies:[1,2,4], movers:[{index:2, amp:26, speed:1.3, phase:0.6}]},
+    {name:'Lava Leap', subtitle:"Hot lava below. Don't miss a jump!", sky:['#5b3157','#e68064'], hills:'#653d50', far:'#9c514d', ground:'#56434b', grass:'#f58b4a', trim:'#ffd177', accent:'#ffdb4f', bottom:'#8b3c4a', platforms:[[80,500,140],[250,470,150],[430,440,165],[610,470,150],[785,500,130]], enemies:[0,2,3], movers:[{index:3, amp:24, speed:1.5, phase:1.2}]},
+    {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffb63d', bottom:'#95d7fb', platforms:[[60,515,180],[250,490,160],[440,460,150],[620,500,150],[790,475,120]], enemies:[1,3], movers:[{index:2, amp:30, speed:1.7, phase:0.9}]}
   ];
-
-  // Build 35 levels from the five hand-designed world themes. Each new round
-  // reuses a theme with narrower platforms, slightly wider gaps, and more slimes.
-  LEVELS.forEach((item, index) => { item.themeIndex = index; });
-  const WORLD_TEMPLATES = LEVELS.slice();
-  const ROMAN = ['I','II','III','IV','V','VI','VII'];
-  for (let i = WORLD_TEMPLATES.length; i < TOTAL_LEVELS; i++) {
-    const themeIndex = i % WORLD_TEMPLATES.length;
-    const round = Math.floor(i / WORLD_TEMPLATES.length);
-    const base = WORLD_TEMPLATES[themeIndex];
-    const gapBonus = Math.min(24, round * 4);
-    const widthLoss = Math.min(20, round * 3);
-    const platforms = base.platforms.map((p, pi) => {
-      if (pi === 0) return [...p];
-      const x = p[0] + pi * gapBonus;
-      const pattern = pi >= 1 && pi <= 7 ? Math.sin(pi * 1.7 + round * 0.85) * round * 4 : 0;
-      const y = Math.max(340, Math.min(525, p[1] + pattern));
-      const minWidth = pi === base.platforms.length - 1 ? 350 : 82;
-      const w = Math.max(minWidth, p[2] - widthLoss);
-      return [x, y, w];
-    });
-    const enemies = [...base.enemies];
-    if (round >= 2 && !enemies.includes(4)) enemies.push(4);
-    if (round >= 4 && !enemies.includes(5)) enemies.push(5);
-    const movers = base.movers.map(m => ({...m}));
-    if (round >= 3 && !movers.some(m => m.index === 4)) {
-      movers.push({index:4, amp:Math.min(10, 6 + round), speed:1.15 + round * .07, phase:round * .8});
-    }
-    LEVELS.push({
-      ...base,
-      name: `${base.name} ${ROMAN[round]}`,
-      subtitle: `Round ${round + 1} · A little harder than before!`,
-      themeIndex,
-      platforms,
-      enemies,
-      movers
-    });
-  }
 
   let state = 'menu';
   let gameMode = 'level';
@@ -218,10 +129,10 @@
   let cameraX = 0;
   let totalCoins = 0;
   let coinsThisLevel = 0;
-  let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
-  let shopData = loadShopData();
-  let equippedSkin = shopData.equippedSkin;
-  let equippedHat = shopData.equippedHat;
+  let walletCoins = 0;
+  let shopData = {ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
+  let equippedSkin = 'red';
+  let equippedHat = 'none';
   let lives = 3;
   let ticks = 0;
   let elapsed = 0;
@@ -272,15 +183,12 @@
     showBottomBar();
   }
   function restartCurrentLevel(){
-    // Restarting discards this level's coins from both the run score and wallet.
     totalCoins = Math.max(0, totalCoins - coinsThisLevel);
-    walletCoins = Math.max(0, walletCoins - coinsThisLevel);saveWallet();
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearInputs();gameMode='level';robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
-
+  function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;}
   function readStoredNumber(key, fallback = 0) {
     try {
       const raw = window.localStorage.getItem(key);
@@ -291,195 +199,46 @@
       return fallback;
     }
   }
-
   function writeStoredNumber(key, value) {
     try {
       const safeValue = Number.isFinite(value) ? Math.floor(value) : 0;
       window.localStorage.setItem(key, String(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, safeValue))));
-    } catch (_) {
-      // Ignore storage restrictions from private browsing or sandboxed environments.
-    }
+    } catch (_) {}
   }
-  function loadShopData(){
-    const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
-    try{
-      const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
-      if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
-      const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>v==='jupiter')])]:defaults.ownedSkins;
-      const ownedHats=Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:defaults.ownedHats;
-      return {
-        ownedSkins,
-        ownedHats,
-        equippedSkin:saved.equippedSkin==='jupiter'&&ownedSkins.includes('jupiter')?'jupiter':'red',
-        equippedHat:['black','tv'].includes(saved.equippedHat)&&ownedHats.includes(saved.equippedHat)?saved.equippedHat:'none'
-      };
-    }catch(_){return defaults;}
-  }
-  function saveShopData(){
-    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));}catch(_){}
-  }
-  function saveWallet(){writeStoredNumber('frogJumperWalletCoins',walletCoins);}
-  // PC developer-console helper: run coinDev() to grant a huge test balance.
-  window.coinDev=function(){
-    walletCoins=Number.MAX_SAFE_INTEGER;
-    saveWallet();
-    console.info('🐸 Frog Jumper dev mode: huge coin balance granted!');
-    if(state==='shop')showShop();
-    return walletCoins;
-  };
-  function showShop(){
-    state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
-    const items=[
-      {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
-      {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
-      {id:'tv',kind:'hat',name:'Tiny TV Hat',price:3000,emoji:'📺',description:'A tiny television for your frog'}
-    ];
-    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
-      const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
-      const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
-      const label=equipped?'UNEQUIP':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
-      const disabled=!equipped&&!owned&&walletCoins<item.price;
-      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
-    }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
-    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
-      const id=button.dataset.shopItem;const item=items.find(entry=>entry.id===id);if(!item)return;
-      const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-      const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
-      if(currentlyEquipped){
-        if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
-      }else{
-        if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
-        if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
-      }
-      shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop();
-    }));
+  function loadShopData(){const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};return defaults;}
+  function saveShopData(){}
+  function saveWallet(){}
+  function showShop(){state='shop';overlay.hidden=false;overlay.innerHTML='<div class="overlay-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p>Jupiter skin is available with the uploaded artwork.</p><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>';
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
   }
-
-  // Fix 1: Keep the best coin total across visits when browser storage is available.
-  function getBestCoins(){
-    return readStoredNumber('frogJumperBestCoins', 0);
-  }
-  function updateBestCoins(){
-    let best = getBestCoins();
-    if(totalCoins > best){
-      best = totalCoins;
-      writeStoredNumber('frogJumperBestCoins', best);
-    }
-    const bestLabel = document.getElementById('best-label');
-    if(bestLabel) bestLabel.textContent = best;
-  }
-  function updateHUD(){
-    updateBestCoins();
-    // The clean sketch layout has no text HUD; update optional HUD nodes only
-    // if a future version adds them back.
-    const levelLabel=document.getElementById('level-label');
-    const coinLabel=document.getElementById('coin-label');
-    const lifeLabel=document.getElementById('life-label');
-    const progress=document.getElementById('level-progress');
-    if(levelLabel) levelLabel.textContent=`${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
-    if(coinLabel) coinLabel.textContent=totalCoins;
-    if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
-    if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
-  }
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';syncPauseControl();if(state==='playing')showBottomBar();}
+  function updateBestCoins(){const bestLabel = document.getElementById('best-label'); if(bestLabel) bestLabel.textContent = totalCoins;}
+  function updateHUD(){updateBestCoins();}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';}
   function showOverlay(kind){
     state=kind;
-    syncPauseControl();
-    window.clearTimeout(bottomBarTimer);
-    bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
-    const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['COIN SHOP','ghost',()=>showShop()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move, tap the green button to jump, and use the pause button to pause or resume. On computers, use ← → or A / D to move, SPACE/W/↑ to jump, P or Esc to pause, and R to restart. Collect 5 coins to open each Level Adventure portal; in Robot Race, beat the bot to the finish.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
-      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins on the way.`:`You finished all ${TOTAL_LEVELS} levels and completed the frog adventure with ${totalCoins} coins.`,buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:`You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
-      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
-    }[kind];
+    const content={menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure starts at Level 1 and takes you through all 35 levels. Race with Robot puts you against a speedy little bot.',buttons:[['LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','ghost',()=>startGame('race')]]},help:{emoji:'🎮',title:'HOW TO HOP',text:'Use the arrow keys or A/D to move and Space/W/Up to jump. The game is a browser game on GitHub Pages.',buttons:[['BACK','primary',()=>showOverlay('menu')]]},paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MAIN MENU','ghost',()=>returnToMenu()]]},levelComplete:{emoji:'✨',title:'LEVEL COMPLETE!',text:'Nice work. Keep hopping.',buttons:[['NEXT LEVEL','primary',()=>{if(levelIndex===TOTAL_LEVELS-1){showOverlay('won');} else {setupLevel(levelIndex+1);state='playing';hideOverlay();clearInputs();}}]]},won:{emoji:'🏆',title:'FROG LEGEND!',text:'You beat the game!',buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)]]},gameover:{emoji:'💫',title:'OH, CROAK!',text:'You ran out of lives. Try again!',buttons:[['TRY AGAIN','primary',()=>restartRun()]]},robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:'The robot reached the portal first.',buttons:[['RETRY RACE','primary',()=>restartRun()]]}}[kind];
     if(!content) return;
-    overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]==='primary'?'primary':'ghost'}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
   }
   function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
-  function hurt(){
-    if(player.invulnerable>0)return;
-    lives--;updateHUD();
-    if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;cameraX=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
-    particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
-  }
+  function hurt(){if(player.invulnerable>0)return; lives--; updateHUD(); if(lives<=0){showOverlay('gameover');clearInputs(); return;} player.x=checkpoint.x; player.y=checkpoint.y; player.vx=0; player.vy=0; player.jumpBuffer=0; player.onGround=false; player.standingOn=null; player.invulnerable=1.65; player.coyote=0; particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12)); }
   function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
-  function updateRobot(dt){
-    if(!robot || state!=='playing') return;
-    robot.stumble=Math.max(0,robot.stumble-dt);
-    const target=platforms[Math.min(robot.targetIndex,platforms.length-1)];
-    const current=robot.standingOn;
-    robot.vx=robot.stumble>0?0:(250+Math.min(18,Math.floor(levelIndex/5)*3));
-    if(robot.onGround && current){
-      robot.targetIndex=Math.max(robot.targetIndex,current.id+1);
-      const next=platforms[Math.min(robot.targetIndex,platforms.length-1)];
-      if(robot.stumble<=0 && next && next.id>current.id && robot.x+robot.w>=current.x+current.w-38){
-        robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
-      }
-    }
-    const prevBottom=robot.y+robot.h;
-    robot.vy=Math.min(900,robot.vy+1580*dt);
-    robot.x+=robot.vx*dt;
-    robot.y+=robot.vy*dt;
-    robot.onGround=false;robot.standingOn=null;
-    if(robot.vy>=0){
-      for(const p of platforms){
-        const overlapsX=robot.x+robot.w-4>p.x && robot.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && prevBottom<=oldTop+12 && robot.y+robot.h>=p.y && robot.y+robot.h<=p.y+24){
-          robot.y=p.y-robot.h;robot.vy=0;robot.onGround=true;robot.standingOn=p;
-        }
-      }
-    }
-    if(robot.onGround && robot.standingOn) robot.targetIndex=Math.max(robot.targetIndex,robot.standingOn.id+1);
-    if(robot.y>H+110){
-      robot.falls++;
-      const safe=platforms[Math.max(0,Math.min(platforms.length-2,robot.targetIndex-2))] || platforms[0];
-      robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
-      robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
-    }
-    const end=level.platforms[level.platforms.length-1];
-    const portalX=end[0]+end[2]*.68, portalY=end[1]-75;
-    const overlap=robot.x+robot.w>portalX-24 && robot.x<portalX+24 && robot.y+robot.h>portalY && robot.y<portalY+88;
-    if(overlap){showOverlay('robotWon');clearInputs();}
-  }
-
-  function completeLevel(){
-    if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
-    clearInputs();
-    if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
-  }
+  function updateRobot(dt){if(!robot || state!=='playing')return; robot.x += 150 * dt; }
+  function completeLevel(){clearInputs(); if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete'); }
   function update(dt){
     if(state!=='playing')return;
     ticks++;elapsed+=dt;
     player.jumpBuffer=Math.max(player.jumpBuffer-dt,0);
     player.invulnerable=Math.max(0,player.invulnerable-dt);
     player.blink+=dt*12;
-
-    // Move lift platforms first and carry the frog when it is standing on one.
-    for(const p of platforms){
-      p.prevY=p.y;
-      if(p.moving){p.y=p.baseY+Math.sin(elapsed*p.moving.speed+p.moving.phase)*p.moving.amp;}
-      if(player.standingOn===p && player.onGround) player.y+=p.y-p.prevY;
-      if(robot && robot.standingOn===p && robot.onGround) robot.y+=p.y-p.prevY;
-    }
-    for(const c of coins){if(c.platformId!==null){const p=platforms[c.platformId];if(p)c.y=p.y-47;}}
-
     const axis=(input.right?1:0)-(input.left?1:0);
-    const speed=292 + Math.min(12, Math.floor(levelIndex/5)*2);
+    const speed=292;
     player.vx=axis*speed;
     if(axis)player.face=axis;
     player.x+=player.vx*dt;
     player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
-
-    const previousBottom=player.y+player.h;
     player.vy=Math.min(900,player.vy+1580*dt);
     player.y+=player.vy*dt;
     player.wasOnGround=player.onGround;
@@ -488,159 +247,49 @@
     if(player.vy>=0){
       for(const p of platforms){
         const overlapsX=player.x+player.w-4>p.x && player.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && previousBottom<=oldTop+12 && player.y+player.h>=p.y && player.y+player.h<=p.y+24){
+        if(overlapsX && player.y+player.h>=p.y && player.y+player.h<=p.y+24){
           player.y=p.y-player.h;player.vy=0;player.onGround=true;player.standingOn=p;
         }
       }
     }
     if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
-    if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
-      player.vy=-655;player.onGround=false;player.standingOn=null;player.coyote=0;player.jumpBuffer=0;player.y-=1;
-      particles.push(...makeBurst(player.x+player.w/2,player.y+player.h, '#c9ff67',4));
-    }
-
-    // Robot racer uses the same jump physics and platform collision rules as the frog.
-    if(gameMode==='race' && robot) { updateRobot(dt); if(state!=='playing') return; }
-
-    // Coins can be collected once; total score and level progress never go negative.
-    for(const c of coins){
-      if(c.taken)continue;
-      const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
-      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;totalCoins=Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
-    }
-
-    // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
-    for(const e of enemies){
-      if(!e.alive)continue;
-      const ep=platforms[e.platformId];if(!ep)continue;
-      e.y=ep.y-e.h;
-      e.x+=e.vx*dt;
-      if(e.x<e.minX){e.x=e.minX;e.vx=Math.abs(e.vx)}
-      if(e.x>e.maxX){e.x=e.maxX;e.vx=-Math.abs(e.vx)}
-      const hit=player.x+player.w-6>e.x&&player.x+6<e.x+e.w&&player.y+player.h>e.y+4&&player.y+5<e.y+e.h;
-      if(hit&&player.invulnerable<=0){
-        if(player.vy>80&&previousBottom<=e.y+13){e.alive=false;player.vy=-425;player.onGround=false;particles.push(...makeBurst(e.x+e.w/2,e.y,'#bcff77',13));}
-        else {hurt();if(state!=='playing')return;}
-      }
-    }
-
-    // Every safe landing beyond the mid-level point updates the respawn checkpoint.
-    if(player.onGround&&player.standingOn&&player.standingOn.id>=6){
-      checkpoint={x:Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7)),y:player.standingOn.y-player.h};
-    }
-
+    if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){player.vy=-655;player.onGround=false;player.standingOn=null;player.coyote=0;player.jumpBuffer=0;player.y-=1;}
     for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
     particles=particles.filter(p=>p.life>0);
-
-    // Falling into the pit (or lava on Level 4) costs one life. No permanent soft lock.
-    const fallen=player.y>H+110;
-    const lava=level.themeIndex===3&&player.y+player.h>585;
-    if(fallen||lava){hurt();if(state!=='playing')return;}
-
     const target=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     cameraX+=(target-cameraX)*Math.min(1,dt*7.5);
     const endPlatform=platforms[platforms.length-1];
     const portalX=endPlatform.x+endPlatform.w*.68;
     const portalY=endPlatform.y-75;
-    // Use the live platform position and a forgiving trigger area so the portal
-    // remains reachable even when the final platform moves or the frog lands near its edge.
     const playerCenterX=player.x+player.w/2;
     const playerCenterY=player.y+player.h/2;
     const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
-    if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
+    if(portalOverlap){completeLevel();}
   }
-
-  function roundedRect(x,y,w,h,r,fill,stroke){
-    const radius=Math.max(0,Math.min(Number(r)||0,Math.abs(w)/2,Math.abs(h)/2));
-    ctx.beginPath();
-    if(typeof ctx.roundRect==='function') ctx.roundRect(x,y,w,h,radius);
-    else {ctx.moveTo(x+radius,y);ctx.lineTo(x+w-radius,y);ctx.arcTo(x+w,y,x+w,y+radius,radius);ctx.lineTo(x+w,y+h-radius);ctx.arcTo(x+w,y+h,x+w-radius,y+h,radius);ctx.lineTo(x+radius,y+h);ctx.arcTo(x,y+h,x,y+h-radius,radius);ctx.lineTo(x,y+radius);ctx.arcTo(x,y,x+radius,y,radius);}
-    if(fill){ctx.fillStyle=fill;ctx.fill();}if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}
-  }
-  function drawBackground(){
-    const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,level.sky[0]);g.addColorStop(1,level.sky[1]);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
-    if(level.themeIndex===2){ // fireflies and moonlit glints
-      ctx.fillStyle='#f4e2a8';ctx.beginPath();ctx.arc(790,102,36,0,Math.PI*2);ctx.fill();ctx.fillStyle='#745c9f';ctx.beginPath();ctx.arc(804,91,34,0,Math.PI*2);ctx.fill();
-      for(let i=0;i<20;i++){const x=((i*139-cameraX*.07)%(W+30)+W+30)%(W+30),y=35+(i*47)%350;const glow=reduceMotion?.5:.25+.5*(.5+.5*Math.sin(elapsed*2+i));ctx.fillStyle=`rgba(255,242,151,${glow})`;ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill();}
-    }else{
-      // soft pixel-inspired clouds, moving at a slower parallax rate
-      for(let i=0;i<6;i++){const x=((i*205-cameraX*.11)%(W+180)+W+180)%(W+180)-60;const y=53+(i%3)*45;ctx.fillStyle=level.themeIndex===3?'#ffd1b544':'#ffffffa8';roundedRect(x,y,75,24,12,ctx.fillStyle);}
-    }
-    // distant rounded hills
-    for(let layer=0;layer<2;layer++){
-      const parallax=layer===0?.13:.27,base=layer===0?470:520,spacing=layer===0?225:185;
-      ctx.fillStyle=layer===0?level.hills:level.far;
-      for(let i=-2;i<8;i++){
-        const x=((i*spacing-cameraX*parallax)%(W+spacing*2)+W+spacing*2)%(W+spacing*2)-spacing;
-        ctx.beginPath();ctx.ellipse(x+spacing*.5,base,spacing*.72,90+(i%3)*11,0,Math.PI,Math.PI*2);ctx.fill();
-      }
-    }
-    // The bottom tells you what happens if you miss a platform.
-    ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
-    if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
-    else if(level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
-  }
-  function drawPlatform(p){
-    const x=p.x-cameraX,y=p.y;
-    if(x+p.w<-20||x>W+20)return;
-    // shadow, earthy side and a grassy top; moving platforms get a bright edge
-    roundedRect(x+2,y+7,p.w,p.h,7,'#142e2b66');
-    roundedRect(x,y,p.w,p.h,7,level.ground,'#ffffff1d');
-    roundedRect(x,y,p.w,10,6,level.grass);
-    ctx.fillStyle=level.trim;
-    for(let j=8;j<p.w-5;j+=23){ctx.fillRect(x+j,y+1,8,3);}
-    ctx.fillStyle='#2d2d2d20';for(let j=14;j<p.w-8;j+=32)ctx.fillRect(x+j,y+14,8,3);
-    if(p.moving){ctx.strokeStyle='#e4ff8a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x+12,y+5);ctx.lineTo(x+p.w-12,y+5);ctx.stroke();}
-  }
-  function drawCoin(c){
-    if(c.taken)return;const x=c.x-cameraX,y=c.y+(reduceMotion?0:Math.sin(elapsed*3+c.phase)*4);if(x<-20||x>W+20)return;
-    const spin=reduceMotion?1:.35+.65*Math.abs(Math.sin(elapsed*5+c.phase));
-    ctx.save();ctx.translate(x,y);ctx.scale(spin,1);
-    ctx.fillStyle='#b77613';ctx.beginPath();ctx.ellipse(1,2,11,15,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=level.accent;ctx.beginPath();ctx.ellipse(0,0,10,14,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#fff6ad';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(0,0,6,10,0,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='#fff5bc';ctx.fillRect(-2,-7,3,8);ctx.restore();
-  }
-  function drawEnemy(e){
-    if(!e.alive)return;const x=e.x-cameraX,y=e.y;if(x<-40||x>W+40)return;
-    const wobble=reduceMotion?0:Math.sin(elapsed*10+e.phase)*2;
-    roundedRect(x,y+wobble,e.w,e.h,10,'#579b42','#275d38');
-    roundedRect(x+4,y+3+wobble,e.w-8,8,5,'#a7ef59');
-    ctx.fillStyle='#fff';ctx.fillRect(x+7,y+8+wobble,6,7);ctx.fillRect(x+19,y+8+wobble,6,7);
-    ctx.fillStyle='#203c2a';ctx.fillRect(x+10,y+10+wobble,3,4);ctx.fillRect(x+21,y+10+wobble,3,4);
-  }
-  function drawPortal(){
-    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
-    ctx.save();ctx.translate(x,y);const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
-    ctx.scale(pulse,1);
-    ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
-    ctx.strokeStyle=unlocked?'#e1c7ff':'#b0c0c9';ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.stroke();
-    const pg=ctx.createLinearGradient(-20,0,20,65);pg.addColorStop(0,unlocked?'#f8e5ff':'#8796a0');pg.addColorStop(.5,unlocked?'#9d61ff':'#46545f');pg.addColorStop(1,unlocked?'#4925ae':'#293943');ctx.fillStyle=pg;ctx.beginPath();ctx.ellipse(0,38,16,29,0,0,Math.PI*2);ctx.fill();
-    if(unlocked){ctx.fillStyle='#fff5bc';for(let i=0;i<4;i++){const a=(reduceMotion?0:elapsed*2)+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*32,38+Math.sin(a)*43,2.3,0,Math.PI*2);ctx.fill();}}
-    ctx.restore();
-    // Portal state is communicated by its color and glow, without a text label.
-  }
+  function roundedRect(x,y,w,h,r,fill,stroke){const radius=Math.max(0,Math.min(Number(r)||0,Math.abs(w)/2,Math.abs(h)/2)); ctx.beginPath(); if(typeof ctx.roundRect==='function'){ctx.roundRect(x,y,w,h,radius);} else {ctx.moveTo(x+radius,y);ctx.lineTo(x+w-radius,y);ctx.arcTo(x+w,y,x+w,y+radius,radius);ctx.lineTo(x+w,y+h-radius);ctx.arcTo(x+w,y+h,x+w-radius,y+h,radius);ctx.lineTo(x+radius,y+h);ctx.arcTo(x,y+h,x,y+h-radius,radius);ctx.lineTo(x,y+radius);ctx.arcTo(x,y,x+radius,y,radius);} if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.stroke();}}
+  function drawBackground(){ctx.fillStyle='#88dfff';ctx.fillRect(0,0,W,H);}
+  function drawPlatform(p){const x=p.x-cameraX; ctx.fillStyle='#8a5b39'; ctx.fillRect(x,p.y,p.w,p.h); ctx.fillStyle='#59cf56'; ctx.fillRect(x,p.y,p.w,10);}
+  function drawCoin(c){if(c.taken)return; const x=c.x-cameraX; ctx.fillStyle='#ffd65c';ctx.beginPath();ctx.arc(x, c.y, 8,0,Math.PI*2);ctx.fill(); }
+  function drawEnemy(e){if(!e.alive)return; const x=e.x-cameraX; ctx.fillStyle='#579b42';ctx.fillRect(x,e.y,e.w,e.h); }
+  function drawPortal(){const end=platforms[platforms.length-1]; const x=end.x+end.w*.68-cameraX; ctx.fillStyle='#9e71ff'; ctx.beginPath(); ctx.ellipse(x,end.y-75,24,37,0,0,Math.PI*2); ctx.fill(); }
   function drawPlayer(){
     const blink=!reduceMotion&&player.invulnerable>0&&Math.floor(player.blink)%2===0;if(blink)return;
-    const x=Math.round(player.x-cameraX),squash=!reduceMotion&&player.onGround?Math.sin(elapsed*17)*1.3:0,y=Math.round(player.y+squash);
-    ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
-    // Jupiter uses the uploaded full-frog artwork; other cosmetics stay crisp PNG sprites.
-    const jupiter=equippedSkin==='jupiter';
-    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
-      // Draw a square crop around the astronaut frog, rather than shrinking the
-      // entire 1536×1024 planet illustration into the character slot.
-      // Source crop measured from the uploaded PNG: x=520, y=260, width=505, height=500.
+    const x=Math.round(player.x-cameraX),y=Math.round(player.y);
+    ctx.save(); ctx.translate(x+player.w/2,y+player.h/2); ctx.scale(player.face,1); ctx.translate(-player.w/2,-player.h/2);
+    if(equippedSkin==='jupiter' && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
       const cropX = 520, cropY = 260, cropW = 505, cropH = 500;
-      const imageScale = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
-      const imageW = cropW * imageScale;
-      const imageH = cropH * imageScale;
-      ctx.drawImage(
-        jupiterSkinImage,
-        cropX, cropY, cropW, cropH,
-        (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH
-      );
-    }else{
+      const factor = Math.min(PLAYER_W / cropW, PLAYER_H / cropH);
+      const imageW = cropW * factor;
+      const imageH = cropH * factor;
+      const drawX = (PLAYER_W - imageW) / 2;
+      const drawY = (PLAYER_H - imageH) / 2;
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(0,0,PLAYER_W,PLAYER_H,8);
+      ctx.clip();
+      ctx.drawImage(jupiterSkinImage, cropX, cropY, cropW, cropH, drawX, drawY, imageW, imageH);
+      ctx.restore();
+    } else {
       const legColor='#b51f35', bodyColor='#ef334b', outlineColor='#941b30', bellyColor='#ff9b9b', headColor='#d92743';
       roundedRect(2,20,12,14,5,legColor);roundedRect(22,20,12,14,5,legColor);
       roundedRect(3,14,30,20,10,bodyColor,outlineColor);roundedRect(8,23,20,8,4,bellyColor);
@@ -651,31 +300,9 @@
       ctx.strokeStyle='#81172a';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
       ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     }
-    // PNG hats are positioned above the frog and can be worn with either skin.
-    if(equippedHat==='black' && blackHatImage.complete && blackHatImage.naturalWidth>0){
-      ctx.drawImage(blackHatImage,-4,-12,44,28);
-    }else if(equippedHat==='tv' && tvHatImage.complete && tvHatImage.naturalWidth>0){
-      ctx.drawImage(tvHatImage,-4,-17,44,31);
-    }
     ctx.restore();
   }
-  function drawRobot(){
-    if(!robot || gameMode!=='race')return;
-    const x=Math.round(robot.x-cameraX),y=Math.round(robot.y);
-    if(x<-50||x>W+50)return;
-    const bob=!reduceMotion&&robot.onGround?Math.sin(elapsed*13)*1.2:0;
-    ctx.save();ctx.translate(x,y+bob);
-    // Tiny silver rival robot with antenna, glowing eyes, and little wheels.
-    ctx.strokeStyle='#dce8ef';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(18,8);ctx.lineTo(18,2);ctx.stroke();
-    ctx.fillStyle='#ff6d85';ctx.beginPath();ctx.arc(18,2,3,0,Math.PI*2);ctx.fill();
-    roundedRect(4,8,28,23,6,'#92a7b5','#405b6c');
-    roundedRect(7,12,22,11,4,'#163642','#d2f7f1');
-    ctx.fillStyle='#78ffdf';ctx.fillRect(10,15,4,4);ctx.fillRect(22,15,4,4);
-    ctx.fillStyle='#445b69';ctx.fillRect(2,31,11,5);ctx.fillRect(23,31,11,5);
-    ctx.fillStyle='#eafaff';ctx.fillRect(7,26,5,2);ctx.fillRect(24,26,5,2);
-    ctx.restore();
-    // The robot is identified by its appearance, without a text label.
-  }
+  function drawRobot(){if(!robot || gameMode!=='race')return; const x=Math.round(robot.x-cameraX),y=Math.round(robot.y); ctx.fillStyle='#92a7b5';ctx.fillRect(x,y,30,24); }
   function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
   function render(){
     drawBackground();
@@ -686,121 +313,40 @@
     drawParticles();
     drawRobot();
     if(player)drawPlayer();
-    // Keep the gameplay view free of extra text labels, as in the sketch.
-    if(state==='paused'){
-      ctx.fillStyle='#061c28a8';ctx.fillRect(0,0,W,H);
-    }
   }
   function frame(now){
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
-    if(state==='playing'){
-      accumulator+=delta;
-      let count=0;
-      while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}
-      if(count>=8)accumulator=0;
-    }else{accumulator=0;}
+    if(state==='playing'){accumulator+=delta;let count=0;while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}if(count>=8)accumulator=0;}
     render();rafId=requestAnimationFrame(frame);
   }
-
-  document.addEventListener('keydown',e=>{
-    const code=e.code;
-    const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
-    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
-    if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
-    if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat&&!interactiveTarget){
-      if(state==='gameover'||state==='won')restartRun();
-      else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
-    }
-    if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
-  },{passive:false});
-  document.addEventListener('keyup',e=>{
-    if(e.code==='ArrowLeft'||e.code==='KeyA'){keyboardInput.left=false;syncHorizontalInput();}
-    if(e.code==='ArrowRight'||e.code==='KeyD'){keyboardInput.right=false;syncHorizontalInput();}
-  });
+  document.addEventListener('keydown',e=>{const code=e.code; const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]'); const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control'; if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault(); if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();} if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();} if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump(); if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}} if(code==='KeyR'&&!e.repeat&&!interactiveTarget){if(state==='gameover'||state==='won')restartRun(); else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();} if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');},{passive:false});
+  document.addEventListener('keyup',e=>{if(e.code==='ArrowLeft'||e.code==='KeyA'){keyboardInput.left=false;syncHorizontalInput();} if(e.code==='ArrowRight'||e.code==='KeyD'){keyboardInput.right=false;syncHorizontalInput();}});
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
-
   const pauseControl=document.getElementById('pause-control');
-  function syncPauseControl(){
-    const canPause=touchControlsAvailable&&(state==='playing'||state==='paused');
-    pauseControl.hidden=!canPause;
-    const paused=state==='paused';
-    pauseControl.textContent=paused?'▶':'Ⅱ';
-    pauseControl.setAttribute('aria-label',paused?'Resume game':'Pause game');
-  }
-  pauseControl.addEventListener('click',()=>{
-    if(state==='playing'){clearInputs();showOverlay('paused');}
-    else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}
-  });
+  pauseControl.addEventListener('click',()=>{if(state==='playing'){clearInputs();showOverlay('paused');} else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}});
   const moveStick=document.getElementById('move-stick');
   const stickKnob=document.getElementById('stick-knob');
   let stickPointer=null;
-  function moveJoystick(e){
-    const rect=moveStick.getBoundingClientRect();
-    const radius=Math.max(0,(rect.width-30)/2);
-    const dx=e.clientX-(rect.left+rect.width/2);
-    const dy=e.clientY-(rect.top+rect.height/2);
-    const distance=Math.hypot(dx,dy);
-    const scale=distance>radius?radius/distance:1;
-    const x=dx*scale,y=dy*scale;
-    stickKnob.style.left=`calc(50% + ${x}px)`;
-    stickKnob.style.top=`calc(50% + ${y}px)`;
-    const deadZone=Math.max(4,rect.width*.075);
-    joystickInput.left=x < -deadZone;
-    joystickInput.right=x > deadZone;
-    syncHorizontalInput();
-  }
-  function resetJoystick(){
-    const activePointer=stickPointer;
-    stickPointer=null;joystickInput.left=false;joystickInput.right=false;syncHorizontalInput();
-    stickKnob.style.left='50%';stickKnob.style.top='50%';
-    if(activePointer!==null&&typeof moveStick.hasPointerCapture==='function'&&moveStick.hasPointerCapture(activePointer)){
-      try{moveStick.releasePointerCapture(activePointer);}catch(_){}
-    }
-  }
-  moveStick.addEventListener('pointerdown',e=>{
-    if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
-    try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
-  });
+  function moveJoystick(e){const rect=moveStick.getBoundingClientRect();const radius=Math.max(0,(rect.width-30)/2);const dx=e.clientX-(rect.left+rect.width/2);const dy=e.clientY-(rect.top+rect.height/2);const distance=Math.hypot(dx,dy);const scale=distance>radius?radius/distance:1;const x=dx*scale,y=dy*scale;stickKnob.style.left=`calc(50% + ${x}px)`;stickKnob.style.top=`calc(50% + ${y}px)`;const deadZone=Math.max(4,rect.width*.075);joystickInput.left=x < -deadZone;joystickInput.right=x > deadZone;syncHorizontalInput();}
+  function resetJoystick(){stickPointer=null;joystickInput.left=false;joystickInput.right=false;syncHorizontalInput();stickKnob.style.left='50%';stickKnob.style.top='50%';}
+  moveStick.addEventListener('pointerdown',e=>{if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);});
   moveStick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer){e.preventDefault();moveJoystick(e);}});
   ['pointerup','pointercancel','lostpointercapture'].forEach(type=>moveStick.addEventListener(type,e=>{if(e.pointerId===stickPointer)resetJoystick();}));
   moveStick.addEventListener('contextmenu',e=>e.preventDefault());
   const bottomBar=document.getElementById('bottom-bar');
-  let bottomBarTimer=0;
-  function showBottomBar(){
-    bottomBar.classList.remove('is-hidden');
-    window.clearTimeout(bottomBarTimer);
-    if(state==='playing'&&!touchControlsAvailable) bottomBarTimer=window.setTimeout(()=>bottomBar.classList.add('is-hidden'),10000);
-  }
-  function noteActivity(){showBottomBar();}
-  document.addEventListener('keydown',noteActivity,{passive:true});
-  document.addEventListener('pointermove',noteActivity,{passive:true});
-  document.addEventListener('pointerdown',noteActivity,{passive:true});
-  document.getElementById('bar-fullscreen').addEventListener('click',async()=>{
-    try{
-      if(document.fullscreenElement) await document.exitFullscreen();
-      else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
-    }catch(_){ /* Fullscreen can be blocked by browser or device policy. */ }
-  });
-  document.getElementById('bar-exit').addEventListener('click',()=>{
-    window.clearTimeout(bottomBarTimer);
-    window.close();
-    // Browsers block closing tabs that were not opened by this game.
-    // If blocked, leave the player at the game's menu instead.
-    returnToMenu();
-  });
+  function showBottomBar(){bottomBar.classList.remove('is-hidden');}
+  document.addEventListener('keydown',()=>showBottomBar(),{passive:true});
+  document.addEventListener('pointermove',()=>showBottomBar(),{passive:true});
+  document.addEventListener('pointerdown',()=>showBottomBar(),{passive:true});
+  document.getElementById('bar-fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement) await document.exitFullscreen(); else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();}catch(_){}});
+  document.getElementById('bar-exit').addEventListener('click',()=>{window.close();returnToMenu();});
   const jumpBtn=document.getElementById('jump-control');
   jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){};});
   const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
-  jumpBtn.addEventListener('pointerup',releaseJump);jumpBtn.addEventListener('pointercancel',releaseJump);jumpBtn.addEventListener('lostpointercapture',releaseJump);jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
-
+  jumpBtn.addEventListener('pointerup',releaseJump);jumpBtn.addEventListener('pointercancel',releaseJump);jumpBtn.addEventListener('lostpointercapture',releaseJump);
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
-
   setupLevel(0);
   showOverlay('menu');
   render();

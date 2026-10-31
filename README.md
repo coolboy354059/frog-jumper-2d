@@ -2,9 +2,11 @@
 
 A single-file 2D platform adventure starring a tiny frog, with 35 levels, coins, moving platforms, slimes, touch controls, and a robot-racing mode.
 
-## Play locally
+## Play in the browser
 
-Use the GitHub pages at https://coolboy354059.github.io/frog-jumper-2d/.
+Use the GitHub Pages site at https://coolboy354059.github.io/frog-jumper-2d/.
+
+This is a browser-based website game, not an offline app.
 
 ## Controls
 
