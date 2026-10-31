@@ -24,11 +24,23 @@ assert.match(scriptMatch[1], /\['playing','paused','levelComplete','robotWon'\]\
 assert.match(scriptMatch[1], /function moveJoystick\(e\)/, 'Touch movement should use a draggable joystick');
 assert.match(scriptMatch[1], /function resetJoystick\(\)/, 'The joystick should recenter when released');
 assert.match(scriptMatch[1], /input\.jumpBuffer=0;resetJoystick\(\)/, 'Clearing input should reset the joystick');
-assert.match(scriptMatch[1], /state==='playing'&&!touchDevice/, 'Touchscreen controls should not auto-hide during play');
+assert.match(scriptMatch[1], /state==='playing'&&!touchControlsAvailable/, 'Touchscreen controls should not auto-hide during play');
 assert.match(scriptMatch[1], /releasePointerCapture\(activePointer\)/, 'Joystick pointer capture should be released when reset');
 assert.match(scriptMatch[1], /const TOTAL_LEVELS = 35/);
 assert.match(scriptMatch[1], /const COINS_PER_LEVEL = 5/);
 assert.match(scriptMatch[1], /const cropX = 520, cropY = 260, cropW = 505, cropH = 500/, 'Jupiter should use the character-focused crop');
+assert.match(scriptMatch[1], /player\.jumpBuffer=0;player\.onGround=false/, 'Damage recovery should clear an old jump tap');
+assert.match(scriptMatch[1], /!interactiveTarget\)startGame\('level'\)/, 'Enter should not override a focused menu button');
+assert.match(scriptMatch[1], /drag the round joystick to move and tap the green button to jump/, 'Help should explain touch controls');
+assert.match(scriptMatch[1], /makePlayer\(8,platforms\[0\]\.y-PLAYER_H\)/, 'Robot and frog should not overlap at the race start');
+assert.match(scriptMatch[1], /Number\.isSafeInteger\(parsed\)/, 'Saved coin values should reject unsafe or partly numeric data');
+assert.match(scriptMatch[1], /typeof ctx\.roundRect==='function'/, 'Canvas rounded rectangles should have a compatibility fallback');
+assert.match(scriptMatch[1], /motionPreference\.addEventListener\('change'/, 'Reduced-motion preference should update while the game is open');
+assert.match(scriptMatch[1], /navigator\.maxTouchPoints > 0/, 'Touch devices should be detected even without coarse-pointer media support');
+assert.match(html, /html\.touch-device \.stage\{flex:0 0 auto;aspect-ratio:16\/10/, 'Touch gameplay should keep its correct aspect ratio');
+assert.match(html, /env\(safe-area-inset-bottom\)/, 'Mobile layout should respect bottom safe-area insets');
+assert.match(scriptMatch[1], /rect\.width-30/, 'Joystick knob should stay inside its outer ring');
+assert.match(scriptMatch[1], /const deadZone=Math\.max\(4,rect\.width\*\.075\)/, 'Joystick should respond without a large dead zone');
 
 const assetPaths = [...scriptMatch[1].matchAll(/\.src\s*=\s*['"]([^'"]+)['"]/g)].map(m => m[1]);
 assert.ok(assetPaths.length >= 3, 'Expected the Jupiter and both hat images');
