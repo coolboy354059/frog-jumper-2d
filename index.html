@@ -280,7 +280,7 @@
     if(achievementData.earned.includes(id))return;
     const item=ACHIEVEMENTS.find(a=>a.id===id);if(!item)return;
     achievementData.earned.push(id);saveAchievementData();
-    achievementNotice=`\${item.emoji} \${item.name} unlocked!`;
+    achievementNotice=item.emoji+' '+item.name+' unlocked!';
     achievementNoticeTime=3.2;
   }
   function recordCoinAchievement(){
