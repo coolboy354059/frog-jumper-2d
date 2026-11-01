@@ -29,7 +29,7 @@ jobs:
         id: install_chromium
         run: |
           set +e
-          npx playwright install --with-deps chromium > chromium-install.log 2>&1
+          npx playwright install chromium > chromium-install.log 2>&1
           result=$?
           set -e
           cat chromium-install.log
