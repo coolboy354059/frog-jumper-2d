@@ -129,6 +129,7 @@
 <!-- BUG HUNT FIX 1: Restore keyboard focus to the shop item after the shop re-renders following a purchase or equip action. -->
 <!-- BUG HUNT FIX 2: Award Halloween Explorer only during October, matching its seasonal achievement description. -->
 <!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
+<!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
 </head>
 <body>
 <div class="app">
@@ -157,10 +158,21 @@
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     overlay.hidden = false;
+    overlay.setAttribute('role','alert');
     overlay.innerHTML = '<div class="overlay-card"><div class="big-frog" aria-hidden="true">⚠️</div><h2>CANVAS NOT SUPPORTED</h2><p>This browser cannot start Frog Jumper. Try updating your browser or opening the game in another browser.</p></div>';
     return;
   }
   const W = canvas.width, H = canvas.height;
+
+  overlay.addEventListener('keydown',e=>{
+    if(e.key!=='Tab'||overlay.hidden)return;
+    const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])'))
+      .filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
+    if(!focusable.length){e.preventDefault();return;}
+    const first=focusable[0],last=focusable[focusable.length-1];
+    if(e.shiftKey&&(document.activeElement===first||!overlay.contains(document.activeElement))){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&(document.activeElement===last||!overlay.contains(document.activeElement))){e.preventDefault();first.focus();}
+  });
   // Cosmetic PNG assets. The Jupiter artwork was uploaded by the user.
   const jupiterSkinImage = new Image();
   jupiterSkinImage.src = 'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png';
@@ -315,6 +327,7 @@
     }).join('');
     overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>'+earned.length+' of '+ACHIEVEMENTS.length+' unlocked</p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
     document.getElementById('achievements-back').addEventListener('click',()=>showOverlay('menu'));
+    activateOverlayDialog(document.getElementById('achievements-back'));
   }
   function makePlayer(x, y) {
     return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
@@ -563,7 +576,8 @@
       shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop(id);
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
-    if(focusItemId){const focusTarget=overlay.querySelector('[data-shop-item="'+focusItemId+'"]');if(focusTarget)focusTarget.focus({preventScroll:true});}
+    const focusTarget=focusItemId?overlay.querySelector('[data-shop-item="'+focusItemId+'"]'):overlay.querySelector('[data-shop-item]:not(:disabled)');
+    activateOverlayDialog(focusTarget||document.getElementById('shop-back'));
   }
 
   // Fix 1: Keep the best coin total across visits when browser storage is available.
@@ -592,7 +606,14 @@
     if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
     if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
   }
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';syncPauseControl();if(state==='playing')showBottomBar();}
+  function activateOverlayDialog(focusTarget){
+    overlay.setAttribute('role','dialog');
+    overlay.setAttribute('aria-modal','true');
+    const heading=overlay.querySelector('h2');
+    if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
+    if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
+  }
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();if(state==='playing')showBottomBar();}
   function showOverlay(kind){
     state=kind;
     syncPauseControl();
@@ -611,6 +632,7 @@
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
+    activateOverlayDialog(overlay.querySelector('[data-action="0"]'));
   }
   function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
   function hurt(){
