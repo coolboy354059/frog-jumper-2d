@@ -42,13 +42,14 @@ jobs:
         env:
           TEST_OUTCOME: ${{ steps.browser_tests.outcome }}
           FAILED_TESTS: ${{ steps.browser_tests.outputs.failures }}
+          TEST_EXIT_CODE: ${{ steps.browser_tests.outputs.exit_code }}
         with:
           script: |
             const state = process.env.TEST_OUTCOME === 'success' ? 'success' : 'failure';
             const failureDetails = (process.env.FAILED_TESTS || '').trim();
             const contextName = state === 'success'
               ? 'frog-jumper/playwright'
-              : ('frog-jumper/playwright: ' + (failureDetails || 'test run failed')).slice(0, 100);
+              : ('frog-jumper/playwright: ' + process.env.TEST_OUTCOME + ' ' + (process.env.TEST_EXIT_CODE || failureDetails || 'no test output')).slice(0, 100);
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
