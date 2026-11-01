@@ -131,6 +131,7 @@
 <!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
 <!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
 <!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
+<!-- BUG HUNT FIX 6: Treat the player's initial spawn as already grounded so the starting platform is not counted as a landing. -->
 <!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
@@ -461,6 +462,7 @@
     platforms.push(start);
     infiniteWorld.lastPlatform=start;
     player=makePlayer(54,start.y-PLAYER_H);
+    player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
     cameraX=0;coinsThisLevel=0;
     maintainInfiniteWorld();
@@ -489,6 +491,7 @@
     }
     particles=[];
     player=makePlayer(54,platforms[0].y-PLAYER_H);
+    player.onGround=true;player.standingOn=platforms[0];
     robot = gameMode === 'race' ? {...makePlayer(104,platforms[0].y-PLAYER_H), targetIndex:1, falls:0, stumble:0} : null;
     checkpoint={x:54,y:platforms[0].y-PLAYER_H};
     cameraX=0;
