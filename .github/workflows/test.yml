@@ -56,7 +56,7 @@ jobs:
             const failureDetails = (process.env.FAILED_TESTS || '').trim();
             const contextName = state === 'success'
               ? 'frog-jumper/playwright'
-              : ('frog-jumper/playwright: ' + ['checkout='+process.env.CHECKOUT_OUTCOME,'node='+process.env.NODE_OUTCOME,'deps='+process.env.DEPENDENCIES_OUTCOME,'tests='+process.env.TEST_OUTCOME].join(',')).slice(0, 100);
+              : ('fjpw: ' + (failureDetails || ['checkout='+process.env.CHECKOUT_OUTCOME,'node='+process.env.NODE_OUTCOME,'deps='+process.env.DEPENDENCIES_OUTCOME,'tests='+process.env.TEST_OUTCOME].join(','))).slice(0, 100);
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
