@@ -37,7 +37,7 @@ jobs:
           set -e
           cat test-output.log
           echo "exit_code=$result" >> "$GITHUB_OUTPUT"
-          node -e "const fs=require('node:fs'); const output=fs.readFileSync('test-output.log','utf8'); const blocks=output.split(/(?=^not ok \\d+ - )/m).filter(block=>block.startsWith('not ok ')); const failures=blocks.map(block=>{const title=(block.split(/\\r?\\n/)[0]||'').replace(/^not ok \\d+ - /,''); const match=block.match(/error:\\s*\\|[-]?\\s*\\n([\\s\\S]*?)(?:\\n  [a-zA-Z]+:|$)/); const detail=match?match[1].split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).slice(0,2).join(' '):''; return (title+': '+detail).replace(/[\\r\\n]/g,' ').slice(0,170);}); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'failures='+failures.join('; ').slice(0,190)+String.fromCharCode(10));"
+          node -e "const fs=require('node:fs'); const output=fs.readFileSync('test-output.log','utf8'); const blocks=output.split(/(?=^not ok \\d+ - )/m).filter(block=>block.startsWith('not ok ')); const failures=blocks.map(block=>{const title=(block.split(/\\r?\\n/)[0]||'').replace(/^not ok \\d+ - /,''); const quoted=(block.match(/error:\\s*['\\\"]([^'\\\"]+)/)||[])[1]||''; const yaml=(block.match(/error:\\s*\\|[-]?\\s*\\n([\\s\\S]*?)(?:\\n  [a-zA-Z]+:|$)/)||[])[1]||''; const detail=quoted||yaml.split(/\\r?\\n/).map(line=>line.trim()).filter(Boolean).slice(0,1).join(' '); return (title+': '+detail).replace(/[\\r\\n]/g,' ').slice(0,170);}); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'failures='+failures.join('; ').slice(0,190)+String.fromCharCode(10));"
           exit "$result"
 
       - name: Publish regression test status
