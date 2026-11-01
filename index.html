@@ -605,7 +605,13 @@
       // Web Locks serializes purchases made by different same-origin tabs.
       // The fresh read above also keeps older tabs in sync before every action.
       if(navigator.locks&&typeof navigator.locks.request==='function'){
-        navigator.locks.request('frog-jumper-shop-economy',applyShopAction).catch(applyShopAction);
+        let lockCallbackStarted=false;
+        navigator.locks.request('frog-jumper-shop-economy',()=>{
+          lockCallbackStarted=true;
+          applyShopAction();
+        }).catch(()=>{
+          if(!lockCallbackStarted)applyShopAction();
+        });
       }else applyShopAction();
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
