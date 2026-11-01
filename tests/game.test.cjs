@@ -166,6 +166,7 @@ test('canceling a touch on jump does not trigger a buffered jump', async () => {
   page.on('pageerror',error=>errors.push(error.message));
   await page.goto(baseUrl,{waitUntil:'load'});
   await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await assertHidden(page,'#overlay');
   const frogCenterY=()=>page.evaluate(()=>{
     const data=document.getElementById('game').getContext('2d').getImageData(0,0,960,600).data;
     let sum=0,count=0;
