@@ -119,9 +119,15 @@ test('platform achievements count distinct platforms, not repeated jumps on one 
   assert.equal(before.visited.length,0,'the starting platform should not be recorded as a landing');
   await page.keyboard.press('Space');
   await page.waitForTimeout(1100);
+  const afterFirstLanding=await readPlatformProgress();
+  assert.equal(afterFirstLanding.count,1,'the first real landing on the starting platform should count once');
+  assert.equal(afterFirstLanding.visited.length,1);
+
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(1100);
   const afterRepeat=await readPlatformProgress();
-  assert.equal(afterRepeat.count,0,'landing on the same starting platform again must not increase unique-platform progress');
-  assert.deepEqual(afterRepeat.visited,[]);
+  assert.equal(afterRepeat.count,1,'landing on the same starting platform again must not increase unique-platform progress');
+  assert.deepEqual(afterRepeat.visited,afterFirstLanding.visited);
 
   await page.keyboard.down('ArrowRight');
   await page.waitForTimeout(400);
@@ -131,8 +137,8 @@ test('platform achievements count distinct platforms, not repeated jumps on one 
   await page.keyboard.up('ArrowRight');
   await page.waitForTimeout(150);
   const afterNextPlatform=await readPlatformProgress();
-  assert.equal(afterNextPlatform.count,1,'landing on the next distinct platform should increase progress once');
-  assert.equal(afterNextPlatform.visited.length,1);
+  assert.equal(afterNextPlatform.count,2,'landing on the next distinct platform should increase progress once');
+  assert.equal(afterNextPlatform.visited.length,2);
   assert.deepEqual(errors,[]);
   await page.close();
 });
