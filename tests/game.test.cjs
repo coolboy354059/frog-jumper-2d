@@ -126,11 +126,87 @@ test('malformed saved shop data does not crash the game', async () => {
 
 test('invalid and unsafe wallet values are safely handled', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperCoins','999999999999999999999999999999'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','999999999999999999999999999999'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   await assertVisibleText(page,'FROGGY SHOP');
+  assert.match(await page.locator('.wallet-line').innerText(), /0 coins/);
   assert.deepEqual(errors, []);
+  await page.close();
+});
+
+test('achievements screen opens, lists all achievements, and returns to menu', async () => {
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  await assertVisibleText(page,'ACHIEVEMENTS');
+  await assertVisibleText(page,'0 of 5 unlocked');
+  for (const name of ['First Jump','Coin Collector','Platform Hopper','Platform Master','Halloween Explorer']) {
+    await assertVisibleText(page,name);
+  }
+  await page.getByRole('button',{name:'BACK TO MENU'}).click();
+  await assertVisibleText(page,'FROG JUMPER');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
+test('Infinite Explore can start, pause, resume, and return to the menu', async () => {
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'INFINITE EXPLORE'}).click();
+  await assertHidden(page,'#overlay');
+  await page.keyboard.press('Escape');
+  await assertVisibleText(page,'PAUSED');
+  await page.getByRole('button',{name:/RESUME/}).click();
+  await assertHidden(page,'#overlay');
+  await page.keyboard.press('p');
+  await assertVisibleText(page,'PAUSED');
+  await page.getByRole('button',{name:'MENU',exact:true}).click();
+  await assertVisibleText(page,'FROG JUMPER');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
+test('shop purchases are charged once and remain owned after reload', async () => {
+  const {page,errors}=await freshPage();
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','20'));
+  await page.reload({waitUntil:'load'});
+  await page.getByRole('button',{name:'COIN SHOP'}).click();
+  const blackHat=page.locator('[data-shop-item="black"]');
+  assert.match(await blackHat.innerText(),/BUY/);
+  await blackHat.click();
+  assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
+  assert.equal((await blackHat.innerText()).trim(),'UNEQUIP');
+  await page.reload({waitUntil:'load'});
+  await page.getByRole('button',{name:'COIN SHOP'}).click();
+  const savedBlackHat=page.locator('[data-shop-item="black"]');
+  assert.equal((await savedBlackHat.innerText()).trim(),'UNEQUIP');
+  assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
+  await savedBlackHat.click();
+  assert.equal((await savedBlackHat.innerText()).trim(),'EQUIP');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
+test('malformed achievement saves are sanitized without crashing the menu', async () => {
+  const {page,errors}=await freshPage();
+  await page.evaluate(() => localStorage.setItem('frogJumperAchievements',JSON.stringify({
+    earned:['first_jump','not-a-real-achievement','first_jump'],
+    coinsCollected:-4,
+    platformsLanded:'lots'
+  })));
+  await page.reload({waitUntil:'load'});
+  await page.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  await assertVisibleText(page,'1 of 5 unlocked');
+  await assertVisibleText(page,'First Jump');
+  await assertVisibleText(page,'LOCKED');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
+test('the R key does not accidentally start a game from the title menu', async () => {
+  const {page,errors}=await freshPage();
+  await page.keyboard.press('r');
+  await assertVisibleText(page,'FROG JUMPER');
+  assert.notEqual(await page.locator('#overlay').getAttribute('hidden'),null);
   await page.close();
 });
 
@@ -148,14 +224,29 @@ test('all game artwork files are served successfully', async () => {
   await page.close();
 });
 
-test('mobile-sized viewport exposes touch controls without breaking layout', async () => {
+test('mobile-sized viewport centers the game, popup, and touch controls', async () => {
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
   await page.goto(baseUrl,{waitUntil:'load'});
+  const stage=await page.locator('#stage').boundingBox();
+  const cabinet=await page.locator('.cabinet').boundingBox();
+  const menuCard=await page.locator('#overlay .overlay-card').boundingBox();
+  assert.ok(Math.abs((stage.x+stage.width/2)-(cabinet.x+cabinet.width/2))<3,'game stage should be horizontally centered');
+  assert.ok(Math.abs((menuCard.x+menuCard.width/2)-(stage.x+stage.width/2))<3,'menu popup should be centered over the game');
   assert.equal(await page.locator('#jump-control').isVisible(),true);
   assert.equal(await page.locator('#move-stick').isVisible(),true);
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  const bottomBar=await page.locator('#bottom-bar').boundingBox();
+  const controls=await page.locator('.controls').boundingBox();
+  assert.ok(Math.abs((controls.x+controls.width/2)-(bottomBar.x+bottomBar.width/2))<3,'touch controls should be centered below the game');
+  assert.equal(await page.locator('#pause-control').isVisible(),true);
+  await page.locator('#pause-control').click();
+  await assertVisibleText(page,'PAUSED');
+  await page.getByRole('button',{name:/RESUME/}).click();
+  await assertHidden(page,'#overlay');
   assert.deepEqual(errors,[]);
   await context.close();
 });
