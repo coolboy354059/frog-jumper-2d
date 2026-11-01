@@ -252,7 +252,9 @@ test('mobile-sized viewport centers the game, popup, and touch controls', async 
 });
 
 async function assertVisibleText(page,text) {
-  await page.locator('#overlay').getByText(text,{exact:true}).waitFor({state:'visible'});
+  const matches=page.locator('#overlay').getByText(text,{exact:true});
+  assert.ok(await matches.count()>0,'Expected visible text: '+text);
+  await matches.first().waitFor({state:'visible'});
 }
 async function assertHidden(page,selector) {
   await page.locator(selector).waitFor({state:'hidden'});
