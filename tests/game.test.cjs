@@ -175,6 +175,7 @@ test('shop purchases are charged once and remain owned after reload', async () =
   await blackHat.click();
   assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
   assert.equal((await blackHat.innerText()).trim(),'UNEQUIP');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.shopItem),'black','focus should stay on the purchased shop item');
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const savedBlackHat=page.locator('[data-shop-item="black"]');
@@ -182,6 +183,7 @@ test('shop purchases are charged once and remain owned after reload', async () =
   assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
   await savedBlackHat.click();
   assert.equal((await savedBlackHat.innerText()).trim(),'EQUIP');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.shopItem),'black','focus should stay on the shop item after unequipping');
   assert.deepEqual(errors,[]);
   await page.close();
 });
