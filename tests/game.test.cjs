@@ -84,6 +84,28 @@ test('all four main-menu actions work', async () => {
   await page.close();
 });
 
+test('modal popups expose dialog semantics and trap keyboard focus', async () => {
+  const {page,errors}=await freshPage();
+  const overlay=page.locator('#overlay');
+  assert.equal(await overlay.getAttribute('role'),'dialog');
+  assert.equal(await overlay.getAttribute('aria-modal'),'true');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
+  await page.keyboard.press('Shift+Tab');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'5');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
+  await page.getByRole('button',{name:'COIN SHOP'}).click();
+  assert.equal(await overlay.getAttribute('role'),'dialog');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'shop-back');
+  await page.keyboard.press('Tab');
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'shop-back');
+  await page.getByRole('button',{name:'BACK TO MENU'}).click();
+  await page.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'achievements-back');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('robot race starts and can be paused and resumed', async () => {
   const {page}=await freshPage();
   await page.getByRole('button',{name:'ROBOT RACE'}).click();
