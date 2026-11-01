@@ -235,6 +235,25 @@ test('Halloween Explorer unlocks only during October', async () => {
   assert.equal(await runInfiniteExploreAt('2026-10-15T12:00:00'),true,'October should unlock the seasonal achievement');
 });
 
+test('browser without a 2D canvas context gets a helpful fallback instead of crashing', async () => {
+  const context=await browser.newContext();
+  await context.addInitScript(() => {
+    const nativeGetContext=HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(type,...args) {
+      if(type==='2d') return null;
+      return nativeGetContext.call(this,type,...args);
+    };
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await assertVisibleText(page,'CANVAS NOT SUPPORTED');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
 test('all game artwork files are served successfully', async () => {
   const {page}=await freshPage();
   for (const asset of [
