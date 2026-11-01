@@ -212,6 +212,29 @@ test('the R key does not accidentally start a game from the title menu', async (
   await page.close();
 });
 
+test('Halloween Explorer unlocks only during October', async () => {
+  async function runInfiniteExploreAt(dateString) {
+    const context=await browser.newContext({viewport:{width:1280,height:800}});
+    await context.addInitScript(iso => {
+      const NativeDate=Date;
+      const frozenTime=NativeDate.parse(iso);
+      class FrozenDate extends NativeDate {
+        constructor(...args) { super(...(args.length ? args : [frozenTime])); }
+        static now() { return frozenTime; }
+      }
+      window.Date=FrozenDate;
+    },dateString);
+    const page=await context.newPage();
+    await page.goto(baseUrl,{waitUntil:'load'});
+    await page.getByRole('button',{name:'INFINITE EXPLORE'}).click();
+    const earned=await page.evaluate(() => JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]);
+    await context.close();
+    return earned.includes('halloween_explorer');
+  }
+  assert.equal(await runInfiniteExploreAt('2026-09-30T12:00:00'),false,'September should not unlock the seasonal achievement');
+  assert.equal(await runInfiniteExploreAt('2026-10-15T12:00:00'),true,'October should unlock the seasonal achievement');
+});
+
 test('all game artwork files are served successfully', async () => {
   const {page}=await freshPage();
   for (const asset of [
