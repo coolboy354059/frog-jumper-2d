@@ -133,6 +133,8 @@
 <!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
 <!-- BUG HUNT FIX 6: Treat the player's initial spawn as already grounded so the starting platform is not counted as a landing. -->
 <!-- BUG HUNT FIX 7: Cancel a buffered jump when its active touch is interrupted, without canceling a completed pointer-up tap. -->
+<!-- BUG HUNT FIX 8: Keep Level Adventure and Robot Race coins unbanked until a level is completed, preventing reload farming. -->
+<!-- BUG HUNT FIX 9: Synchronize shop state across tabs and serialize purchases with the Web Locks API to prevent stale-balance spending and lost ownership. -->
 <!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
@@ -512,9 +514,8 @@
       lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore(seed);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
-    // Restarting discards this level's coins from both the run score and wallet.
+    // Unbanked level coins are run progress only, so restarting simply discards them.
     totalCoins = Math.max(0, totalCoins - coinsThisLevel);
-    walletCoins = Math.max(0, walletCoins - coinsThisLevel);saveWallet();
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
@@ -577,21 +578,53 @@
       return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
     }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
     overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
-      const id=button.dataset.shopItem;const item=items.find(entry=>entry.id===id);if(!item)return;
-      const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-      const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
-      if(currentlyEquipped){
-        if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
-      }else{
-        if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
-        if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
-      }
-      shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop(id);
+      const id=button.dataset.shopItem;
+      const applyShopAction=()=>{
+        const item=items.find(entry=>entry.id===id);if(!item)return;
+        // Re-read both shared records inside the cross-tab lock; never spend a stale balance
+        // or save an ownership snapshot that predates another tab's purchase.
+        walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
+        shopData=loadShopData();
+        equippedSkin=shopData.equippedSkin;
+        equippedHat=shopData.equippedHat;
+        const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
+        const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
+        if(currentlyEquipped){
+          if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
+        }else{
+          if(!owned){
+            if(walletCoins<item.price){showShop(id);return;}
+            walletCoins-=item.price;saveWallet();
+            if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);
+          }
+          if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
+        }
+        shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;
+        saveShopData();showShop(id);
+      };
+      // Web Locks serializes purchases made by different same-origin tabs.
+      // The fresh read above also keeps older tabs in sync before every action.
+      if(navigator.locks&&typeof navigator.locks.request==='function'){
+        navigator.locks.request('frog-jumper-shop-economy',applyShopAction).catch(applyShopAction);
+      }else applyShopAction();
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
     const focusTarget=focusItemId?overlay.querySelector('[data-shop-item="'+focusItemId+'"]'):overlay.querySelector('[data-shop-item]:not(:disabled)');
     activateOverlayDialog(focusTarget||document.getElementById('shop-back'));
   }
+
+  function syncShopFromStorage(){
+    walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
+    shopData=loadShopData();
+    equippedSkin=shopData.equippedSkin;
+    equippedHat=shopData.equippedHat;
+  }
+  window.addEventListener('storage',event=>{
+    if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
+    const focusedItemId=document.activeElement?.dataset?.shopItem||null;
+    syncShopFromStorage();
+    if(state==='shop')showShop(focusedItemId);
+  });
 
   // Fix 1: Keep the best coin total across visits when browser storage is available.
   function getBestCoins(){
@@ -712,6 +745,12 @@
 
   function completeLevel(){
     if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
+    // Level and race coins become permanent only after the player reaches the portal.
+    // Reloading or abandoning an unfinished level therefore cannot bank the same pickups twice.
+    if(gameMode!=='infinite'&&coinsThisLevel>0){
+      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+coinsThisLevel);
+      saveWallet();
+    }
     clearInputs();
     if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -772,7 +811,16 @@
     for(const c of coins){
       if(c.taken)continue;
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
-      if(dx*dx+dy*dy<34*34){c.taken=true;coinsThisLevel++;recordCoinAchievement();totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);walletCoins++;saveWallet();particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();}
+      if(dx*dx+dy*dy<34*34){
+        c.taken=true;coinsThisLevel++;recordCoinAchievement();
+        totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);
+        // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
+        if(gameMode==='infinite'){
+          walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+1);
+          saveWallet();
+        }
+        particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
+      }
     }
 
     // Slimes patrol their own platform. A falling stomp defeats them; a side hit costs a life.
