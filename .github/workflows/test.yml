@@ -12,6 +12,9 @@ jobs:
   browser-tests:
     name: Playwright regression suite
     runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-jammy
+      options: --ipc=host
     timeout-minutes: 10
     steps:
       - name: Check out repository
@@ -25,17 +28,6 @@ jobs:
       - name: Install exact dependencies
         id: install_dependencies
         run: npm install --no-audit --no-fund
-      - name: Install Chromium
-        id: install_chromium
-        run: |
-          set +e
-          npx playwright install chromium > chromium-install.log 2>&1
-          result=$?
-          set -e
-          cat chromium-install.log
-          echo "exit_code=$result" >> "$GITHUB_OUTPUT"
-          node -e "const fs=require('node:fs'); const output=fs.readFileSync('chromium-install.log','utf8'); const lines=output.split(/\\r?\\n/).filter(line=>/error|failed|not found|unsupported|unable/i.test(line)); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'summary='+lines.slice(-2).join(' ').slice(0,100)+'\\n');"
-          exit "$result"
       - name: Run strict browser tests
         id: browser_tests
         run: |
@@ -55,9 +47,6 @@ jobs:
           CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
           NODE_OUTCOME: ${{ steps.setup_node.outcome }}
           DEPENDENCIES_OUTCOME: ${{ steps.install_dependencies.outcome }}
-          CHROMIUM_OUTCOME: ${{ steps.install_chromium.outcome }}
-          CHROMIUM_EXIT_CODE: ${{ steps.install_chromium.outputs.exit_code }}
-          CHROMIUM_SUMMARY: ${{ steps.install_chromium.outputs.summary }}
           TEST_OUTCOME: ${{ steps.browser_tests.outcome }}
           FAILED_TESTS: ${{ steps.browser_tests.outputs.failures }}
           TEST_EXIT_CODE: ${{ steps.browser_tests.outputs.exit_code }}
@@ -67,7 +56,7 @@ jobs:
             const failureDetails = (process.env.FAILED_TESTS || '').trim();
             const contextName = state === 'success'
               ? 'frog-jumper/playwright'
-              : ('frog-jumper/playwright: ' + ['checkout='+process.env.CHECKOUT_OUTCOME,'node='+process.env.NODE_OUTCOME,'deps='+process.env.DEPENDENCIES_OUTCOME,'chromium='+process.env.CHROMIUM_OUTCOME+':'+(process.env.CHROMIUM_SUMMARY||process.env.CHROMIUM_EXIT_CODE||'no detail'),'tests='+process.env.TEST_OUTCOME].join(',')).slice(0, 100);
+              : ('frog-jumper/playwright: ' + ['checkout='+process.env.CHECKOUT_OUTCOME,'node='+process.env.NODE_OUTCOME,'deps='+process.env.DEPENDENCIES_OUTCOME,'tests='+process.env.TEST_OUTCOME].join(',')).slice(0, 100);
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
