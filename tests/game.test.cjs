@@ -208,7 +208,7 @@ test('the R key does not accidentally start a game from the title menu', async (
   const {page,errors}=await freshPage();
   await page.keyboard.press('r');
   await assertVisibleText(page,'FROG JUMPER');
-  assert.notEqual(await page.locator('#overlay').getAttribute('hidden'),null);
+  assert.equal(await page.locator('#overlay').isVisible(),true);
   await page.close();
 });
 
