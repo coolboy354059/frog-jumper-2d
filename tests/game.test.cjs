@@ -159,6 +159,40 @@ test('pausing freezes the rendered game state', async () => {
   await page.close();
 });
 
+test('canceling a touch on jump does not trigger a buffered jump', async () => {
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  const frogCenterY=()=>page.evaluate(()=>{
+    const data=document.getElementById('game').getContext('2d').getImageData(0,0,960,600).data;
+    let sum=0,count=0;
+    for(let y=450;y<540;y++){
+      for(let x=35;x<130;x++){
+        const i=(y*960+x)*4;
+        if(data[i]>120&&data[i+1]<100&&data[i+2]<120){sum+=y;count++;}
+      }
+    }
+    return count>10?sum/count:null;
+  });
+  await page.waitForTimeout(100);
+  const before=await frogCenterY();
+  assert.ok(before!==null,'the frog should be visible on the starting platform');
+  await page.locator('#jump-control').evaluate(button=>{
+    const rect=button.getBoundingClientRect();
+    const options={bubbles:true,cancelable:true,pointerId:77,pointerType:'touch',clientX:rect.left+rect.width/2,clientY:rect.top+rect.height/2};
+    button.dispatchEvent(new PointerEvent('pointerdown',options));
+    button.dispatchEvent(new PointerEvent('pointercancel',options));
+  });
+  await page.waitForTimeout(150);
+  const after=await frogCenterY();
+  assert.ok(after!==null&&Math.abs(after-before)<12,'canceling the touch should clear its pending jump request');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
 test('robot race starts and can be paused and resumed', async () => {
   const {page}=await freshPage();
   await page.getByRole('button',{name:'ROBOT RACE'}).click();
