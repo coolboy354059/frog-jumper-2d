@@ -132,6 +132,7 @@
 <!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
 <!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
 <!-- BUG HUNT FIX 6: Treat the player's initial spawn as already grounded so the starting platform is not counted as a landing. -->
+<!-- BUG HUNT FIX 7: Cancel a buffered jump when its active touch is interrupted, without canceling a completed pointer-up tap. -->
 <!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
@@ -1119,9 +1120,27 @@
     returnToMenu();
   });
   const jumpBtn=document.getElementById('jump-control');
-  jumpBtn.addEventListener('pointerdown',e=>{e.preventDefault();jumpBtn.classList.add('pressed');requestJump();try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){};});
-  const releaseJump=e=>{if(e)e.preventDefault();jumpBtn.classList.remove('pressed');};
-  jumpBtn.addEventListener('pointerup',releaseJump);jumpBtn.addEventListener('pointercancel',releaseJump);jumpBtn.addEventListener('lostpointercapture',releaseJump);jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
+  let jumpPointer=null;
+  jumpBtn.addEventListener('pointerdown',e=>{
+    if(jumpPointer!==null||state!=='playing')return;
+    e.preventDefault();jumpPointer=e.pointerId;jumpBtn.classList.add('pressed');requestJump();
+    try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){}
+  });
+  const releaseJump=e=>{
+    if(e)e.preventDefault();
+    if(jumpPointer===null||(e&&e.pointerId!==jumpPointer))return;
+    jumpPointer=null;jumpBtn.classList.remove('pressed');
+  };
+  const cancelJump=e=>{
+    if(e)e.preventDefault();
+    if(jumpPointer===null||(e&&e.pointerId!==jumpPointer))return;
+    if(player&&state==='playing')player.jumpBuffer=0;
+    jumpPointer=null;jumpBtn.classList.remove('pressed');
+  };
+  jumpBtn.addEventListener('pointerup',releaseJump);
+  jumpBtn.addEventListener('pointercancel',cancelJump);
+  jumpBtn.addEventListener('lostpointercapture',cancelJump);
+  jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
 
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));
 
