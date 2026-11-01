@@ -126,6 +126,7 @@
 <!-- CHANGE LOG: 2026-11-01 — Fix 46: Let all game overlays scroll within the game stage on phones, keeping tall menus from being clipped at the top or bottom. -->
 <!-- CHANGE LOG: 2026-11-01 — Fix 47: Vertically center mobile game menus in the game screen while preserving scrolling when an overlay is taller than the available space. -->
 <!-- CHANGE LOG: 2026-11-01 — Fix 48: Center the mobile game stage and touch-control group in the available screen space, keeping the popup centered over the game. -->
+<!-- BUG HUNT FIX 1: Restore keyboard focus to the shop item after the shop re-renders following a purchase or equip action. -->
 </head>
 <body>
 <div class="app">
@@ -524,7 +525,7 @@
     try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));}catch(_){}
   }
   function saveWallet(){writeStoredNumber('frogJumperWalletCoins',walletCoins);}
-  function showShop(){
+  function showShop(focusItemId=null){
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
       {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
@@ -551,9 +552,10 @@
         if(!owned){if(walletCoins<item.price)return;walletCoins-=item.price;saveWallet();if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);}
         if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
       }
-      shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop();
+      shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;saveShopData();showShop(id);
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
+    if(focusItemId){const focusTarget=overlay.querySelector('[data-shop-item="'+focusItemId+'"]');if(focusTarget)focusTarget.focus({preventScroll:true});}
   }
 
   // Fix 1: Keep the best coin total across visits when browser storage is available.
