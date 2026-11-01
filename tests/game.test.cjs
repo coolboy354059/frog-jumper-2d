@@ -463,6 +463,71 @@ test('mobile-sized viewport centers the game, popup, and touch controls', async 
   await context.close();
 });
 
+
+test('Level Adventure coins are not banked until the level is completed', async () => {
+  const {page,errors}=await freshPage();
+  await page.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','34'));
+  await page.reload({waitUntil:'load'});
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+
+  // Walk to the first platform edge, then jump through the first coin's path.
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(650);
+  await page.keyboard.up('ArrowRight');
+  await page.keyboard.down('Space');
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(450);
+  await page.keyboard.up('ArrowRight');
+  await page.waitForTimeout(260);
+  await page.keyboard.up('Space');
+
+  await page.waitForFunction(()=>{
+    const saved=JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}');
+    return saved.coinsCollected>=1;
+  },null,{timeout:7000});
+  assert.equal(await page.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'34',
+    'a collected coin in an unfinished level must remain unbanked');
+  await page.reload({waitUntil:'load'});
+  assert.equal(await page.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'34',
+    'reloading before completing the level must not increase the wallet');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
+test('shop purchases stay synchronized across tabs and preserve both purchases', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','320'));
+  await pageA.reload({waitUntil:'load'});
+  await pageA.getByRole('button',{name:'COIN SHOP'}).click();
+
+  const pageB=await context.newPage();
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageB.getByRole('button',{name:'COIN SHOP'}).click();
+
+  await pageA.locator('[data-shop-item="gold"]').click();
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('20 coins'));
+  assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
+    'the second tab should see the remaining 20-coin balance');
+  await pageB.locator('[data-shop-item="black"]').click();
+
+  await pageB.waitForFunction(()=>{
+    const wallet=Number(localStorage.getItem('frogJumperWalletCoins'));
+    const shop=JSON.parse(localStorage.getItem('frogJumperShop')||'{}');
+    return wallet===0&&shop.ownedSkins?.includes('gold')&&shop.ownedHats?.includes('black');
+  });
+  const saved=await pageA.evaluate(()=>({
+    wallet:localStorage.getItem('frogJumperWalletCoins'),
+    shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
+  }));
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 320 coins');
+  assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
+  assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
+  assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
+  await context.close();
+});
+
 async function assertVisibleText(page,text) {
   const matches=page.locator('#overlay').getByText(text,{exact:true});
   assert.ok(await matches.count()>0,'Expected visible text: '+text);
