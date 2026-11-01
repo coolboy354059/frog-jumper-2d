@@ -106,6 +106,26 @@ test('modal popups expose dialog semantics and trap keyboard focus', async () =>
   await page.close();
 });
 
+test('platform achievements count distinct platforms, not repeated jumps on one platform', async () => {
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await page.waitForTimeout(150);
+  const readPlatformProgress=()=>page.evaluate(()=>{
+    const saved=JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}');
+    return {count:saved.platformsLanded||0,visited:saved.visitedPlatforms||[]};
+  });
+  const before=await readPlatformProgress();
+  assert.equal(before.count,1,'the starting platform should count once');
+  assert.equal(before.visited.length,1,'the starting platform should have one unique ID');
+  await page.keyboard.press('Space');
+  await page.waitForTimeout(1100);
+  const after=await readPlatformProgress();
+  assert.equal(after.count,before.count,'landing on the same platform again must not increase unique-platform progress');
+  assert.deepEqual(after.visited,before.visited);
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('robot race starts and can be paused and resumed', async () => {
   const {page}=await freshPage();
   await page.getByRole('button',{name:'ROBOT RACE'}).click();
