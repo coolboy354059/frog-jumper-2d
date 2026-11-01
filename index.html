@@ -130,6 +130,7 @@
 <!-- BUG HUNT FIX 2: Award Halloween Explorer only during October, matching its seasonal achievement description. -->
 <!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
 <!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
+<!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
 </head>
 <body>
 <div class="app">
@@ -292,7 +293,8 @@
       return {
         earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
-        platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0
+        platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
+        visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
       };
     }catch(_){return defaults;}
   }
@@ -312,7 +314,13 @@
     if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
     saveAchievementData();
   }
-  function recordPlatformLanding(){
+  function recordPlatformLanding(platform){
+    if(!platform)return;
+    const platformKey=infiniteWorld
+      ? 'infinite:'+infiniteWorld.seed+':'+platform.id
+      : 'level:'+levelIndex+':'+platform.id;
+    if(achievementData.visitedPlatforms.includes(platformKey)||achievementData.visitedPlatforms.length>=100)return;
+    achievementData.visitedPlatforms.push(platformKey);
     achievementData.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,achievementData.platformsLanded+1);
     if(achievementData.platformsLanded>=10)awardAchievement('platform_hopper');
     if(achievementData.platformsLanded>=100)awardAchievement('platform_master');
@@ -744,7 +752,7 @@
         }
       }
     }
-    if(player.onGround&&!player.wasOnGround)recordPlatformLanding();
+    if(player.onGround&&!player.wasOnGround)recordPlatformLanding(player.standingOn);
     if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
     if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
       player.vy=-655;player.onGround=false;player.standingOn=null;player.coyote=0;player.jumpBuffer=0;player.y-=1;
