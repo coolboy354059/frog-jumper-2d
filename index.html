@@ -131,6 +131,7 @@
 <!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
 <!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
 <!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
+<!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
 <div class="app">
@@ -286,7 +287,7 @@
   const MAX_LIVES = 3;
 
   function loadAchievementData(){
-    const defaults={earned:[],coinsCollected:0,platformsLanded:0};
+    const defaults={earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]};
     try{
       const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
