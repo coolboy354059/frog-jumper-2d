@@ -127,6 +127,7 @@
 <!-- CHANGE LOG: 2026-11-01 — Fix 47: Vertically center mobile game menus in the game screen while preserving scrolling when an overlay is taller than the available space. -->
 <!-- CHANGE LOG: 2026-11-01 — Fix 48: Center the mobile game stage and touch-control group in the available screen space, keeping the popup centered over the game. -->
 <!-- BUG HUNT FIX 1: Restore keyboard focus to the shop item after the shop re-renders following a purchase or equip action. -->
+<!-- BUG HUNT FIX 2: Award Halloween Explorer only during October, matching its seasonal achievement description. -->
 </head>
 <body>
 <div class="app">
@@ -287,6 +288,7 @@
     achievementNotice=item.emoji+' '+item.name+' unlocked!';
     achievementNoticeTime=3.2;
   }
+  function isSpookySeason(){return new Date().getMonth()===9;}
   function recordCoinAchievement(){
     achievementData.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,achievementData.coinsCollected+1);
     if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
@@ -468,7 +470,7 @@
   function startGame(mode='level'){
     gameMode = mode;
     lives=MAX_LIVES;totalCoins=0;
-    if (mode === 'infinite') { setupInfiniteExplore(); awardAchievement('halloween_explorer'); } else setupLevel(0);
+    if (mode === 'infinite') { setupInfiniteExplore(); if(isSpookySeason()) awardAchievement('halloween_explorer'); } else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
