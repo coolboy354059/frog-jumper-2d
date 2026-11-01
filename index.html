@@ -128,6 +128,7 @@
 <!-- CHANGE LOG: 2026-11-01 — Fix 48: Center the mobile game stage and touch-control group in the available screen space, keeping the popup centered over the game. -->
 <!-- BUG HUNT FIX 1: Restore keyboard focus to the shop item after the shop re-renders following a purchase or equip action. -->
 <!-- BUG HUNT FIX 2: Award Halloween Explorer only during October, matching its seasonal achievement description. -->
+<!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
 </head>
 <body>
 <div class="app">
@@ -151,9 +152,14 @@
 (() => {
   'use strict';
   const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
   const overlay = document.getElementById('overlay');
   const stage = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    overlay.hidden = false;
+    overlay.innerHTML = '<div class="overlay-card"><div class="big-frog" aria-hidden="true">⚠️</div><h2>CANVAS NOT SUPPORTED</h2><p>This browser cannot start Frog Jumper. Try updating your browser or opening the game in another browser.</p></div>';
+    return;
+  }
   const W = canvas.width, H = canvas.height;
   // Cosmetic PNG assets. The Jupiter artwork was uploaded by the user.
   const jupiterSkinImage = new Image();
