@@ -37,7 +37,7 @@ jobs:
           set -e
           cat test-output.log
           echo "exit_code=$result" >> "$GITHUB_OUTPUT"
-          node -e "const fs=require('node:fs'); const output=fs.readFileSync('test-output.log','utf8'); const failures=output.split(/\\r?\\n/).filter(line=>line.startsWith('not ok ')).map(line=>line.substring(line.indexOf(' - ')+3)); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'failures='+failures.join('; ').slice(0,120)+'\\n');"
+          node -e "const fs=require('node:fs'); const output=fs.readFileSync('test-output.log','utf8'); const failures=output.split(String.fromCharCode(10)).filter(line=>line.startsWith('not ok ')||line.includes('✖')).map(line=>line.includes(' - ')?line.substring(line.indexOf(' - ')+3):line.trim()); fs.appendFileSync(process.env.GITHUB_OUTPUT, 'failures='+failures.join('; ').slice(0,120)+String.fromCharCode(10));"
           exit "$result"
 
       - name: Publish regression test status
