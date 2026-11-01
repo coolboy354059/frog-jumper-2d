@@ -143,6 +143,38 @@ test('platform achievements count distinct platforms, not repeated jumps on one 
   await page.close();
 });
 
+test('pausing freezes gameplay and clears held movement input', async () => {
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  const frogCenterX=()=>page.evaluate(()=>{
+    const ctx=document.getElementById('game').getContext('2d');
+    const pixels=ctx.getImageData(0,0,960,600).data;
+    let sum=0,count=0;
+    for(let y=470;y<515;y++){
+      for(let x=0;x<360;x++){
+        const i=(y*960+x)*4;
+        if(pixels[i]>120&&pixels[i+1]<100&&pixels[i+2]<120){sum+=x;count++;}
+      }
+    }
+    return count>10?sum/count:null;
+  });
+  await page.waitForTimeout(100);
+  const startX=await frogCenterX();
+  assert.ok(startX!==null,'the red frog should be visible before movement');
+  await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(350);
+  await page.keyboard.press('p');
+  await page.keyboard.up('ArrowRight');
+  await assertVisibleText(page,'PAUSED');
+  const pausedX=await frogCenterX();
+  await page.waitForTimeout(500);
+  const stillPausedX=await frogCenterX();
+  assert.ok(pausedX!==null&&pausedX>startX+35,'holding right should move the frog before pausing');
+  assert.ok(stillPausedX!==null&&Math.abs(stillPausedX-pausedX)<1,'the frog should stay still while paused');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('robot race starts and can be paused and resumed', async () => {
   const {page}=await freshPage();
   await page.getByRole('button',{name:'ROBOT RACE'}).click();
