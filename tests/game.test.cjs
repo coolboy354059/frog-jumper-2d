@@ -183,6 +183,29 @@ test('malformed saved shop data does not crash the game', async () => {
   await page.close();
 });
 
+test('the game remains playable when browser storage is unavailable', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(() => {
+    Storage.prototype.getItem=function(){throw new Error('Storage blocked');};
+    Storage.prototype.setItem=function(){throw new Error('Storage blocked');};
+    Storage.prototype.removeItem=function(){throw new Error('Storage blocked');};
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await assertVisibleText(page,'FROG JUMPER');
+  await page.getByRole('button',{name:'COIN SHOP'}).click();
+  await assertVisibleText(page,'FROGGY SHOP');
+  await page.getByRole('button',{name:'BACK TO MENU'}).click();
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await assertHidden(page,'#overlay');
+  await page.keyboard.press('p');
+  await assertVisibleText(page,'PAUSED');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
 test('invalid and unsafe wallet values are safely handled', async () => {
   const {page,errors}=await freshPage();
   await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','999999999999999999999999999999'));
