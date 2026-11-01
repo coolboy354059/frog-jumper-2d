@@ -166,11 +166,12 @@ test('pausing freezes gameplay and clears held movement input', async () => {
   await page.keyboard.press('p');
   await page.keyboard.up('ArrowRight');
   await assertVisibleText(page,'PAUSED');
-  const pausedX=await frogCenterX();
+  const movedX=await frogCenterX();
+  assert.ok(movedX!==null&&movedX>startX+35,'holding right should move the frog before pausing');
+  const pausedFrame=await page.locator('#game').evaluate(canvas=>canvas.toDataURL());
   await page.waitForTimeout(500);
-  const stillPausedX=await frogCenterX();
-  assert.ok(pausedX!==null&&pausedX>startX+35,'holding right should move the frog before pausing');
-  assert.ok(stillPausedX!==null&&Math.abs(stillPausedX-pausedX)<1,'the frog should stay still while paused');
+  const stillPausedFrame=await page.locator('#game').evaluate(canvas=>canvas.toDataURL());
+  assert.equal(stillPausedFrame,pausedFrame,'the rendered game world should remain unchanged while paused');
   assert.deepEqual(errors,[]);
   await page.close();
 });
