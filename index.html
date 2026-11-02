@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-02 — Fix 53: Prevent shop purchases from falling back to unlocked writes when cross-tab locking is unavailable, protecting wallet balances and owned items. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 52: Add five saved achievements with progress tracking, an achievements screen, and in-game unlock notices. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 51: Add a lightweight Halloween scene with animated bats and pumpkins, without changing platform physics or controls. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 50: Restrict the developer coin-grant helper to local development so it is not exposed on the public game. -->
@@ -605,14 +606,16 @@
       // Web Locks serializes purchases made by different same-origin tabs.
       // The fresh read above also keeps older tabs in sync before every action.
       if(navigator.locks&&typeof navigator.locks.request==='function'){
-        let lockCallbackStarted=false;
+        // Never fall back to an unlocked write: two tabs could spend the same balance.
         navigator.locks.request('frog-jumper-shop-economy',()=>{
-          lockCallbackStarted=true;
           applyShopAction();
         }).catch(()=>{
-          if(!lockCallbackStarted)applyShopAction();
+          window.alert('Frog Jumper could not safely complete that shop action. Please try again.');
         });
-      }else applyShopAction();
+      }else{
+        // Fail closed when cross-tab locking is unavailable instead of risking lost purchases.
+        window.alert('This browser does not support safe shop purchases across multiple tabs. Please use a browser with Web Locks support to buy items.');
+      }
     }));
     document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
     const focusTarget=focusItemId?overlay.querySelector('[data-shop-item="'+focusItemId+'"]'):overlay.querySelector('[data-shop-item]:not(:disabled)');
