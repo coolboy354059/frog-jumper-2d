@@ -1,7 +1,6 @@
 name: Strict browser tests
 
 on:
-  push:
   workflow_dispatch:
 
 permissions:
