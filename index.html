@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-03 — Preserve already-banked run coins when restarting a level from its completion screen. -->
 <!-- CHANGE LOG: 2026-11-03 — Keep browser regression tests manual-only so normal game updates deploy without running tests unless explicitly requested. -->
 <!-- CHANGE LOG: 2026-11-02 — Fix 53: Prevent shop purchases from falling back to unlocked writes when cross-tab locking is unavailable, protecting wallet balances and owned items. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 52: Add five saved achievements with progress tracking, an achievements screen, and in-game unlock notices. -->
@@ -516,8 +517,8 @@
       lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore(seed);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
-    // Unbanked level coins are run progress only, so restarting simply discards them.
-    totalCoins = Math.max(0, totalCoins - coinsThisLevel);
+    // Coins are already banked on a level-complete screen; only discard coins from an unfinished level.
+    if(state!=='levelComplete') totalCoins = Math.max(0, totalCoins - coinsThisLevel);
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
