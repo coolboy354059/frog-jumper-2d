@@ -372,6 +372,17 @@ test('malformed achievement saves are sanitized without crashing the menu', asyn
   await page.close();
 });
 
+test('R restarts from the pause dialog even while its button has focus', async () => {
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await page.keyboard.press('p');
+  await assertVisibleText(page,'PAUSED');
+  await page.keyboard.press('r');
+  await assertHidden(page,'#overlay');
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('the R key does not accidentally start a game from the title menu', async () => {
   const {page,errors}=await freshPage();
   await page.keyboard.press('r');
