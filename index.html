@@ -10,6 +10,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 48: Add Ocean Blue, Golden Froggy, and Ninja Frog shop skins with validated save-data support and vector-drawn artwork. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 47: Aim Robot Race landings near each platform's left side so the bot keeps enough runway for its next jump. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
+<!-- CHANGE LOG: 2026-11-04 — Temporarily turn off the maintenance screen and restore normal gameplay; the maintenance page remains available to re-enable later. -->
 <!doctype html>
 <!-- CHANGE LOG: 2026-10-31 — Robot Race: calculate jump timing from the next platform's height and aim for its center to reduce missed landings. -->
 <!-- CHANGE LOG: 2026-10-31 — Complete Infinite Explore implementation and remove the temporary maintenance gate after syntax, menu-mode, and extended simulated traversal checks passed. -->
@@ -80,13 +81,7 @@
   @media(orientation:landscape) and (max-height:520px){html.touch-device .stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}html.touch-device .bottom-bar{flex:0 0 82px}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
-  /* Temporary maintenance gate: keep players informed while updates are in progress. */
-  .maintenance-screen{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse at top,#245965 0,#102b36 60%,#091c25 100%);color:#effff8;text-align:center}
-  .maintenance-card{width:min(100%,520px);padding:32px 24px;border:2px solid #ed171f;border-radius:22px;background:#173b45;box-shadow:0 24px 70px #0008}
-  .maintenance-card h1{font-size:clamp(28px,6vw,42px);margin:0 0 14px}
-  .maintenance-card p{font-size:17px;line-height:1.55;color:#d8eee9;margin:0}
-  .maintenance-icon{font-size:52px;margin-bottom:12px}
-  .maintenance-frame{display:block;width:100%;height:100%;min-height:0;border:0;background:#102b36}
+
 
 </style>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
@@ -1212,9 +1207,5 @@
 })();
 </script>
 
-<!-- Temporary maintenance screen: the game is hidden until maintenance is complete. -->
-<div class="maintenance-screen" role="status" aria-live="polite">
-  <iframe class="maintenance-frame" src="./maintenance.html" title="Frog Jumper maintenance"></iframe>
-</div>
 </body>
 </html>
