@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-04 — Enable the existing maintenance screen while the 3D skin assets are being prepared. -->
 <!-- CHANGE LOG: 2026-11-03 — Preserve already-banked run coins when restarting a level from its completion screen. -->
 <!-- CHANGE LOG: 2026-11-03 — Keep browser regression tests manual-only so normal game updates deploy without running tests unless explicitly requested. -->
 <!-- CHANGE LOG: 2026-11-02 — Fix 53: Prevent shop purchases from falling back to unlocked writes when cross-tab locking is unavailable, protecting wallet balances and owned items. -->
@@ -1209,5 +1210,10 @@
   rafId=requestAnimationFrame(frame);
 })();
 </script>
+
+<!-- Temporary maintenance screen: the game is hidden until maintenance is complete. -->
+<div class="maintenance-screen" role="status" aria-live="polite">
+  <iframe class="maintenance-frame" src="./maintenance.html" title="Frog Jumper maintenance"></iframe>
+</div>
 </body>
 </html>
