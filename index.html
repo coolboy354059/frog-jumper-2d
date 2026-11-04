@@ -1,4 +1,4 @@
-<!-- CHANGE LOG: 2026-11-04 — Add the reusable 3D starter red frog model source, matching the original red skin while keeping gameplay in maintenance mode. -->
+<!-- CHANGE LOG: 2026-11-04 — Render the 3D starter red frog as the playable sprite in the existing 2D canvas game, with a 2D fallback if WebGL is unavailable. -->
 <!-- CHANGE LOG: 2026-11-04 — Enable the existing maintenance screen while the 3D skin assets are being prepared. -->
 <!-- CHANGE LOG: 2026-11-03 — Preserve already-banked run coins when restarting a level from its completion screen. -->
 <!-- CHANGE LOG: 2026-11-03 — Keep browser regression tests manual-only so normal game updates deploy without running tests unless explicitly requested. -->
@@ -186,6 +186,48 @@
   blackHatImage.src = 'assets/black-hat.png';
   const tvHatImage = new Image();
   tvHatImage.src = 'assets/tv-hat.png';
+
+  // Render the starter red frog as a real 3D model, then use that image as a
+  // sprite in the existing 2D canvas game. If WebGL/CDN loading is unavailable,
+  // the original 2D frog remains as a safe fallback.
+  const starterRedFrogSprite = document.createElement('canvas');
+  starterRedFrogSprite.width = 160;
+  starterRedFrogSprite.height = 160;
+  let starterRedFrogReady = false;
+  (async () => {
+    try {
+      const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js');
+      const { createStarterRedFrog } = await import('./assets/3d/starter-red-frog.js');
+      const scene = new THREE.Scene();
+      const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 20);
+      camera.position.set(0.18, 1.08, 3.9);
+      camera.lookAt(0, 0.47, 0.02);
+      const renderer = new THREE.WebGLRenderer({
+        canvas: starterRedFrogSprite,
+        alpha: true,
+        antialias: true,
+        powerPreference: 'low-power'
+      });
+      renderer.setPixelRatio(1);
+      renderer.setSize(160, 160, false);
+      renderer.setClearColor(0x000000, 0);
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x8b5360, 2.0));
+      const keyLight = new THREE.DirectionalLight(0xffffff, 2.1);
+      keyLight.position.set(-2.5, 4, 4);
+      scene.add(keyLight);
+      const fillLight = new THREE.DirectionalLight(0xffb3b8, 0.65);
+      fillLight.position.set(3, 1.5, 2);
+      scene.add(fillLight);
+      const frog3D = createStarterRedFrog(THREE);
+      frog3D.rotation.y = -0.16;
+      scene.add(frog3D);
+      renderer.render(scene, camera);
+      starterRedFrogReady = true;
+    } catch (error) {
+      console.warn('3D starter frog unavailable; using the original 2D sprite.', error);
+    }
+  })();
 
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
@@ -980,7 +1022,10 @@
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
     // Jupiter uses the uploaded full-frog artwork; other skins use crisp vector-drawn palettes.
     const jupiter=equippedSkin==='jupiter';
-    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
+    const red3D=equippedSkin==='red'&&starterRedFrogReady;
+    if(red3D){
+      ctx.drawImage(starterRedFrogSprite,-2,-5,40,42);
+    }else if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
       // Draw the entire original Jupiter image. Do not crop into it or zoom.
       // Fit the complete image inside the normal player bounds while preserving
       // its original aspect ratio.
