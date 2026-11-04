@@ -437,6 +437,7 @@
     const pruneBefore = cameraX - 420;
     if (pruneBefore > 0) {
       const safePlatform = checkpoint.platformRef || null;
+      infiniteWorld.minX=Math.max(infiniteWorld.minX||0,pruneBefore);
       platforms = platforms.filter(p =>
         p.x+p.w >= pruneBefore || p === safePlatform || p === player.standingOn
       );
@@ -456,7 +457,7 @@
   function setupInfiniteExplore(seed) {
     infiniteWorld = {
       seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
-      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[]
+      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0
     };
     elapsed=0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
     levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;
@@ -509,8 +510,8 @@
   }
   function restartCurrentLevel(){
     if (gameMode === 'infinite') {
-      const seed = infiniteWorld ? infiniteWorld.seed : undefined;
-      lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore(seed);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+      // A restarted run gets a fresh seed so immediately banked pickups cannot be farmed again.
+      lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
     // Coins are already banked on a level-complete screen; only discard coins from an unfinished level.
@@ -750,14 +751,26 @@
     if(overlap){showOverlay('robotWon');clearInputs();}
   }
 
+  async function bankWalletCoins(amount){
+    if(!Number.isSafeInteger(amount)||amount<=0)return;
+    if(!navigator.locks||typeof navigator.locks.request!=='function'){
+      window.alert('This browser cannot safely sync coin rewards across tabs. Please use a browser with Web Locks support.');
+      return;
+    }
+    try{
+      await navigator.locks.request('frog-jumper-shop-economy',()=>{
+        walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
+        saveWallet();
+        syncShopFromStorage();
+        updateHUD();
+      });
+    }catch(_){window.alert('Frog Jumper could not safely save those coins. Please try again.');}
+  }
   function completeLevel(){
     if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
     // Level and race coins become permanent only after the player reaches the portal.
-    // Reloading or abandoning an unfinished level therefore cannot bank the same pickups twice.
-    if(gameMode!=='infinite'&&coinsThisLevel>0){
-      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+coinsThisLevel);
-      saveWallet();
-    }
+    // Wallet rewards share the shop lock to prevent cross-tab lost updates.
+    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel);
     clearInputs();
     if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -785,7 +798,7 @@
     player.vx=axis*speed;
     if(axis)player.face=axis;
     player.x+=player.vx*dt;
-    if(gameMode==='infinite') player.x=Math.max(0,player.x);
+    if(gameMode==='infinite') player.x=Math.max(infiniteWorld?.minX||0,player.x);
     else player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
 
     const previousBottom=player.y+player.h;
@@ -822,10 +835,7 @@
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
         totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite'){
-          walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+1);
-          saveWallet();
-        }
+        if(gameMode==='infinite')bankWalletCoins(1);
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }
@@ -1092,7 +1102,7 @@
     if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
     if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat&&!interactiveTarget){
+    if(code==='KeyR'&&!e.repeat&&(!interactiveTarget||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
       if(state==='gameover'||state==='won')restartRun();
       else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
     }
