@@ -49,6 +49,10 @@
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
   @media(max-height:520px){.overlay{align-items:center;overflow-y:auto}.overlay-card{margin:auto}}
   .overlay-card{max-width:440px;width:min(90%,420px);margin:auto;padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
+  .maintenance-screen{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at top,#315b70 0,#102b36 60%,#081923 100%);text-align:center}
+  .maintenance-screen[hidden]{display:none}
+  .maintenance-card{width:min(100%,460px);padding:30px 24px;border:1px solid #ffffff30;border-radius:22px;background:#102b36;box-shadow:0 24px 80px #0008}
+  .maintenance-icon{font-size:56px;line-height:1.2}.maintenance-card h2{margin:10px 0;font-size:clamp(28px,7vw,42px);letter-spacing:-.04em}.maintenance-card p{margin:0;color:#d2e8e0;font-size:16px;line-height:1.6}
   .big-frog{font-size:clamp(36px,8vw,62px);line-height:1;margin-bottom:4px}.overlay-card h2{margin:0;font-size:clamp(24px,4vw,38px);line-height:1.05;letter-spacing:-.05em}.overlay-card p{color:#d8eee9;margin:12px 0 0;line-height:1.5;font-size:15px}.button-row{display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-top:18px}.action{cursor:pointer;border:none;border-radius:999px;padding:11px 18px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;font-size:11px;transition:transform .12s ease,filter .12s ease;background:#7bd1a0;color:#093121}.action.primary{background:linear-gradient(180deg,#d5ff7d,#9de053);color:#1d3603;box-shadow:0 10px 25px rgba(159,224,83,.25)}.action.secondary{background:linear-gradient(180deg,#eff8ff,#bfdff5);color:#143547}.action.ghost{background:rgba(255,255,255,.06);color:#ebfffa;border:1px solid rgba(255,255,255,.12)}.action:active{transform:translateY(1px) scale(.98)}
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
   .shop-card{max-height:90%;overflow:auto}
@@ -147,6 +151,9 @@
   aria-label="Frog Jumper is under maintenance"
   style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:999999;background:#102b36"
 ></iframe>
+<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
+  <div class="maintenance-card"><div class="maintenance-icon" aria-hidden="true">🛠️🐸</div><h2>MAINTENANCE</h2><p>Please wait! We\u0027re fixing bugs and adding new features.</p></div>
+</div>
 <div class="app">
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
