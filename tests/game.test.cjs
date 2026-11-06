@@ -349,15 +349,22 @@ test('shop purchases are charged once and remain owned after reload', async () =
   const blackHat=page.locator('[data-shop-item="black"]');
   assert.match(await blackHat.innerText(),/BUY/);
   await blackHat.click();
-  assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
+  await page.waitForFunction(()=>{
+    const button=document.querySelector('[data-shop-item="black"]');
+    const balance=document.querySelector('.wallet-line strong');
+    return button?.textContent.trim()==='UNEQUIP'&&balance?.textContent.trim()==='0';
+  });
+  assert.equal((await page.locator('.wallet-line strong').innerText()).trim(),'0');
   assert.equal((await blackHat.innerText()).trim(),'UNEQUIP');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.shopItem),'black','focus should stay on the purchased shop item');
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const savedBlackHat=page.locator('[data-shop-item="black"]');
+  await page.waitForFunction(()=>document.querySelector('[data-shop-item="black"]')?.textContent.trim()==='UNEQUIP');
   assert.equal((await savedBlackHat.innerText()).trim(),'UNEQUIP');
-  assert.match(await page.locator('.wallet-line').innerText(),/0 coins/);
+  assert.equal((await page.locator('.wallet-line strong').innerText()).trim(),'0');
   await savedBlackHat.click();
+  await page.waitForFunction(()=>document.querySelector('[data-shop-item="black"]')?.textContent.trim()==='EQUIP');
   assert.equal((await savedBlackHat.innerText()).trim(),'EQUIP');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.shopItem),'black','focus should stay on the shop item after unequipping');
   assert.deepEqual(errors,[]);
