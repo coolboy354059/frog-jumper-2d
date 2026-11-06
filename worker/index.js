@@ -71,9 +71,10 @@ export default {
       return json({ error: "Could not find an unused room code. Please try again." }, 503, headers);
     }
 
-    const match = url.pathname.match(/^\\/api\\/rooms\\/([A-Z0-9]{6})\\/(join|socket)$/);
-    if (match) {
-      const [, code, action] = match;
+    const routeParts = url.pathname.split("/");
+    if (routeParts.length === 5 && routeParts[1] === "api" && routeParts[2] === "rooms" && /^[A-Z0-9]{6}$/.test(routeParts[3]) && (routeParts[4] === "join" || routeParts[4] === "socket")) {
+      const code = routeParts[3];
+      const action = routeParts[4];
       const room = env.ROOMS.get(env.ROOMS.idFromName(code));
       if (action === "join" && request.method === "POST") {
         const body = await request.json().catch(() => ({}));
