@@ -216,12 +216,8 @@ test('a completed touch tap still triggers a jump', async () => {
   await page.waitForTimeout(100);
   const before=await frogCenterY();
   assert.ok(before!==null,'the frog should be visible before the tap');
-  await page.locator('#jump-control').evaluate(button=>{
-    const rect=button.getBoundingClientRect();
-    const options={bubbles:true,cancelable:true,pointerId:78,pointerType:'touch',clientX:rect.left+rect.width/2,clientY:rect.top+rect.height/2};
-    button.dispatchEvent(new PointerEvent('pointerdown',options));
-    button.dispatchEvent(new PointerEvent('pointerup',options));
-  });
+  // Use a real touch tap so Chromium performs the normal pointer-capture lifecycle.
+  await page.locator('#jump-control').tap();
   await page.waitForTimeout(140);
   const after=await frogCenterY();
   assert.ok(after!==null&&after<before-25,'a completed tap should still make the frog jump');
