@@ -13,6 +13,7 @@
 <!-- CHANGE LOG: 2026-10-31 — Fix 47: Aim Robot Race landings near each platform's left side so the bot keeps enough runway for its next jump. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 46: Recover the Robot Race rival on its most recent safe platform after a fall instead of sending it one extra platform backward. -->
 <!-- CHANGE LOG: 2026-11-04 — Temporarily turn off the maintenance screen and restore normal gameplay; the maintenance page remains available to re-enable later. -->
+<!-- CHANGE LOG: 2026-11-06 — Robot Race remains a separate mode and now reuses all 105 Level Adventure levels. -->
 <!doctype html>
 <!-- CHANGE LOG: 2026-10-31 — Robot Race: calculate jump timing from the next platform's height and aim for its center to reduce missed landings. -->
 <!-- CHANGE LOG: 2026-10-31 — Complete Infinite Explore implementation and remove the temporary maintenance gate after syntax, menu-mode, and extended simulated traversal checks passed. -->
@@ -210,7 +211,6 @@
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
   const TOTAL_LEVELS = 105;
-  const RACE_TOTAL_LEVELS = 35;
   const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
@@ -352,8 +352,8 @@
   let previousGamepadMenu=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
-  function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:(gameMode==='race'?RACE_TOTAL_LEVELS:TOTAL_LEVELS);}
-  function currentModeLevels(){return gameMode==='boss'?BOSS_LEVELS:(gameMode==='race'?LEVELS.slice(0,RACE_TOTAL_LEVELS):LEVELS);}
+  function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:TOTAL_LEVELS;}
+  function currentModeLevels(){return gameMode==='boss'?BOSS_LEVELS:LEVELS;}
   function currentModeTotalCoins(){return currentModeTotalLevels()*COINS_PER_LEVEL;}
 
   function loadAchievementData(){
