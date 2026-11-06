@@ -145,13 +145,7 @@
 <!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
-<iframe
-  src="maintenance.html"
-  title="Frog Jumper maintenance"
-  aria-label="Frog Jumper is under maintenance"
-  style="position:fixed;inset:0;width:100%;height:100%;border:0;z-index:999999;background:#102b36"
-></iframe>
-<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
+<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite" hidden>
   <div class="maintenance-card"><div class="maintenance-icon" aria-hidden="true">🛠️🐸</div><h2>MAINTENANCE</h2><p>Please wait! We\u0027re fixing bugs and adding new features.</p></div>
 </div>
 <div class="app">
@@ -202,13 +196,17 @@
   blackHatImage.src = 'assets/black-hat.png';
   const tvHatImage = new Image();
   tvHatImage.src = 'assets/tv-hat.png';
+  const carSkinImage = new Image();
+  carSkinImage.src = 'assets/car-skin.png';
 
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
-  const TOTAL_LEVELS = 35;
+  const TOTAL_LEVELS = 85;
+  const RACE_TOTAL_LEVELS = 35;
+  const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
-  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja']);
+  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car']);
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
@@ -227,11 +225,11 @@
     {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]},
   ];
 
-  // Build 35 levels from the five hand-designed world themes. Each new round
-  // reuses a theme with narrower platforms, slightly wider gaps, and more slimes.
+  // Build 85 Adventure levels from the five original world themes. The first
+  // 35 are preserved, followed by 50 additional generated levels.
   LEVELS.forEach((item, index) => { item.themeIndex = index; });
   const WORLD_TEMPLATES = LEVELS.slice();
-  const ROMAN = ['I','II','III','IV','V','VI','VII'];
+  const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII'];
   for (let i = WORLD_TEMPLATES.length; i < TOTAL_LEVELS; i++) {
     const themeIndex = i % WORLD_TEMPLATES.length;
     const round = Math.floor(i / WORLD_TEMPLATES.length);
@@ -291,7 +289,7 @@
   let shopData = loadShopData();
   let equippedSkin = shopData.equippedSkin;
   let equippedHat = shopData.equippedHat;
-  let lives = 3;
+  let lives = 25;
   let ticks = 0;
   let elapsed = 0;
   let lastTime = 0;
@@ -307,7 +305,7 @@
   let previousGamepadJump=false;
   let previousGamepadMenu=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
-  const MAX_LIVES = 3;
+  const MAX_LIVES = 25;
 
   function loadAchievementData(){
     const defaults={earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]};
@@ -583,11 +581,12 @@
   function showShop(focusItemId=null){
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
-      {id:'black',kind:'hat',name:'Black Hat',price:60,emoji:'🎩',description:'Earn 5× coins while equipped!'},
+      {id:'black',kind:'hat',name:'Black Hat',price:60,emoji:'🎩',description:'A classic black hat for Froggy'},
       {id:'ocean',kind:'skin',name:'Ocean Blue',price:150,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:600,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
       {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
       {id:'ninja',kind:'skin',name:'Ninja Frog',price:650,emoji:'🥷',description:'Dark stealth colors with a red headband'},
+      {id:'car',kind:'skin',name:'Froggy Race Car',price:800,emoji:'🏎️',description:'A little red race car skin with 5× coin rewards'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:500,emoji:'📺',description:'A tiny television for your frog'}
     ];
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
@@ -790,7 +789,7 @@
     if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
-    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedHat==='black'?5:1));
+    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='car'?5:1));
     clearInputs();
     if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -853,7 +852,7 @@
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
       if(dx*dx+dy*dy<34*34){
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
-        const coinReward=equippedHat==='black'?5:1;
+        const coinReward=equippedSkin==='car'?5:1;
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
         if(gameMode==='infinite')bankWalletCoins(coinReward);
@@ -1010,7 +1009,10 @@
     ctx.save();ctx.translate(x+player.w/2,y+player.h/2);ctx.scale(player.face,1);ctx.translate(-player.w/2,-player.h/2);
     // Jupiter uses the uploaded full-frog artwork; all other skins use crisp vector-drawn palettes.
     const jupiter=equippedSkin==='jupiter';
-    if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
+    const car=equippedSkin==='car';
+    if(car&&carSkinImage.complete&&carSkinImage.naturalWidth>0&&carSkinImage.naturalHeight>0){
+      ctx.drawImage(carSkinImage,-28,-12,92,63);
+    }else if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
       // Draw the entire original Jupiter image. Do not crop into it or zoom.
       // Fit the complete image inside the normal player bounds while preserving
       // its original aspect ratio.
