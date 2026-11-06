@@ -77,6 +77,11 @@
   .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
   .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
   .control.pause{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(180deg,#e7f2f7,#afc7d1);color:#163746;font-size:19px}
+  .boss-tools{position:absolute;top:10px;right:10px;z-index:4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:calc(100% - 20px)}
+  .boss-tools[hidden]{display:none}
+  .boss-tool{border:1px solid #ffffff70;border-radius:999px;padding:9px 12px;background:#243b62;color:#fff;font-size:11px;font-weight:900;letter-spacing:.03em;box-shadow:0 4px 14px #0005;cursor:pointer}
+  .boss-tool.fire{background:linear-gradient(180deg,#ffd079,#ef6841);color:#54200b}
+  .boss-tool:disabled{opacity:.45;cursor:not-allowed}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
   @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.cabinet{justify-content:center}.stage{width:100%;max-width:calc((100dvh - 190px)*1.6);align-self:center}.bottom-bar{width:100%;height:82px;min-height:82px;padding:7px;justify-content:center}.controls{flex:0 1 auto;justify-content:center;gap:clamp(28px,12vw,72px)}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
   @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
@@ -152,6 +157,11 @@
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
       <canvas id="game" width="960" height="600" tabindex="0" role="img" aria-label="Frog Jumper platform game. Use arrow keys to move and space to jump."></canvas>
+      <div class="boss-tools" id="boss-tools" hidden aria-label="Boss Fight tools">
+        <button type="button" class="boss-tool fire" id="boss-fire" title="Fire (F or controller X)">🔥 FIRE</button>
+        <button type="button" class="boss-tool" id="boss-speed" title="Go Faster power-up">⚡ GO FASTER</button>
+        <button type="button" class="boss-tool" id="boss-skip" title="Skip This Level power-up">⏭ SKIP LEVEL</button>
+      </div>
       <div class="overlay" id="overlay"></div>
     </div>
     <div class="bottom-bar" id="bottom-bar">
@@ -263,9 +273,48 @@
     });
   }
 
+
+  // A separate Boss Fight campaign: five new layouts, never pulled from Adventure.
+  const BOSS_WORLD_TEMPLATES = [
+    {name:'Crystal Core',sky:['#17133f','#5944a0'],hills:'#423b86',far:'#7668bb',ground:'#34265c',grass:'#a58aff',trim:'#e6d8ff',accent:'#d2a4ff',bottom:'#21153e',enemies:[3,6],movers:[{index:4,amp:18,speed:1.2,phase:.6}],platforms:[[0,515,250],[290,455,118],[480,390,108],[665,455,112],[855,370,108],[1045,435,110],[1240,360,110],[1445,425,120],[1680,505,490]]},
+    {name:'Ember Factory',sky:['#4b1e36','#dc704a'],hills:'#873c4b',far:'#b65a50',ground:'#59313b',grass:'#ff8c54',trim:'#ffd18a',accent:'#ffe06b',bottom:'#6b2c30',enemies:[4,7],movers:[{index:2,amp:16,speed:1.45,phase:1.1},{index:5,amp:13,speed:1.35,phase:2.2}],platforms:[[0,515,245],[305,470,112],[495,405,108],[685,455,108],[875,385,104],[1065,440,108],[1265,365,110],[1470,430,116],[1710,505,480]]},
+    {name:'Frostbite Peaks',sky:['#244b78','#b5e7f5'],hills:'#6c9fbd',far:'#a9d9e9',ground:'#526f8b',grass:'#8de5ea',trim:'#e4ffff',accent:'#c8fbff',bottom:'#c4edf7',enemies:[3,6],movers:[{index:3,amp:19,speed:1.3,phase:1.8}],platforms:[[0,515,250],[285,445,112],[475,390,108],[660,445,108],[850,370,106],[1040,425,108],[1235,350,110],[1440,415,118],[1670,500,490]]},
+    {name:'Cloud Circuit',sky:['#4b77bd','#d9f1ff'],hills:'#8eaedb',far:'#c5def5',ground:'#617da8',grass:'#c3e8ff',trim:'#ffffff',accent:'#fff0a6',bottom:'#d9efff',enemies:[4,6],movers:[{index:2,amp:20,speed:1.25,phase:.9},{index:6,amp:15,speed:1.6,phase:2.5}],platforms:[[0,515,245],[315,465,108],[510,405,104],[700,460,106],[895,385,102],[1090,440,106],[1290,365,108],[1495,430,116],[1730,505,480]]},
+    {name:'Neon Garden',sky:['#102c47','#295d77'],hills:'#235b62',far:'#398b83',ground:'#294b52',grass:'#62e8b2',trim:'#baffdc',accent:'#ffdb77',bottom:'#163a45',enemies:[3,5,7],movers:[{index:4,amp:17,speed:1.55,phase:.3}],platforms:[[0,515,250],[300,455,112],[490,395,106],[680,465,106],[870,380,106],[1060,445,108],[1260,360,110],[1470,435,116],[1700,505,490]]}
+  ];
+  const BOSS_LEVELS = Array.from({length:BOSS_TOTAL_LEVELS},function(_,i){
+    const number=i+1;
+    const themeIndex=i%BOSS_WORLD_TEMPLATES.length;
+    const base=BOSS_WORLD_TEMPLATES[themeIndex];
+    // Level 1 is the warm-up; difficulty increases after each group of three.
+    const difficulty=number===1?0:Math.floor((number-1)/3);
+    const gapGain=Math.min(23,difficulty*1.45);
+    const widthLoss=Math.min(24,difficulty*1.05);
+    const platforms=base.platforms.map(function(p,pi){
+      if(pi===0)return [...p];
+      const heightShift=Math.sin(number*.57+pi*1.31)*Math.min(25,difficulty*1.45);
+      const minimumWidth=pi===base.platforms.length-1?390:82;
+      return [p[0]+pi*gapGain,Math.max(340,Math.min(515,p[1]+heightShift)),Math.max(minimumWidth,p[2]-widthLoss)];
+    });
+    const enemies=[...base.enemies];
+    if(difficulty>=2&&!enemies.includes(5))enemies.push(5);
+    if(difficulty>=4&&!enemies.includes(2))enemies.push(2);
+    const movers=base.movers.map(function(m){return {...m};});
+    if(difficulty>=3&&!movers.some(function(m){return m.index===6;})){
+      movers.push({index:6,amp:Math.min(22,10+difficulty),speed:1.1+difficulty*.06,phase:number*.4});
+    }
+    return {...base,name:base.name+' · Stage '+number,subtitle:'Boss campaign · Challenge '+(difficulty+1),themeIndex,platforms,enemies,movers,difficulty,bossLevel:number%10===0};
+  });
+
   let state = 'menu';
   let gameMode = 'level';
   let robot = null;
+  let boss = null;
+  let fireProjectiles = [];
+  let bossPowerups = {speed:true,skip:true};
+  let bossSpeedTimer = 0;
+  let fireCooldown = 0;
+  let previousGamepadFire = false;
   let levelIndex = 0;
   let level = LEVELS[0];
   let platforms = [];
@@ -306,6 +355,9 @@
   let previousGamepadMenu=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
+  function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:(gameMode==='race'?RACE_TOTAL_LEVELS:TOTAL_LEVELS);}
+  function currentModeLevels(){return gameMode==='boss'?BOSS_LEVELS:(gameMode==='race'?LEVELS.slice(0,RACE_TOTAL_LEVELS):LEVELS);}
+  function currentModeTotalCoins(){return currentModeTotalLevels()*COINS_PER_LEVEL;}
 
   function loadAchievementData(){
     const defaults={earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]};
@@ -493,7 +545,7 @@
   function setupLevel(index) {
     infiniteWorld = null;
     levelIndex = index;
-    level = LEVELS[levelIndex];
+    level = currentModeLevels()[levelIndex];
     elapsed = 0; ticks = 0;
     platforms = level.platforms.map((p,i)=>({id:i,x:p[0],baseY:p[1],y:p[1],w:p[2],h:20,prevY:p[1],moving:null}));
     for (const m of level.movers) {
@@ -514,6 +566,16 @@
     player=makePlayer(54,platforms[0].y-PLAYER_H);
     player.onGround=true;player.standingOn=platforms[0];
     robot = gameMode === 'race' ? {...makePlayer(104,platforms[0].y-PLAYER_H), targetIndex:1, falls:0, stumble:0} : null;
+    boss = null;
+    fireProjectiles = [];
+    bossSpeedTimer = 0;
+    fireCooldown = 0;
+    bossPowerups = {speed:true,skip:true};
+    if(gameMode==='boss' && level.bossLevel){
+      const finalPlatform=platforms[platforms.length-1];
+      const health=3+Math.floor((levelIndex+1)/10);
+      boss={x:finalPlatform.x+65,y:finalPlatform.y-68,w:94,h:68,minX:finalPlatform.x+16,maxX:finalPlatform.x+finalPlatform.w-110,vx:145+level.difficulty*12,health,maxHealth:health,alive:true,phase:(levelIndex+1)*.73};
+    }
     checkpoint={x:54,y:platforms[0].y-PLAYER_H};
     cameraX=0;
     coinsThisLevel=0;
@@ -521,7 +583,7 @@
   }
   function startGame(mode='level'){
     gameMode = mode;
-    lives=MAX_LIVES;totalCoins=0;
+    lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
     if (mode === 'infinite') { setupInfiniteExplore(); if(isSpookySeason()) awardAchievement('halloween_explorer'); } else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
@@ -529,7 +591,7 @@
   function restartCurrentLevel(){
     if (gameMode === 'infinite') {
       // A restarted run gets a fresh seed so immediately banked pickups cannot be farmed again.
-      lives=MAX_LIVES;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+      lives=Infinity;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
     // Coins are already banked on a level-complete screen; only discard coins from an unfinished level.
@@ -537,7 +599,7 @@
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
-  function returnToMenu(){clearInputs();gameMode='level';infiniteWorld=null;robot=null;totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
+  function returnToMenu(){clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
@@ -674,11 +736,45 @@
     const coinLabel=document.getElementById('coin-label');
     const lifeLabel=document.getElementById('life-label');
     const progress=document.getElementById('level-progress');
-    if(levelLabel) levelLabel.textContent=gameMode==='infinite' ? `Infinite Explore · ${level.name}` : `${gameMode==='race'?'Race':'Level'} ${levelIndex+1} · ${level.name}`;
+    if(levelLabel) levelLabel.textContent=gameMode==='infinite' ? `Infinite Explore · ${level.name}` : `${gameMode==='boss'?'Boss Fight':(gameMode==='race'?'Race':'Adventure')} ${levelIndex+1} · ${level.name}`;
     if(coinLabel) coinLabel.textContent=totalCoins;
-    if(lifeLabel) lifeLabel.textContent=lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—';
-    if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/TOTAL_LEVELS)*100)}%`;
+    if(lifeLabel) lifeLabel.textContent=lives===Infinity?'∞':(lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—');
+    if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/currentModeTotalLevels())*100)}%`;
   }
+
+  const bossTools=document.getElementById('boss-tools');
+  const bossFireButton=document.getElementById('boss-fire');
+  const bossSpeedButton=document.getElementById('boss-speed');
+  const bossSkipButton=document.getElementById('boss-skip');
+  function syncBossTools(){
+    if(!bossTools)return;
+    bossTools.hidden=!(gameMode==='boss'&&state==='playing');
+    bossSpeedButton.disabled=!bossPowerups.speed;
+    bossSkipButton.disabled=!bossPowerups.skip;
+    bossSpeedButton.textContent=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
+  }
+  function shootFire(){
+    if(gameMode!=='boss'||state!=='playing'||!player||fireCooldown>0)return;
+    fireCooldown=.42;
+    fireProjectiles.push({x:player.face>0?player.x+player.w:player.x-13,y:player.y+player.h*.48,vx:player.face*660,life:1.5});
+  }
+  function useBossSpeed(){
+    if(gameMode!=='boss'||state!=='playing'||!bossPowerups.speed)return;
+    bossPowerups.speed=false;bossSpeedTimer=6;syncBossTools();
+    achievementNotice='GO FASTER!';achievementNoticeTime=1.4;
+  }
+  function advanceModeLevel(){
+    if(levelIndex>=currentModeTotalLevels()-1){showOverlay('won');return;}
+    setupLevel(levelIndex+1);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
+  }
+  function useBossSkip(){
+    if(gameMode!=='boss'||state!=='playing'||!bossPowerups.skip)return;
+    bossPowerups.skip=false;advanceModeLevel();
+  }
+  bossFireButton.addEventListener('click',shootFire);
+  bossSpeedButton.addEventListener('click',useBossSpeed);
+  bossSkipButton.addEventListener('click',useBossSkip);
+
   function activateOverlayDialog(focusTarget){
     overlay.setAttribute('role','dialog');
     overlay.setAttribute('aria-modal','true');
@@ -686,20 +782,21 @@
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
     if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
   }
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();if(state==='playing')showBottomBar();}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing')showBottomBar();}
   function showOverlay(kind){
     state=kind;
     syncPauseControl();
+    syncBossTools();
     window.clearTimeout(bottomBarTimer);
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure takes you through 35 hand-built levels. Robot Race puts you against a speedy bot. Infinite Explore lets you hop through a world that keeps generating as you travel.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. Collect 5 coins to open Level Adventure portals, beat the robot in Robot Race, or keep exploring in Infinite Explore.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game! Level Adventure has 85 levels. Robot Race keeps its original 35. Boss Fight has 45 brand-new levels, bosses every 10 levels, and a fire tool. Infinite Explore never ends.',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F or FIRE to shoot, and use GO FASTER or SKIP LEVEL once per stage.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      levelComplete:{emoji:gameMode==='race'?'🏁':'✨',title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:`You cleared the level and can keep hopping forward.`,buttons:[['NEXT LEVEL','primary',()=>{setupLevel(Math.min(TOTAL_LEVELS-1,levelIndex+1));state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':'FROG LEGEND!',text:gameMode==='race'?`You beat the robot across all ${TOTAL_LEVELS} levels! You collected ${totalCoins} bonus coins on the way.`:`You finished all ${TOTAL_LEVELS} levels and completed the frog adventure with ${totalCoins} coins.`,buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${TOTAL_COINS} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${currentModeTotalCoins()} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
@@ -710,7 +807,8 @@
   function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
   function hurt(){
     if(player.invulnerable>0)return;
-    lives--;updateHUD();
+    if(Number.isFinite(lives))lives--;
+    updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
     player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
     cameraX=gameMode==='infinite'?Math.max(0,player.x-W*.34):Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
@@ -785,13 +883,45 @@
       });
     }catch(_){window.alert('Frog Jumper could not safely save those coins. Please try again.');}
   }
+
+  function updateBossCombat(dt){
+    if(gameMode!=='boss')return;
+    fireCooldown=Math.max(0,fireCooldown-dt);
+    bossSpeedTimer=Math.max(0,bossSpeedTimer-dt);
+    for(const shot of fireProjectiles){
+      shot.x+=shot.vx*dt;shot.life-=dt;
+      if(shot.life<=0)continue;
+      for(const enemy of enemies){
+        if(!enemy.alive)continue;
+        if(shot.x>=enemy.x-8&&shot.x<=enemy.x+enemy.w+8&&shot.y>=enemy.y-8&&shot.y<=enemy.y+enemy.h+8){
+          enemy.alive=false;shot.life=0;particles.push(...makeBurst(shot.x,shot.y,'#ff944a',9));break;
+        }
+      }
+      if(shot.life>0&&boss&&boss.alive&&shot.x>=boss.x-10&&shot.x<=boss.x+boss.w+10&&shot.y>=boss.y-8&&shot.y<=boss.y+boss.h+8){
+        boss.health--;shot.life=0;particles.push(...makeBurst(shot.x,shot.y,'#ffad50',12));
+        if(boss.health<=0){boss.alive=false;particles.push(...makeBurst(boss.x+boss.w/2,boss.y+boss.h/2,'#c9a0ff',34));achievementNotice='BOSS DEFEATED!';achievementNoticeTime=2.2;}
+      }
+    }
+    fireProjectiles=fireProjectiles.filter(function(shot){return shot.life>0&&shot.x>-30&&shot.x<W+cameraX+80;});
+    if(boss&&boss.alive){
+      boss.x+=boss.vx*dt;
+      if(boss.x<boss.minX){boss.x=boss.minX;boss.vx=Math.abs(boss.vx);}
+      if(boss.x>boss.maxX){boss.x=boss.maxX;boss.vx=-Math.abs(boss.vx);}
+      boss.y=platforms[platforms.length-1].y-boss.h;
+      const hit=player.x+player.w-5>boss.x&&player.x+5<boss.x+boss.w&&player.y+player.h>boss.y+5&&player.y+5<boss.y+boss.h;
+      if(hit&&player.invulnerable<=0){hurt();if(state!=='playing')return;}
+    }
+    syncBossTools();
+  }
+
   function completeLevel(){
     if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
+    if(gameMode==='boss' && boss&&boss.alive)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
     if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='car'?5:1));
     clearInputs();
-    if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
+    if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
   }
   function update(dt){
     if(state!=='playing')return;
@@ -813,7 +943,7 @@
     }
 
     const axis=(input.right?1:0)-(input.left?1:0);
-    const speed=292 + Math.min(12, Math.floor(levelIndex/5)*2);
+    const speed=(292 + Math.min(12, Math.floor(levelIndex/5)*2))*(gameMode==='boss'&&bossSpeedTimer>0?1.65:1);
     player.vx=axis*speed;
     if(axis)player.face=axis;
     player.x+=player.vx*dt;
@@ -875,6 +1005,8 @@
       }
     }
 
+    if(gameMode==='boss'){updateBossCombat(dt);if(state!=='playing')return;}
+
     // Every safe landing beyond the mid-level point updates the respawn checkpoint.
     if(player.onGround&&player.standingOn&&(gameMode==='infinite'||player.standingOn.id>=6)){
       // In Infinite Explore, respawn in the middle of the safe platform rather
@@ -906,7 +1038,8 @@
       const playerCenterX=player.x+player.w/2;
       const playerCenterY=player.y+player.h/2;
       const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
-      if(portalOverlap&&(gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL)){completeLevel();}
+      const portalReady=gameMode==='race'||gameMode==='boss'||coinsThisLevel>=COINS_PER_LEVEL;
+      if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){completeLevel();}
     }
   }
 
@@ -993,8 +1126,10 @@
   }
   function drawPortal(){
     if(gameMode==='infinite' || !platforms.length) return;
-    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||coinsThisLevel>=COINS_PER_LEVEL;
-    ctx.save();ctx.translate(x,y);const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
+    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||(gameMode==='boss'?(!boss||!boss.alive):coinsThisLevel>=COINS_PER_LEVEL);
+    ctx.save();ctx.translate(x,y);
+    if(gameMode==='boss'){ctx.fillStyle=unlocked?'#9b59ff':'#52377b';ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.fill();ctx.restore();return;}
+    const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
     ctx.scale(pulse,1);
     ctx.fillStyle=unlocked?'#9e71ff':'#586777';ctx.globalAlpha=.24;ctx.beginPath();ctx.ellipse(0,38,37,48,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;
     ctx.strokeStyle=unlocked?'#e1c7ff':'#b0c0c9';ctx.lineWidth=8;ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.stroke();
@@ -1065,6 +1200,31 @@
     }
     ctx.restore();
   }
+
+  function drawBoss(){
+    if(!boss||!boss.alive)return;
+    const x=boss.x-cameraX;
+    const y=boss.y+(reduceMotion?0:Math.sin(elapsed*3+boss.phase)*3);
+    if(x<-130||x>W+130)return;
+    ctx.save();
+    ctx.fillStyle='#2b174f';ctx.beginPath();ctx.moveTo(x+10,y+27);ctx.lineTo(x+4,y+5);ctx.lineTo(x+28,y+18);ctx.lineTo(x+47,y+2);ctx.lineTo(x+62,y+18);ctx.lineTo(x+87,y+5);ctx.lineTo(x+84,y+34);ctx.closePath();ctx.fill();
+    roundedRect(x,y+18,boss.w,boss.h-18,24,'#8d55d8','#351d66');
+    roundedRect(x+9,y+23,boss.w-18,16,10,'#bd8cff');
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(x+31,y+43,10,13,0,0,Math.PI*2);ctx.ellipse(x+64,y+43,10,13,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#23143d';ctx.beginPath();ctx.arc(x+34,y+46,4,0,Math.PI*2);ctx.arc(x+67,y+46,4,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#351441';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x+48,y+59,13,.15,Math.PI-.15);ctx.stroke();
+    roundedRect(x+3,y-13,boss.w-6,8,4,'#241333');
+    roundedRect(x+3,y-13,(boss.w-6)*(boss.health/boss.maxHealth),8,4,'#ff5d78');
+    ctx.restore();
+  }
+  function drawFireProjectiles(){
+    for(const shot of fireProjectiles){
+      const x=shot.x-cameraX,y=shot.y;ctx.save();ctx.translate(x,y);
+      ctx.fillStyle='#ff542e';ctx.beginPath();ctx.ellipse(0,0,12,7,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffd65a';ctx.beginPath();ctx.ellipse(2,0,7,4,0,0,Math.PI*2);ctx.fill();ctx.restore();
+    }
+  }
+
   function drawRobot(){
     if(!robot || gameMode!=='race')return;
     const x=Math.round(robot.x-cameraX),y=Math.round(robot.y);
@@ -1095,6 +1255,8 @@
     drawPortal();
     for(const c of coins)drawCoin(c);
     for(const e of enemies)drawEnemy(e);
+    drawBoss();
+    drawFireProjectiles();
     drawParticles();
     drawRobot();
     if(player)drawPlayer();
@@ -1109,14 +1271,17 @@
     const pad=Array.from(pads).find(p=>p&&p.connected);
     if(!pad){
       gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();
-      previousGamepadJump=false;previousGamepadMenu=false;return;
+      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;return;
     }
     const axisX=Number.isFinite(pad.axes?.[0])?pad.axes[0]:0;
     const left=axisX < -0.35 || !!pad.buttons?.[14]?.pressed;
     const right=axisX > 0.35 || !!pad.buttons?.[15]?.pressed;
     gamepadInput.left=left;gamepadInput.right=right;syncHorizontalInput();
     const jump=!!pad.buttons?.[0]?.pressed;
+    const fire=!!pad.buttons?.[2]?.pressed;
     const menu=!!pad.buttons?.[9]?.pressed;
+    if(fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
+    previousGamepadFire=fire;
     if(jump&&!previousGamepadJump&&state==='playing')requestJump();
     if(menu&&!previousGamepadMenu){
       if(state==='playing'){clearInputs();showOverlay('paused');}
@@ -1150,6 +1315,7 @@
     if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();}
     if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
     if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
+    if(useGameControls&&code==='KeyF'&&!e.repeat&&gameMode==='boss')shootFire();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
     if(code==='KeyR'&&!e.repeat&&(!interactiveTarget||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
       if(state==='gameover'||state==='won')restartRun();
