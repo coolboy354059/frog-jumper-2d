@@ -1,0 +1,14 @@
+name = "frog-jumper-multiplayer"
+main = "worker/index.js"
+compatibility_date = "2026-11-06"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "FrogRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["FrogRoom"]
+
+[vars]
+ALLOWED_ORIGINS = "https://coolboy354059.github.io"
