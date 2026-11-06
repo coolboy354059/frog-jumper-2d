@@ -39,7 +39,7 @@ function makeCode() {
   return Array.from(bytes, byte => ROOM_CODE_ALPHABET[byte % ROOM_CODE_ALPHABET.length]).join("");
 }
 function cleanName(value) {
-  return String(value || "Frog").replace(/[<>\\u0000-\\u001f]/g, "").trim().slice(0, MAX_NAME_LENGTH) || "Frog";
+  return String(value || "Frog").replace(/[<>\u0000-\u001f]/g, "").trim().slice(0, MAX_NAME_LENGTH) || "Frog";
 }
 
 export default {
@@ -226,7 +226,7 @@ export class FrogRoom {
       ws.serializeAttachment(player);
       this.broadcast({ type: "player-moved", player: this.publicPlayer(player) }, ws);
     } else if (data.type === "ping") {
-      ws.send(JSON.stringify({ type: "pong", at: now }));
+      ws.send(JSON.stringify({ type: "pong", at: Date.now() }));
     }
   }
 
