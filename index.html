@@ -572,10 +572,10 @@
     const items=[
       {id:'black',kind:'hat',name:'Black Hat',price:60,emoji:'🎩',description:'Earn 5× coins while equipped!'},
       {id:'ocean',kind:'skin',name:'Ocean Blue',price:150,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
-      {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
+      {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:600,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
       {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
       {id:'ninja',kind:'skin',name:'Ninja Frog',price:650,emoji:'🥷',description:'Dark stealth colors with a red headband'},
-      {id:'tv',kind:'hat',name:'Tiny TV Hat',price:3000,emoji:'📺',description:'A tiny television for your frog'}
+      {id:'tv',kind:'hat',name:'Tiny TV Hat',price:500,emoji:'📺',description:'A tiny television for your frog'}
     ];
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
