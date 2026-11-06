@@ -7,7 +7,6 @@
 <!-- CHANGE LOG: 2026-11-03 — Keep browser regression tests manual-only so normal game updates deploy without running tests unless explicitly requested. -->
 <!-- CHANGE LOG: 2026-11-02 — Fix 53: Prevent shop purchases from falling back to unlocked writes when cross-tab locking is unavailable, protecting wallet balances and owned items. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 52: Add five saved achievements with progress tracking, an achievements screen, and in-game unlock notices. -->
-<!-- CHANGE LOG: 2026-10-31 — Fix 51: Add a lightweight Halloween scene with animated bats and pumpkins, without changing platform physics or controls. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 50: Restrict the developer coin-grant helper to local development so it is not exposed on the public game. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 49: Recalculate respawn height from the checkpoint platform's current position so moving-platform checkpoints remain safe. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 48: Add Ocean Blue, Golden Froggy, and Ninja Frog shop skins with validated save-data support and vector-drawn artwork. -->
@@ -31,7 +30,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#102b36">
 <title>Frog Jumper 2D — Free Online Frog Platform Game</title>
-<meta name="description" content="Play Frog Jumper 2D, a free online platform adventure. Jump through levels, collect coins, race a robot, unlock frog skins, and enjoy spooky Halloween decorations.">
+<meta name="description" content="Play Frog Jumper 2D, a free online platform adventure. Jump through levels, collect coins, race a robot, unlock frog skins, and explore a growing collection of themed platform levels.">
 <link rel="canonical" href="https://coolboy354059.github.io/frog-jumper-2d/">
 <style>
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
@@ -139,7 +138,6 @@
 <!-- CHANGE LOG: 2026-11-01 — Fix 47: Vertically center mobile game menus in the game screen while preserving scrolling when an overlay is taller than the available space. -->
 <!-- CHANGE LOG: 2026-11-01 — Fix 48: Center the mobile game stage and touch-control group in the available screen space, keeping the popup centered over the game. -->
 <!-- BUG HUNT FIX 1: Restore keyboard focus to the shop item after the shop re-renders following a purchase or equip action. -->
-<!-- BUG HUNT FIX 2: Award Halloween Explorer only during October, matching its seasonal achievement description. -->
 <!-- BUG HUNT FIX 3: Show a helpful startup message instead of crashing when the browser cannot create a 2D canvas context. -->
 <!-- BUG HUNT FIX 4: Give pop-up screens dialog semantics, move keyboard focus into them, and keep Tab navigation inside the active dialog. -->
 <!-- BUG HUNT FIX 5: Count distinct platform IDs for platform achievements so repeatedly landing on one platform cannot unlock them early. -->
@@ -211,7 +209,7 @@
 
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
-  const TOTAL_LEVELS = 85;
+  const TOTAL_LEVELS = 105;
   const RACE_TOTAL_LEVELS = 35;
   const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
@@ -235,11 +233,11 @@
     {name:'Sky Frog', subtitle:'The final leap! Bring those coins home!', sky:['#529af1','#e9f7ff'], hills:'#a2c9f6', far:'#d2e7ff', ground:'#8263a9', grass:'#73df83', trim:'#d5ffab', accent:'#ffe578', bottom:'#d1f1ff', enemies:[6,7], movers:[{index:2,amp:20,speed:1.5,phase:0.6},{index:4,amp:16,speed:1.7,phase:2.8}], platforms:[[0,515,250],[310,455,120],[490,380,115],[680,440,115],[865,360,115],[1050,425,118],[1240,350,120],[1435,420,125],[1650,495,450]]},
   ];
 
-  // Build 85 Adventure levels from the five original world themes. The first
-  // 35 are preserved, followed by 50 additional generated levels.
+  // Build 105 Adventure levels from the five original world themes. The first
+  // 35 are preserved, followed by 70 additional generated levels.
   LEVELS.forEach((item, index) => { item.themeIndex = index; });
   const WORLD_TEMPLATES = LEVELS.slice();
-  const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII'];
+  const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX','XXI'];
   for (let i = WORLD_TEMPLATES.length; i < TOTAL_LEVELS; i++) {
     const themeIndex = i % WORLD_TEMPLATES.length;
     const round = Math.floor(i / WORLD_TEMPLATES.length);
@@ -331,8 +329,7 @@
     {id:'first_jump',name:'First Jump',emoji:'🐸',description:'Take your very first leap.'},
     {id:'coin_collector',name:'Coin Collector',emoji:'🪙',description:'Collect 10 coins.'},
     {id:'platform_hopper',name:'Platform Hopper',emoji:'🪜',description:'Land on 10 platforms.'},
-    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'},
-    {id:'halloween_explorer',name:'Halloween Explorer',emoji:'🎃',description:'Visit Infinite Explore during the spooky season.'}
+    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'}
   ];
   let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
   let shopData = loadShopData();
@@ -365,7 +362,7 @@
       const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
       return {
-        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
+        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
         platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
         visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
@@ -382,7 +379,6 @@
     achievementNotice=item.emoji+' '+item.name+' unlocked!';
     achievementNoticeTime=3.2;
   }
-  function isSpookySeason(){return new Date().getMonth()===9;}
   function recordCoinAchievement(){
     achievementData.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,achievementData.coinsCollected+1);
     if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
@@ -584,7 +580,7 @@
   function startGame(mode='level'){
     gameMode = mode;
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
-    if (mode === 'infinite') { setupInfiniteExplore(); if(isSpookySeason()) awardAchievement('halloween_explorer'); } else setupLevel(0);
+    if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
@@ -1073,27 +1069,6 @@
     if(level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
     else if(level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
 
-    // Halloween decorations: distant bats and tiny pumpkins stay out of the play area.
-    ctx.save();
-    for(let i=0;i<5;i++){
-      const drift=reduceMotion?0:Math.sin(elapsed*1.8+i)*9;
-      const x=((i*223-cameraX*.16)%(W+100)+W+100)%(W+100)-35;
-      const y=82+(i%3)*48+drift;
-      ctx.fillStyle='#17263d';
-      ctx.beginPath();ctx.ellipse(x,y,7,5,0,0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.moveTo(x-4,y);ctx.quadraticCurveTo(x-17,y-15,x-22,y-3);ctx.quadraticCurveTo(x-12,y-5,x-8,y+4);ctx.fill();
-      ctx.beginPath();ctx.moveTo(x+4,y);ctx.quadraticCurveTo(x+17,y-15,x+22,y-3);ctx.quadraticCurveTo(x+12,y-5,x+8,y+4);ctx.fill();
-      ctx.fillStyle='#ffe9a8';ctx.fillRect(x-3,y-1,2,2);ctx.fillRect(x+2,y-1,2,2);
-    }
-    for(let i=0;i<4;i++){
-      const x=((i*267-cameraX*.32)%(W+80)+W+80)%(W+80)-25;
-      const y=550+(i%2)*5;
-      ctx.fillStyle='#ed852d';ctx.beginPath();ctx.ellipse(x,y,13,12,0,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='#b95720';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-10);ctx.quadraticCurveTo(x-5,y,x,y+10);ctx.moveTo(x,y-10);ctx.quadraticCurveTo(x+5,y,x,y+10);ctx.stroke();
-      ctx.fillStyle='#5e9b48';ctx.fillRect(x-2,y-15,4,5);
-      ctx.fillStyle='#ffe27a';ctx.beginPath();ctx.moveTo(x-7,y-2);ctx.lineTo(x-3,y-5);ctx.lineTo(x,y-2);ctx.lineTo(x+3,y-5);ctx.lineTo(x+7,y-2);ctx.lineTo(x+5,y+4);ctx.lineTo(x-5,y+4);ctx.closePath();ctx.fill();
-    }
-    ctx.restore();
   }
   function drawPlatform(p){
     const x=p.x-cameraX,y=p.y;
