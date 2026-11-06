@@ -570,7 +570,7 @@
   function showShop(focusItemId=null){
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
-      {id:'black',kind:'hat',name:'Black Hat',price:20,emoji:'🎩',description:'A classic black hat'},
+      {id:'black',kind:'hat',name:'Black Hat',price:60,emoji:'🎩',description:'Earn 5× coins while equipped!'},
       {id:'ocean',kind:'skin',name:'Ocean Blue',price:150,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:400,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
       {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
@@ -777,7 +777,7 @@
     if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
-    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel);
+    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedHat==='black'?5:1));
     clearInputs();
     if(levelIndex===TOTAL_LEVELS-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -840,9 +840,10 @@
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
       if(dx*dx+dy*dy<34*34){
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
-        totalCoins=gameMode==='infinite'?Math.min(Number.MAX_SAFE_INTEGER,totalCoins+1):Math.min(TOTAL_COINS,totalCoins+1);
+        const coinReward=equippedHat==='black'?5:1;
+        totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite')bankWalletCoins(1);
+        if(gameMode==='infinite')bankWalletCoins(coinReward);
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }
