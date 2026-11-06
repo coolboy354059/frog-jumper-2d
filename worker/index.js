@@ -241,8 +241,19 @@ export class FrogRoom {
     this.webSocketClose(ws);
   }
   async alarm() {
-    for (const [key] of await this.ctx.storage.list({ prefix: "ticket:" })) {
-      await this.ctx.storage.delete(key);
+    const now = Date.now();
+    for (const [key, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
+      if (!ticket || ticket.expiresAt <= now) await this.ctx.storage.delete(key);
+    }
+    const active = this.ctx.getWebSockets().some(ws => ws.deserializeAttachment()?.joined);
+    if (active) {
+      await this.ctx.storage.setAlarm(now + ROOM_IDLE_TTL_MS);
+      return;
+    }
+    const pending = await this.ctx.storage.list({ prefix: "ticket:" });
+    if (pending.size > 0) {
+      await this.ctx.storage.setAlarm(now + TICKET_TTL_MS);
+      return;
     }
     await this.ctx.storage.delete("created");
     await this.ctx.storage.delete("mode");
