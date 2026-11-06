@@ -216,11 +216,23 @@ test('a completed touch tap still triggers a jump', async () => {
   await page.waitForTimeout(100);
   const before=await frogCenterY();
   assert.ok(before!==null,'the frog should be visible before the tap');
-  // Use a real touch tap so Chromium performs the normal pointer-capture lifecycle.
-  await page.locator('#jump-control').tap();
-  await page.waitForTimeout(140);
-  const after=await frogCenterY();
-  assert.ok(after!==null&&after<before-25,'a completed tap should still make the frog jump');
+  const jumpButton=page.locator('#jump-control');
+  await jumpButton.evaluate(button=>{
+    window.__jumpPointerTrace=[];
+    for(const type of ['pointerdown','pointerup','pointercancel','lostpointercapture','touchstart','touchend','click']){
+      button.addEventListener(type,event=>window.__jumpPointerTrace.push(type+':'+(event.pointerType||'')+':'+(event.pointerId??'')),true);
+    }
+  });
+  // Use a real touch gesture and allow the fixed-step game loop to render the jump.
+  await jumpButton.tap();
+  let after=null;
+  for(let attempt=0;attempt<10;attempt++){
+    await page.waitForTimeout(50);
+    after=await frogCenterY();
+    if(after!==null&&after<before-25)break;
+  }
+  const pointerTrace=await page.evaluate(()=>window.__jumpPointerTrace);
+  assert.ok(after!==null&&after<before-25,'a completed tap should still make the frog jump (before='+before+', after='+after+', events='+pointerTrace.join(' -> ')+')');
   assert.deepEqual(errors,[]);
   await context.close();
 });
