@@ -1119,7 +1119,6 @@
   }
 
   function completeLevel(){
-    if(gameMode==='level' && coinsThisLevel<COINS_PER_LEVEL)return;
     if(gameMode==='boss' && boss&&boss.alive)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
