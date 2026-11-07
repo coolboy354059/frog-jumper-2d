@@ -218,6 +218,7 @@ test('movement updates reject invalid coordinates and implausible jumps', async 
     type: 'move', x: 100, y: 440, face: 1, levelIndex: 0,
   }));
   assert.equal(socket.deserializeAttachment().x, 100, 'a normal movement update should be accepted');
+  await new Promise(resolve => setTimeout(resolve, 30));
 
   room.durableObject.webSocketMessage(socket, JSON.stringify({
     type: 'move', x: 100000, y: 440, face: 1, levelIndex: 0,
