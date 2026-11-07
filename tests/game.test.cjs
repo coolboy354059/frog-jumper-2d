@@ -421,6 +421,7 @@ test('Halloween Explorer unlocks only during October', async () => {
     const page=await context.newPage();
     await page.goto(baseUrl,{waitUntil:'load'});
     await page.getByRole('button',{name:'INFINITE EXPLORE'}).click();
+    await page.waitForFunction(() => (JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]).includes('halloween_explorer') || new Date().getMonth()!==9, null, {timeout:3000}).catch(()=>{});
     const earned=await page.evaluate(() => JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]);
     await context.close();
     return earned.includes('halloween_explorer');
@@ -562,3 +563,33 @@ async function assertVisibleText(page,text) {
 async function assertHidden(page,selector) {
   await page.locator(selector).waitFor({state:'hidden'});
 }
+
+
+test('achievement progress refreshes in another open tab', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  const pageB=await context.newPage();
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageB.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  await pageA.evaluate(()=>{
+    localStorage.setItem('frogJumperAchievements',JSON.stringify({
+      earned:['first_jump'],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]
+    }));
+  });
+  await pageB.waitForFunction(()=>document.querySelector('#overlay')?.textContent.includes('1 of 5 unlocked'));
+  assert.ok((await pageB.locator('#overlay').innerText()).includes('First Jump'));
+  await context.close();
+});
+
+test('best coin display refreshes when another tab records a new best', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  const pageB=await context.newPage();
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperBestCoins','67'));
+  await pageB.waitForFunction(()=>document.querySelector('#best-label')?.textContent.trim()==='67');
+  assert.equal((await pageB.locator('#best-label').innerText()).trim(),'67');
+  await context.close();
+});
