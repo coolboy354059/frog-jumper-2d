@@ -406,6 +406,49 @@ test('the R key does not accidentally start a game from the title menu', async (
   await page.close();
 });
 
+
+test('multiplayer controls are re-enabled after a WebSocket connection error', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(() => {
+    class FailingWebSocket {
+      constructor(){this.listeners={};queueMicrotask(()=>this.dispatch('error',{}));}
+      addEventListener(type,callback){(this.listeners[type] ||= []).push(callback);}
+      dispatch(type,event){for(const callback of this.listeners[type]||[])callback(event);}
+      close(){this.dispatch('close',{});}
+    }
+    window.WebSocket=FailingWebSocket;
+  });
+  const page=await context.newPage();
+  await page.route('**/api/rooms',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({code:'ABC123'})
+  }));
+  await page.route('**/api/rooms/ABC123/join',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({token:'test-ticket'})
+  }));
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+  await page.getByRole('button',{name:'CREATE ROOM'}).click();
+  await page.getByText('Connection failed. Check your connection and try again.').waitFor();
+  assert.equal(await page.locator('#mp-create').isEnabled(),true);
+  assert.equal(await page.locator('#mp-join').isEnabled(),true);
+  await context.close();
+});
+
+test('achievement progress refreshes in another open tab', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const first=await context.newPage();
+  const second=await context.newPage();
+  await Promise.all([first.goto(baseUrl,{waitUntil:'load'}),second.goto(baseUrl,{waitUntil:'load'})]);
+  await second.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  await assertVisibleText(second,'0 of 5 unlocked');
+  await first.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await first.keyboard.press('Space');
+  await first.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned?.includes('first_jump'),null,{timeout:5000});
+  await second.getByText('1 of 5 unlocked').waitFor({timeout:5000});
+  await assertVisibleText(second,'First Jump');
+  await context.close();
+});
+
 test('Halloween Explorer unlocks only during October', async () => {
   async function runInfiniteExploreAt(dateString) {
     const context=await browser.newContext({viewport:{width:1280,height:800}});
