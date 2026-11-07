@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-07 — Let Level Adventure players enter the portal without collecting every coin; only collected coins are rewarded. -->
 <!-- CHANGE LOG: 2026-11-06 — Add Cloudflare Durable Objects multiplayer rooms for up to 10 players in all four game modes; sync live frog positions. -->
 <!-- TEST FIX: 2026-11-06 — Verify mobile jumping with a real Playwright touchscreen tap so pointer-capture events follow the browser's actual touch lifecycle. -->
 <!-- TEST CHECK: 2026-11-06 — Poll the rendered frog position after touch input and capture pointer-event order when diagnosing a failed jump assertion. -->
@@ -1243,7 +1244,7 @@
       const playerCenterX=player.x+player.w/2;
       const playerCenterY=player.y+player.h/2;
       const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
-      const portalReady=gameMode==='race'||gameMode==='boss'||coinsThisLevel>=COINS_PER_LEVEL;
+      const portalReady=gameMode==='level'||gameMode==='race'||gameMode==='boss';
       if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){completeLevel();}
     }
     if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=50){
@@ -1314,7 +1315,7 @@
   }
   function drawPortal(){
     if(gameMode==='infinite' || !platforms.length) return;
-    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='race'||(gameMode==='boss'?(!boss||!boss.alive):coinsThisLevel>=COINS_PER_LEVEL);
+    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='level'||gameMode==='race'||(gameMode==='boss'?(!boss||!boss.alive):false);
     ctx.save();ctx.translate(x,y);
     if(gameMode==='boss'){ctx.fillStyle=unlocked?'#9b59ff':'#52377b';ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.fill();ctx.restore();return;}
     const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
