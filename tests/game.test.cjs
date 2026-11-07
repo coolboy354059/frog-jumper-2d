@@ -598,3 +598,107 @@ test('best coin display refreshes when another tab records a new best', async ()
   assert.equal((await pageB.locator('#best-label').innerText()).trim(),'67');
   await context.close();
 });
+
+async function mockedMultiplayerPage() {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  await page.addInitScript(()=>{
+    const apiBase='https://tight-mud-4638.teodorc2000.workers.dev';
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(input,options={})=>{
+      const url=typeof input==='string'?input:input.url;
+      if(url.startsWith(apiBase+'/api/rooms')){
+        const path=new URL(url).pathname;
+        if(path==='/api/rooms'){
+          return new Response(JSON.stringify({code:'ABC234',mode:'level',capacity:10}),{
+            status:201,headers:{'content-type':'application/json'}
+          });
+        }
+        if(path.endsWith('/join')){
+          return new Response(JSON.stringify({
+            token:'00000000-0000-4000-8000-000000000001',name:'Test Frog',mode:'level',capacity:10
+          }),{status:200,headers:{'content-type':'application/json'}});
+        }
+      }
+      return nativeFetch(input,options);
+    };
+    class MockWebSocket extends EventTarget {
+      static CONNECTING=0;
+      static OPEN=1;
+      static CLOSING=2;
+      static CLOSED=3;
+      constructor(url){
+        super();
+        this.url=url;
+        this.readyState=MockWebSocket.CONNECTING;
+        this.sent=[];
+        window.__mockWebSocket=this;
+      }
+      send(message){this.sent.push(message);}
+      open(){
+        this.readyState=MockWebSocket.OPEN;
+        this.dispatchEvent(new Event('open'));
+      }
+      receive(message){
+        this.dispatchEvent(new MessageEvent('message',{data:JSON.stringify(message)}));
+      }
+      close(code=1000,reason='Closed'){
+        this.readyState=MockWebSocket.CLOSED;
+        this.dispatchEvent(new CloseEvent('close',{code,reason,wasClean:code===1000}));
+      }
+      fail(){
+        this.readyState=MockWebSocket.CLOSED;
+        this.dispatchEvent(new Event('error'));
+        this.dispatchEvent(new CloseEvent('close',{code:1006,reason:'Connection failed',wasClean:false}));
+      }
+    }
+    window.WebSocket=MockWebSocket;
+  });
+  await page.goto(baseUrl,{waitUntil:'load'});
+  return {context,page,errors};
+}
+
+test('multiplayer client connects, sends positions, and shows a disconnect dialog', async () => {
+  const {context,page,errors}=await mockedMultiplayerPage();
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+  await page.locator('#mp-name').fill('Test Frog');
+  await page.locator('#mp-mode').selectOption('level');
+  await page.getByRole('button',{name:'CREATE ROOM'}).click();
+  await page.waitForFunction(()=>Boolean(window.__mockWebSocket));
+  await page.evaluate(()=>{
+    window.__mockWebSocket.open();
+    window.__mockWebSocket.receive({type:'welcome',playerId:'self',players:[],capacity:10});
+    window.__mockWebSocket.receive({
+      type:'player-joined',
+      player:{id:'friend',name:'Friend Frog',mode:'level',levelIndex:0,x:120,y:440,face:1}
+    });
+  });
+  await assertHidden(page,'#overlay');
+  await page.waitForFunction(()=>window.__mockWebSocket.sent.some(raw=>{
+    try{return JSON.parse(raw).type==='move';}catch(_){return false;}
+  }));
+  const sent=await page.evaluate(()=>window.__mockWebSocket.sent.map(raw=>JSON.parse(raw)));
+  assert.ok(sent.some(message=>message.type==='move'),'the client should send live player positions');
+  await page.evaluate(()=>window.__mockWebSocket.close(1001,'Server disconnected'));
+  await assertVisibleText(page,'CONNECTION LOST');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
+test('multiplayer connection failures restore the create and join buttons', async () => {
+  const {context,page,errors}=await mockedMultiplayerPage();
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+  await page.getByRole('button',{name:'CREATE ROOM'}).click();
+  await page.waitForFunction(()=>Boolean(window.__mockWebSocket));
+  await page.evaluate(()=>window.__mockWebSocket.fail());
+  await page.waitForFunction(()=>{
+    const create=document.querySelector('#mp-create');
+    const join=document.querySelector('#mp-join');
+    return create&&!create.disabled&&join&&!join.disabled;
+  });
+  assert.match(await page.locator('#mp-status').innerText(),/Connection closed/i);
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
