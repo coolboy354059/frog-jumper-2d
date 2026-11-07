@@ -932,7 +932,7 @@
     const setBusy=(busy)=>{createButton.disabled=busy;joinButton.disabled=busy;};
     createButton.addEventListener('click',async()=>{
       const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;
-      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;const controller=multiplayerRequestController;
+      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;const controller=new AbortController();multiplayerRequestController=controller;
       setBusy(true);status.textContent='Creating your room...';
       try{
         const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
