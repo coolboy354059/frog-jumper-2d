@@ -787,7 +787,8 @@
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
     if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
   }
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing')showBottomBar();}
+  function ensureFrameLoop(){if(!rafId&&state==='playing'&&!document.hidden){lastTime=0;rafId=requestAnimationFrame(frame);}}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   function showOverlay(kind){
     state=kind;
     syncPauseControl();
@@ -1379,6 +1380,8 @@
   window.addEventListener('gamepaddisconnected',()=>{gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();previousGamepadJump=false;previousGamepadMenu=false;});
 
   function frame(now){
+    rafId=0;
+    if(state!=='playing'||document.hidden)return;
     pollGamepad();
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
@@ -1389,7 +1392,8 @@
       while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}
       if(count>=8)accumulator=0;
     }else{accumulator=0;}
-    render();rafId=requestAnimationFrame(frame);
+    render();
+    if(state==='playing'&&!document.hidden)rafId=requestAnimationFrame(frame);
   }
 
   document.addEventListener('keydown',e=>{
@@ -1512,7 +1516,6 @@
   setupLevel(0);
   showOverlay('menu');
   render();
-  rafId=requestAnimationFrame(frame);
 })();
 </script>
 
