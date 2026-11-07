@@ -1,6 +1,6 @@
 'use strict';
 
-const { test } = require('node:test');
+const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -47,13 +47,23 @@ class FakeWebSocketPair {
   }
 }
 
-globalThis.Response = TestResponse;
-globalThis.WebSocketPair = FakeWebSocketPair;
+let worker;
+let FrogRoom;
 
-const source = fs.readFileSync(path.join(__dirname, '..', 'worker', 'index.js'), 'utf8');
-const { default: worker, FrogRoom } = await import(
-  'data:text/javascript;base64,' + Buffer.from(source).toString('base64')
-);
+before(async () => {
+  globalThis.Response = TestResponse;
+  globalThis.WebSocketPair = FakeWebSocketPair;
+  const source = fs.readFileSync(path.join(__dirname, '..', 'worker', 'index.js'), 'utf8');
+  const imported = await import(
+    'data:text/javascript;base64,' + Buffer.from(source).toString('base64')
+  );
+  worker = imported.default;
+  FrogRoom = imported.FrogRoom;
+});
+
+after(() => {
+  globalThis.Response = NativeResponse;
+});
 
 class FakeStorage {
   constructor() {
@@ -260,9 +270,9 @@ test('invalid and oversized request bodies are rejected', async () => {
     method: 'POST',
     headers: {
       Origin: ORIGIN, 'CF-Connecting-IP': '192.0.2.47',
-      'content-type': 'application/json', 'content-length': '99999',
+      'content-type': 'application/json',
     },
-    body: JSON.stringify({ mode: 'level' }),
+    body: JSON.stringify({ mode: 'level', extra: 'x'.repeat(3000) }),
   });
   assert.equal((await worker.fetch(oversized, context.env)).status, 413);
 });
