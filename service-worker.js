@@ -9,6 +9,9 @@ const SHELL_FILES = [
   './assets/car-skin.png',
   './assets/tv-hat.png'
 ];
+const SHELL_URLS = new Set(
+  SHELL_FILES.map(file => new URL(file, self.registration.scope).toString())
+);
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -29,9 +32,12 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  // Keep the game page available offline, but always use its single
+  // canonical cache key so query-string variants cannot accumulate.
   if (request.mode === 'navigate' && url.pathname.endsWith('/index-game.html')) {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -51,15 +57,24 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Only the small, explicitly listed game-shell files are cached.
+  // Everything else (including dynamic URLs and query-string variants)
+  // goes straight to the network and is never added to Cache Storage.
+  const cacheKey = SHELL_URLS.has(url.href)
+    ? url.href
+    : null;
+  if (!cacheKey) return;
+
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+
     try {
       const response = await fetch(request);
-      if (response && response.ok) await cache.put(request, response.clone());
+      if (response && response.ok) await cache.put(cacheKey, response.clone());
       return response;
     } catch (_) {
-      const cached = await cache.match(request);
-      if (cached) return cached;
       return new Response('', { status: 504, statusText: 'Offline resource unavailable' });
     }
   })());
