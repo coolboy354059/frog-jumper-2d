@@ -333,7 +333,7 @@ export class FrogRoom {
       return;
     }
 
-    if (now - player.messageWindowStartedAt >= 1000) {
+    if (!Number.isFinite(player.messageWindowStartedAt) || now - player.messageWindowStartedAt >= 1000) {
       player.messageWindowStartedAt = now;
       player.messagesInWindow = 0;
     }
