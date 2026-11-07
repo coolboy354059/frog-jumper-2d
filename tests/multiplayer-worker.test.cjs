@@ -211,6 +211,13 @@ test('movement updates reject invalid coordinates and implausible jumps', async 
   const room = context.instances.get(code);
   await room.durableObject.fetch(connectRequest(token));
   const socket = room.sockets[0];
+  await new Promise(resolve => setTimeout(resolve, 30));
+
+  room.durableObject.webSocketMessage(socket, JSON.stringify({
+    type: 'move', x: 9000, y: 440, face: 1, levelIndex: 0,
+  }));
+  assert.equal(socket.deserializeAttachment().x, 80,
+    'the first movement update must not teleport away from the spawn position');
 
   room.durableObject.webSocketMessage(socket, JSON.stringify({
     type: 'move', x: 2000000, y: 440, face: 1, levelIndex: 0,
