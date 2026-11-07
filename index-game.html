@@ -442,7 +442,8 @@
     {id:'first_jump',name:'First Jump',emoji:'🐸',description:'Take your very first leap.'},
     {id:'coin_collector',name:'Coin Collector',emoji:'🪙',description:'Collect 10 coins.'},
     {id:'platform_hopper',name:'Platform Hopper',emoji:'🪜',description:'Land on 10 platforms.'},
-    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'}
+    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'},
+    {id:'halloween_explorer',name:'Halloween Explorer',emoji:'🎃',description:'Start Infinite Explore during October.'}
   ];
   let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
   let shopData = loadShopData();
@@ -475,27 +476,51 @@
       const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
       return {
-        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master'].includes(id)))]:[],
+        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
         platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
         visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
       };
     }catch(_){return defaults;}
   }
-  function saveAchievementData(){
-    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){}
+  function saveAchievementData(changes={}){
+    const persist=()=>{
+      try{
+        const saved=loadAchievementData();
+        const earned=[...new Set([...saved.earned,...(changes.earned||[])])];
+        const visited=[...new Set([...saved.visitedPlatforms,...(changes.visitedPlatforms||[])])].slice(0,100);
+        const newlyVisited=(changes.visitedPlatforms||[]).filter(id=>!saved.visitedPlatforms.includes(id));
+        const next={
+          earned,
+          coinsCollected:Math.min(Number.MAX_SAFE_INTEGER,saved.coinsCollected+Math.max(0,changes.coinsDelta||0)),
+          platformsLanded:Math.min(Number.MAX_SAFE_INTEGER,saved.platformsLanded+Math.min(newlyVisited.length,Math.max(0,100-saved.visitedPlatforms.length))),
+          visitedPlatforms:visited
+        };
+        if(next.coinsCollected>=10&&!next.earned.includes('coin_collector'))next.earned.push('coin_collector');
+        if(next.platformsLanded>=10&&!next.earned.includes('platform_hopper'))next.earned.push('platform_hopper');
+        if(next.platformsLanded>=100&&!next.earned.includes('platform_master'))next.earned.push('platform_master');
+        window.localStorage.setItem('frogJumperAchievements',JSON.stringify(next));
+        achievementData=next;
+        if(state==='achievements')showAchievements();
+      }catch(_){}
+    };
+    try{
+      if(navigator.locks&&typeof navigator.locks.request==='function'){
+        navigator.locks.request('frog-jumper-achievements',persist).catch(persist);
+      }else persist();
+    }catch(_){persist();}
   }
   function awardAchievement(id){
     if(achievementData.earned.includes(id))return;
     const item=ACHIEVEMENTS.find(a=>a.id===id);if(!item)return;
-    achievementData.earned.push(id);saveAchievementData();
+    achievementData.earned.push(id);saveAchievementData({earned:[id]});
     achievementNotice=item.emoji+' '+item.name+' unlocked!';
     achievementNoticeTime=3.2;
   }
   function recordCoinAchievement(){
     achievementData.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,achievementData.coinsCollected+1);
     if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
-    saveAchievementData();
+    saveAchievementData({coinsDelta:1});
   }
   function recordPlatformLanding(platform){
     if(!platform)return;
@@ -507,7 +532,7 @@
     achievementData.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,achievementData.platformsLanded+1);
     if(achievementData.platformsLanded>=10)awardAchievement('platform_hopper');
     if(achievementData.platformsLanded>=100)awardAchievement('platform_master');
-    saveAchievementData();
+    saveAchievementData({visitedPlatforms:[platformKey]});
   }
   function showAchievements(){
     const earned=achievementData.earned;
@@ -693,7 +718,10 @@
   function startGame(mode='level'){
     gameMode = mode;
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
-    if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
+    if (mode === 'infinite') {
+      setupInfiniteExplore();
+      if(new Date().getMonth()===9)awardAchievement('halloween_explorer');
+    } else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
@@ -818,6 +846,17 @@
     equippedHat=shopData.equippedHat;
   }
   window.addEventListener('storage',event=>{
+    if(event.key==='frogJumperAchievements'){
+      const incoming=loadAchievementData();
+      achievementData={
+        earned:[...new Set([...achievementData.earned,...incoming.earned])],
+        coinsCollected:Math.max(achievementData.coinsCollected,incoming.coinsCollected),
+        platformsLanded:Math.max(achievementData.platformsLanded,incoming.platformsLanded),
+        visitedPlatforms:[...new Set([...achievementData.visitedPlatforms,...incoming.visitedPlatforms])].slice(0,100)
+      };
+      if(state==='achievements')showAchievements();
+      return;
+    }
     if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
     const focusedItemId=document.activeElement?.dataset?.shopItem||null;
     syncShopFromStorage();
@@ -985,10 +1024,27 @@
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
     socket.addEventListener('close',()=>{
-      if(multiplayerSocket===socket){multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();}
+      if(multiplayerSocket!==socket)return;
+      const wasConnected=multiplayerConnected;
+      multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();multiplayerRoomCode='';
+      if(attemptId!==multiplayerAttemptId)return;
+      if(wasConnected){
+        achievementNotice='Multiplayer connection lost';achievementNoticeTime=3.2;
+      }else if(statusElement&&statusElement.isConnected){
+        statusElement.textContent='Connection failed. Check your connection and try again.';
+        const card=statusElement.closest('.overlay-card');
+        card?.querySelectorAll('#mp-create,#mp-join').forEach(button=>{button.disabled=false;});
+      }
     });
     socket.addEventListener('error',()=>{
-      if(attemptId===multiplayerAttemptId&&statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
+      if(attemptId!==multiplayerAttemptId)return;
+      if(statusElement&&statusElement.isConnected){
+        statusElement.textContent='Connection failed. Check your connection and try again.';
+        const card=statusElement.closest('.overlay-card');
+        card?.querySelectorAll('#mp-create,#mp-join').forEach(button=>{button.disabled=false;});
+      }else if(multiplayerConnected){
+        achievementNotice='Multiplayer connection lost';achievementNoticeTime=3.2;
+      }
     });
   }
   function leaveMultiplayerRoom(){cancelMultiplayerAttempt();}
