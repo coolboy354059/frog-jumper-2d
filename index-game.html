@@ -210,15 +210,14 @@
     if(e.shiftKey&&(document.activeElement===first||!overlay.contains(document.activeElement))){e.preventDefault();last.focus();}
     else if(!e.shiftKey&&(document.activeElement===last||!overlay.contains(document.activeElement))){e.preventDefault();first.focus();}
   });
-  // Cosmetic PNG assets. The Jupiter artwork was uploaded by the user.
+  // Cosmetic PNGs load only when their matching item is equipped.
   const jupiterSkinImage = new Image();
-  jupiterSkinImage.src = 'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png';
   const blackHatImage = new Image();
-  blackHatImage.src = 'assets/black-hat.png';
   const tvHatImage = new Image();
-  tvHatImage.src = 'assets/tv-hat.png';
   const carSkinImage = new Image();
-  carSkinImage.src = 'assets/car-skin.png';
+  function loadCosmeticImage(image,src){
+    if(!image.src)image.src=src;
+  }
 
   const PLAYER_W = 36, PLAYER_H = 36;
   const FIXED_DT = 1 / 120;
@@ -1345,6 +1344,10 @@
     // Jupiter uses the uploaded full-frog artwork; all other skins use crisp vector-drawn palettes.
     const jupiter=equippedSkin==='jupiter';
     const car=equippedSkin==='car';
+    if(jupiter)loadCosmeticImage(jupiterSkinImage,'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png');
+    if(car)loadCosmeticImage(carSkinImage,'assets/car-skin.png');
+    if(equippedHat==='black')loadCosmeticImage(blackHatImage,'assets/black-hat.png');
+    if(equippedHat==='tv')loadCosmeticImage(tvHatImage,'assets/tv-hat.png');
     if(car&&carSkinImage.complete&&carSkinImage.naturalWidth>0&&carSkinImage.naturalHeight>0){
       ctx.drawImage(carSkinImage,-28,-12,92,63);
     }else if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
