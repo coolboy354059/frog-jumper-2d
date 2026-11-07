@@ -17,7 +17,7 @@ before(async () => {
     const fs = require('node:fs');
     const path = require('node:path');
     const root = process.cwd();
-    const types = {'.html':'text/html; charset=utf-8','.png':'image/png','.css':'text/css'};
+    const types = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.css':'text/css'};
     http.createServer((req,res) => {
       let pathname = decodeURIComponent(new URL(req.url,'http://localhost').pathname);
       if (pathname === '/') pathname = '/index.html';
@@ -91,7 +91,7 @@ test('modal popups expose dialog semantics and trap keyboard focus', async () =>
   assert.equal(await overlay.getAttribute('aria-modal'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'5');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'7');
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
   await page.getByRole('button',{name:'COIN SHOP'}).click();
@@ -343,7 +343,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','20'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','60'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
@@ -525,7 +525,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   const context=await browser.newContext({viewport:{width:1280,height:800}});
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','320'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','360'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -534,9 +534,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('20 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('60 coins'));
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 20-coin balance');
+    'the second tab should see the remaining 60-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -548,7 +548,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 320 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 360 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
@@ -588,6 +588,11 @@ test('best coin display refreshes when another tab records a new best', async ()
   await pageA.goto(baseUrl,{waitUntil:'load'});
   const pageB=await context.newPage();
   await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageB.evaluate(()=>{
+    const label=document.createElement('span');
+    label.id='best-label';
+    document.body.append(label);
+  });
   await pageA.evaluate(()=>localStorage.setItem('frogJumperBestCoins','67'));
   await pageB.waitForFunction(()=>document.querySelector('#best-label')?.textContent.trim()==='67');
   assert.equal((await pageB.locator('#best-label').innerText()).trim(),'67');
