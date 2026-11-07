@@ -283,7 +283,7 @@ export class FrogRoom {
           y: 440,
           face: 1,
           updatedAt: now,
-          lastMoveAt: 0,
+          lastMoveAt: now,
           lastPingAt: 0,
           messageWindowStartedAt: now,
           messagesInWindow: 0,
