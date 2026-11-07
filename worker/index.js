@@ -237,8 +237,8 @@ export class FrogRoom {
     const remaining = this.ctx.getWebSockets().filter(socket => socket !== ws && socket.deserializeAttachment()?.joined);
     if (remaining.length === 0) await this.ctx.storage.setAlarm(Date.now() + 30 * 60 * 1000);
   }
-  webSocketError(ws) {
-    this.webSocketClose(ws);
+  async webSocketError(ws) {
+    await this.webSocketClose(ws);
   }
   async alarm() {
     const now = Date.now();
