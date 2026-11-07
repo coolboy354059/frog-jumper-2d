@@ -1000,7 +1000,14 @@
     multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
+    const connectionTimeout=window.setTimeout(()=>{
+      if(socket.readyState===WebSocket.CONNECTING){
+        if(statusElement&&statusElement.isConnected)statusElement.textContent='Connection timed out. Check your network and try again.';
+        try{socket.close(4000,'Connection timed out');}catch(_){}
+      }
+    },15000);
     socket.addEventListener('open',()=>{
+      window.clearTimeout(connectionTimeout);
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       multiplayerConnected=true;
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
@@ -1017,6 +1024,7 @@
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
     socket.addEventListener('close',()=>{
+      window.clearTimeout(connectionTimeout);
       if(multiplayerSocket!==socket)return;
       const wasConnected=multiplayerConnected;
       multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();
