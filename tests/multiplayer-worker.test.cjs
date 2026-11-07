@@ -139,7 +139,7 @@ async function createRoom(context, ip = '192.0.2.1') {
   const response = await worker.fetch(apiRequest('/api/rooms', {
     method: 'POST', body: { mode: 'level' }, ip,
   }), context.env);
-  assert.equal(response.status, 201, await response.text());
+  assert.equal(response.status, 201);
   return response.json();
 }
 
