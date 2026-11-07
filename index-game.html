@@ -350,8 +350,6 @@
   "Phoenix Path",
   "Jupiter Jumpway"
 ];
-  LEVELS.forEach((item, index) => { item.themeIndex = index; });
-  const WORLD_TEMPLATES = LEVELS.slice();
   for (let i = WORLD_TEMPLATES.length; i < TOTAL_LEVELS; i++) {
     const themeIndex = i % WORLD_TEMPLATES.length;
     const round = Math.floor(i / WORLD_TEMPLATES.length);
