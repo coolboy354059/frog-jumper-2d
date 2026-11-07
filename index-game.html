@@ -1622,5 +1622,15 @@
 })();
 </script>
 
+
+<!-- Keep the latest successfully loaded game available when the device is offline. -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+        .catch(error => console.warn('Frog Jumper offline support could not start:', error));
+    });
+  }
+</script>
 </body>
 </html>
