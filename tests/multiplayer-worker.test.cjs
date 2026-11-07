@@ -82,6 +82,9 @@ class FakeStorage {
   async delete(key) {
     return this.values.delete(key);
   }
+  async setAlarm() {
+    // Durable Object alarms are not needed for these isolated unit tests.
+  }
   async list({ prefix = '' } = {}) {
     return new Map([...this.values.entries()]
       .filter(([key]) => key.startsWith(prefix))
