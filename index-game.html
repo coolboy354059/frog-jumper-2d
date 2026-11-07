@@ -184,6 +184,8 @@
   const MULTIPLAYER_API = 'https://tight-mud-4638.teodorc2000.workers.dev';
   let multiplayerSocket = null;
   let multiplayerRoomCode = '';
+  let multiplayerAttemptId = 0;
+  let multiplayerRequestController = null;
   let multiplayerPlayerId = '';
   let multiplayerPlayers = new Map();
   let multiplayerMode = 'level';
@@ -917,6 +919,7 @@
     return ({level:'Level Adventure',race:'Robot Race',boss:'Boss Fight',infinite:'Infinite Explore'})[mode]||'Level Adventure';
   }
   function showMultiplayerScreen(){
+    cancelMultiplayerAttempt();
     state='multiplayer';syncPauseControl();syncBossTools();window.clearTimeout(bottomBarTimer);
     bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     overlay.innerHTML='<div class="overlay-card"><div class="big-frog" aria-hidden="true">🐸</div><h2>MULTIPLAYER</h2><p>Play together with up to 10 frogs. Everyone in a room must choose the same game mode.</p><label for="mp-name" style="display:block;text-align:left;margin:14px 0 5px;font-weight:800">Frog name</label><input id="mp-name" maxlength="16" value="Frog" autocomplete="nickname" style="width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff55;background:#071d27;color:#fff;font:inherit"><label for="mp-mode" style="display:block;text-align:left;margin:12px 0 5px;font-weight:800">Game mode</label><select id="mp-mode" style="width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff55;background:#071d27;color:#fff;font:inherit"><option value="level">Level Adventure</option><option value="race">Robot Race</option><option value="boss">Boss Fight</option><option value="infinite">Infinite Explore</option></select><label for="mp-code" style="display:block;text-align:left;margin:12px 0 5px;font-weight:800">Room code to join</label><input id="mp-code" maxlength="6" placeholder="ABC123" autocapitalize="characters" spellcheck="false" style="width:100%;padding:12px;border-radius:10px;border:1px solid #ffffff55;background:#071d27;color:#fff;font:inherit;text-transform:uppercase"><p id="mp-status" role="status" aria-live="polite">Create a room or enter a 6-character code from a friend.</p><div class="button-row"><button type="button" class="action primary" id="mp-create">CREATE ROOM</button><button type="button" class="action secondary" id="mp-join">JOIN ROOM</button><button type="button" class="action ghost" id="mp-back">BACK TO MENU</button></div></div>';
@@ -929,33 +932,48 @@
     const setBusy=(busy)=>{createButton.disabled=busy;joinButton.disabled=busy;};
     createButton.addEventListener('click',async()=>{
       const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;
+      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;const controller=multiplayerRequestController;
       setBusy(true);status.textContent='Creating your room...';
       try{
-        const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode})});
-        const result=await response.json();if(!response.ok)throw new Error(result.error||'Could not create the room.');
-        await connectToMultiplayerRoom(result.code,name,mode,status);
-      }catch(error){status.textContent=error.message||'Could not create the room.';setBusy(false);}
+        const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
+        const result=await response.json();if(attemptId!==multiplayerAttemptId)return;if(!response.ok)throw new Error(result.error||'Could not create the room.');
+        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId);
+      }catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not create the room.';setBusy(false);}
     });
     joinButton.addEventListener('click',async()=>{
       const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;const code=codeInput.value.trim().toUpperCase();
       if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){status.textContent='Enter a valid 6-character room code.';return;}
+      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;
       setBusy(true);status.textContent='Joining room '+code+'...';
-      try{await connectToMultiplayerRoom(code,name,mode,status);}
-      catch(error){status.textContent=error.message||'Could not join the room.';setBusy(false);}
+      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId);}
+      catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not join the room.';setBusy(false);}
     });
-    overlay.querySelector('#mp-back').addEventListener('click',()=>showOverlay('menu'));
+    overlay.querySelector('#mp-back').addEventListener('click',()=>{cancelMultiplayerAttempt();showOverlay('menu');});
     activateOverlayDialog(nameInput);
   }
-  async function connectToMultiplayerRoom(code,name,mode,statusElement){
-    if(multiplayerSocket){try{multiplayerSocket.close();}catch(_){}}
-    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode})});
-    const ticket=await response.json();if(!response.ok)throw new Error(ticket.error||'Could not join that room.');
+  function cancelMultiplayerAttempt(){
+    multiplayerAttemptId++;
+    if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
+    const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
+    multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
+    if(socket){try{socket.close(1000,'Left the room');}catch(_){}}
+  }
+  async function connectToMultiplayerRoom(code,name,mode,statusElement,attemptId=multiplayerAttemptId){
+    if(attemptId!==multiplayerAttemptId)return;
+    const controller=multiplayerRequestController||new AbortController();
+    multiplayerRequestController=controller;
+    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
+    const ticket=await response.json();
+    if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
+    if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
     multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
     socket.addEventListener('open',()=>{
+      if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       multiplayerConnected=true;
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
+      multiplayerRequestController=null;
       startGame(mode);
     });
     socket.addEventListener('message',event=>{
@@ -968,17 +986,13 @@
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
     socket.addEventListener('close',()=>{
-      if(multiplayerSocket===socket){multiplayerConnected=false;multiplayerPlayers.clear();}
+      if(multiplayerSocket===socket){multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();}
     });
     socket.addEventListener('error',()=>{
-      if(statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
+      if(attemptId===multiplayerAttemptId&&statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
     });
   }
-  function leaveMultiplayerRoom(){
-    const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
-    multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
-    if(socket){try{socket.close(1000,'Left the room');}catch(_){}}
-  }
+  function leaveMultiplayerRoom(){cancelMultiplayerAttempt();}
   function drawRemotePlayers(){
     if(!multiplayerConnected||!player)return;
     for(const other of multiplayerPlayers.values()){
