@@ -1020,7 +1020,7 @@
       if(multiplayerSocket!==socket)return;
       const wasConnected=multiplayerConnected;
       multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();
-      if(wasConnected&&state==='playing'){
+      if(wasConnected&&(state==='playing'||state==='paused')){
         showOverlay('multiplayerDisconnected');
       }else if(statusElement&&statusElement.isConnected){
         statusElement.textContent='Connection closed. Check your network and try again.';
