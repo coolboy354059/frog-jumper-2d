@@ -212,6 +212,7 @@ export class FrogRoom {
         }
         current.count++;
         await this.ctx.storage.put(key, current);
+        await this.ctx.storage.setAlarm(current.resetAt);
         return json({ ok: true, remaining: rule.limit - current.count });
       });
     }
@@ -416,19 +417,25 @@ export class FrogRoom {
       for (const [key, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
         if (!ticket || ticket.expiresAt <= now) await this.ctx.storage.delete(key);
       }
+      let nextRateReset = Infinity;
+      for (const [key, rate] of await this.ctx.storage.list({ prefix: "rate:" })) {
+        if (!rate || rate.resetAt <= now) await this.ctx.storage.delete(key);
+        else nextRateReset = Math.min(nextRateReset, rate.resetAt);
+      }
       const active = this.ctx.getWebSockets().some(ws => ws.deserializeAttachment()?.joined);
       if (active) {
-        await this.ctx.storage.setAlarm(now + ROOM_IDLE_TTL_MS);
+        await this.ctx.storage.setAlarm(Math.min(now + ROOM_IDLE_TTL_MS, nextRateReset));
         return;
       }
       const pending = await this.ctx.storage.list({ prefix: "ticket:" });
       if (pending.size > 0) {
-        await this.ctx.storage.setAlarm(now + TICKET_TTL_MS);
+        await this.ctx.storage.setAlarm(Math.min(now + TICKET_TTL_MS, nextRateReset));
         return;
       }
       await this.ctx.storage.delete("created");
       await this.ctx.storage.delete("mode");
       this.roomCreated = false;
+      if (nextRateReset !== Infinity) await this.ctx.storage.setAlarm(nextRateReset);
     });
   }
 }
