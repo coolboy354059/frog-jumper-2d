@@ -249,7 +249,7 @@ export class FrogRoom {
         await this.ctx.storage.put("ticket:" + token, {
           name, mode: this.roomMode, createdAt: now, expiresAt: now + TICKET_TTL_MS,
         });
-        await this.ctx.storage.setAlarm(now + ROOM_IDLE_TTL_MS);
+        await this.ctx.storage.setAlarm(now + TICKET_TTL_MS);
         return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS });
       });
     }
