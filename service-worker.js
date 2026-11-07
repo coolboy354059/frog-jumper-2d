@@ -53,13 +53,13 @@ self.addEventListener('fetch', event => {
 
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(request);
-    if (cached) return cached;
     try {
       const response = await fetch(request);
       if (response && response.ok) await cache.put(request, response.clone());
       return response;
     } catch (_) {
+      const cached = await cache.match(request);
+      if (cached) return cached;
       return new Response('', { status: 504, statusText: 'Offline resource unavailable' });
     }
   })());
