@@ -422,6 +422,11 @@ test('Halloween Explorer unlocks only during October', async () => {
     const page=await context.newPage();
     await page.goto(baseUrl,{waitUntil:'load'});
     await page.getByRole('button',{name:'INFINITE EXPLORE'}).click();
+    if(dateString.includes('-10-')){
+      await page.waitForFunction(()=>(
+        JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]
+      ).includes('halloween_explorer'),null,{timeout:7000});
+    }
     const earned=await page.evaluate(() => JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]);
     await context.close();
     return earned.includes('halloween_explorer');
@@ -484,6 +489,134 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
   await page.evaluate(()=>window.__frogJumperTestSockets[1].failBeforeOpen(false));
   await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
   assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
+
+test('achievement progress is merged when two tabs collect coins at the same time', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  const pageB=await context.newPage();
+  const errors=[];
+  for(const page of [pageA,pageB]){
+    page.on('pageerror',error=>errors.push(error.message));
+    page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  }
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperAchievements',JSON.stringify({
+    earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]
+  })));
+  await pageA.reload({waitUntil:'load'});
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageA.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await pageB.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+
+  async function collectFirstCoin(page){
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(650);
+    await page.keyboard.up('ArrowRight');
+    await page.keyboard.down('Space');
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(450);
+    await page.keyboard.up('ArrowRight');
+    await page.waitForTimeout(260);
+    await page.keyboard.up('Space');
+  }
+  await Promise.all([collectFirstCoin(pageA),collectFirstCoin(pageB)]);
+  await pageA.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
+  await pageB.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
+  const saved=await pageA.evaluate(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}'));
+  assert.equal(saved.coinsCollected,2,'both tabs should retain their separate coin pickup progress');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
+test('achievement screen refreshes when another tab unlocks an achievement', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  const pageB=await context.newPage();
+  const errors=[];
+  for(const page of [pageA,pageB]){
+    page.on('pageerror',error=>errors.push(error.message));
+    page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  }
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageB.getByRole('button',{name:'ACHIEVEMENTS'}).click();
+  await assertVisibleText(pageB,'0 of 5 unlocked');
+
+  await pageA.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await pageA.keyboard.press('Space');
+  await pageB.waitForFunction(()=>document.querySelector('#overlay p')?.textContent.includes('1 of 5 unlocked'));
+  await assertVisibleText(pageB,'First Jump');
+  await assertVisibleText(pageB,'UNLOCKED');
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
+test('best-coin label refreshes across tabs when the label is present', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const pageA=await context.newPage();
+  const pageB=await context.newPage();
+  await pageA.goto(baseUrl,{waitUntil:'load'});
+  await pageB.goto(baseUrl,{waitUntil:'load'});
+  await pageB.evaluate(()=>{
+    const label=document.createElement('strong');
+    label.id='best-label';
+    document.body.appendChild(label);
+  });
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperBestCoins','67'));
+  await pageB.waitForFunction(()=>document.querySelector('#best-label')?.textContent==='67');
+  assert.equal(await pageB.locator('#best-label').textContent(),'67');
+  await context.close();
+});
+
+test('a connected multiplayer disconnect shows recovery options and preserves room details', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(()=>{
+    window.__frogJumperTestSockets=[];
+    class MockWebSocket extends EventTarget {
+      constructor(url){super();this.url=url;this.readyState=0;window.__frogJumperTestSockets.push(this);}
+      openConnection(){this.readyState=1;this.dispatchEvent(new Event('open'));}
+      close(code=1000,reason=''){
+        if(this.readyState===3)return;
+        this.readyState=3;
+        this.dispatchEvent(new CloseEvent('close',{code,reason}));
+      }
+    }
+    window.WebSocket=MockWebSocket;
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(input,init)=>{
+      const url=String(input);
+      if(url.includes('/api/rooms/')&&url.includes('/join')){
+        return new Response(JSON.stringify({token:'test-token'}),{status:200,headers:{'content-type':'application/json'}});
+      }
+      if(url.endsWith('/api/rooms')){
+        return new Response(JSON.stringify({code:'ABC234',mode:'race',capacity:10}),{status:201,headers:{'content-type':'application/json'}});
+      }
+      return nativeFetch(input,init);
+    };
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+  await page.locator('#mp-name').fill('Frog Racer');
+  await page.locator('#mp-mode').selectOption('race');
+  await page.locator('#mp-create').click();
+  await page.waitForFunction(()=>window.__frogJumperTestSockets.length===1);
+  await page.evaluate(()=>window.__frogJumperTestSockets[0].openConnection());
+  await assertHidden(page,'#overlay');
+
+  await page.evaluate(()=>window.__frogJumperTestSockets[0].close(1006,'Simulated network loss'));
+  await assertVisibleText(page,'MULTIPLAYER CONNECTION LOST');
+  await page.getByRole('button',{name:'BACK TO MULTIPLAYER'}).click();
+  assert.equal(await page.locator('#mp-name').inputValue(),'Frog Racer');
+  assert.equal(await page.locator('#mp-mode').inputValue(),'race');
+  assert.equal(await page.locator('#mp-code').inputValue(),'ABC234');
   assert.deepEqual(errors,[]);
   await context.close();
 });
