@@ -443,7 +443,8 @@
     {id:'first_jump',name:'First Jump',emoji:'🐸',description:'Take your very first leap.'},
     {id:'coin_collector',name:'Coin Collector',emoji:'🪙',description:'Collect 10 coins.'},
     {id:'platform_hopper',name:'Platform Hopper',emoji:'🪜',description:'Land on 10 platforms.'},
-    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'}
+    {id:'platform_master',name:'Platform Master',emoji:'🏆',description:'Land on 100 platforms.'},
+    {id:'halloween_explorer',name:'Halloween Explorer',emoji:'🎃',description:'Explore Infinite Explore during October.'}
   ];
   let walletCoins = readStoredNumber('frogJumperWalletCoins', 0);
   let shopData = loadShopData();
@@ -476,7 +477,7 @@
       const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
       return {
-        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master'].includes(id)))]:[],
+        earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
         platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
         visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
@@ -693,6 +694,7 @@
   }
   function startGame(mode='level'){
     gameMode = mode;
+    if(mode==='infinite'&&new Date().getMonth()===9)awardAchievement('halloween_explorer');
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
     if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
