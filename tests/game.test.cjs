@@ -17,7 +17,7 @@ before(async () => {
     const fs = require('node:fs');
     const path = require('node:path');
     const root = process.cwd();
-    const types = {'.html':'text/html; charset=utf-8','.png':'image/png','.css':'text/css'};
+    const types = {'.html':'text/html; charset=utf-8','.png':'image/png','.css':'text/css','.js':'text/javascript; charset=utf-8'};
     http.createServer((req,res) => {
       let pathname = decodeURIComponent(new URL(req.url,'http://localhost').pathname);
       if (pathname === '/') pathname = '/index.html';
@@ -582,7 +582,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   const context=await browser.newContext({viewport:{width:1280,height:800}});
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','320'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','360'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -591,9 +591,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('20 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('60 coins'));
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 20-coin balance');
+    'the second tab should see the remaining 60-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -605,7 +605,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 320 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 360 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
