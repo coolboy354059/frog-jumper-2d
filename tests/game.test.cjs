@@ -422,6 +422,11 @@ test('Halloween Explorer unlocks only during October', async () => {
     const page=await context.newPage();
     await page.goto(baseUrl,{waitUntil:'load'});
     await page.getByRole('button',{name:'INFINITE EXPLORE'}).click();
+    if(dateString.includes('-10-')){
+      await page.waitForFunction(()=>(
+        JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]
+      ).includes('halloween_explorer'),null,{timeout:7000});
+    }
     const earned=await page.evaluate(() => JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').earned||[]);
     await context.close();
     return earned.includes('halloween_explorer');
