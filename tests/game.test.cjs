@@ -446,23 +446,28 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
         this.readyState=3;
         this.dispatchEvent(new CloseEvent('close',{code,reason}));
       }
-      failBeforeOpen() {
-        this.dispatchEvent(new Event('error'));
+      failBeforeOpen(withError=true) {
+        if(withError)this.dispatchEvent(new Event('error'));
         this.close(1006,'Simulated connection failure');
       }
     }
     window.WebSocket=FailingWebSocket;
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(input,init)=>{
+      const url=String(input);
+      if(/\\/api\\/rooms\\/[A-HJ-NP-Z2-9]{6}\\/join(?:\\?|$)/.test(url)) {
+        return new Response(JSON.stringify({token:'test-token'}),{status:200,headers:{'content-type':'application/json'}});
+      }
+      if(/\\/api\\/rooms(?:\\?|$)/.test(url)) {
+        return new Response(JSON.stringify({code:'ABC234',mode:'level',capacity:10}),{status:201,headers:{'content-type':'application/json'}});
+      }
+      return nativeFetch(input,init);
+    };
   });
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
-  await page.route('**/api/rooms',route=>route.fulfill({
-    status:201,contentType:'application/json',body:JSON.stringify({code:'ABC234',mode:'level',capacity:10})
-  }));
-  await page.route('**/api/rooms/**/join',route=>route.fulfill({
-    status:200,contentType:'application/json',body:JSON.stringify({token:'test-token'})
-  }));
   await page.goto(baseUrl,{waitUntil:'load'});
   await page.getByRole('button',{name:'MULTIPLAYER'}).click();
 
@@ -475,7 +480,7 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
   await page.locator('#mp-code').fill('ABC234');
   await page.locator('#mp-join').click();
   await page.waitForFunction(()=>window.__frogJumperTestSockets.length===2);
-  await page.evaluate(()=>window.__frogJumperTestSockets[1].failBeforeOpen());
+  await page.evaluate(()=>window.__frogJumperTestSockets[1].failBeforeOpen(false));
   await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
   assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
   assert.deepEqual(errors,[]);
