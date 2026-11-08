@@ -17,7 +17,7 @@ before(async () => {
     const fs = require('node:fs');
     const path = require('node:path');
     const root = process.cwd();
-    const types = {'.html':'text/html; charset=utf-8','.png':'image/png','.css':'text/css'};
+    const types = {'.html':'text/html; charset=utf-8','.png':'image/png','.css':'text/css','.js':'text/javascript; charset=utf-8'};
     http.createServer((req,res) => {
       let pathname = decodeURIComponent(new URL(req.url,'http://localhost').pathname);
       if (pathname === '/') pathname = '/index.html';
@@ -90,8 +90,9 @@ test('modal popups expose dialog semantics and trap keyboard focus', async () =>
   assert.equal(await overlay.getAttribute('role'),'dialog');
   assert.equal(await overlay.getAttribute('aria-modal'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
+  const lastMenuAction=String(await overlay.locator('[data-action]').count()-1);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'5');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),lastMenuAction);
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
   await page.getByRole('button',{name:'COIN SHOP'}).click();
@@ -343,7 +344,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','20'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','60'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
@@ -427,6 +428,64 @@ test('Halloween Explorer unlocks only during October', async () => {
   }
   assert.equal(await runInfiniteExploreAt('2026-09-30T12:00:00'),false,'September should not unlock the seasonal achievement');
   assert.equal(await runInfiniteExploreAt('2026-10-15T12:00:00'),true,'October should unlock the seasonal achievement');
+});
+
+
+test('multiplayer buttons are re-enabled when the WebSocket fails before opening', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(() => {
+    window.__frogJumperTestSockets=[];
+    class FailingWebSocket extends EventTarget {
+      constructor(url) {
+        super();
+        this.url=url;
+        this.readyState=0;
+        window.__frogJumperTestSockets.push(this);
+      }
+      close(code=1000,reason='') {
+        if(this.readyState===3)return;
+        this.readyState=3;
+        this.dispatchEvent(new CloseEvent('close',{code,reason}));
+      }
+      failBeforeOpen(withError=true) {
+        if(withError)this.dispatchEvent(new Event('error'));
+        this.close(1006,'Simulated connection failure');
+      }
+    }
+    window.WebSocket=FailingWebSocket;
+    const nativeFetch=window.fetch.bind(window);
+    window.fetch=async(input,init)=>{
+      const url=String(input);
+      if(url.includes('/api/rooms/')&&url.includes('/join')) {
+        return new Response(JSON.stringify({token:'test-token'}),{status:200,headers:{'content-type':'application/json'}});
+      }
+      if(url.endsWith('/api/rooms')) {
+        return new Response(JSON.stringify({code:'ABC234',mode:'level',capacity:10}),{status:201,headers:{'content-type':'application/json'}});
+      }
+      return nativeFetch(input,init);
+    };
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+
+  await page.locator('#mp-create').click();
+  await page.waitForFunction(()=>window.__frogJumperTestSockets.length===1);
+  await page.evaluate(()=>window.__frogJumperTestSockets[0].failBeforeOpen());
+  await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
+  assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
+
+  await page.locator('#mp-code').fill('ABC234');
+  await page.locator('#mp-join').click();
+  await page.waitForFunction(()=>window.__frogJumperTestSockets.length===2);
+  await page.evaluate(()=>window.__frogJumperTestSockets[1].failBeforeOpen(false));
+  await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
+  assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
+  assert.deepEqual(errors,[]);
+  await context.close();
 });
 
 test('browser without a 2D canvas context gets a helpful fallback instead of crashing', async () => {
@@ -524,7 +583,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   const context=await browser.newContext({viewport:{width:1280,height:800}});
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','320'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','360'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -533,9 +592,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('20 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('60 coins'));
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 20-coin balance');
+    'the second tab should see the remaining 60-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -547,7 +606,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 320 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 360 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
