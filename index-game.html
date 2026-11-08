@@ -1,4 +1,5 @@
 <!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
+<!-- CHANGE LOG: 2026-11-08 — Fix issues #7, #8, and #10: serialize achievement writes across tabs, refresh achievement/best-score views on storage events, and show multiplayer disconnect recovery. -->
 <!-- CHANGE LOG: 2026-11-07 — Let Level Adventure players enter the portal without collecting every coin; only collected coins are rewarded. -->
 <!-- CHANGE LOG: 2026-11-06 — Add Cloudflare Durable Objects multiplayer rooms for up to 10 players in all four game modes; sync live frog positions. -->
 <!-- TEST FIX: 2026-11-06 — Verify mobile jumping with a real Playwright touchscreen tap so pointer-capture events follow the browser's actual touch lifecycle. -->
@@ -487,29 +488,61 @@
   function saveAchievementData(){
     try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){}
   }
+  function updateAchievementData(mutator){
+    const persistUpdate=()=>{
+      // Always merge into the latest saved snapshot while holding the shared lock.
+      // This prevents a second tab from saving an older in-memory copy over new progress.
+      const latest=loadAchievementData();
+      const previouslyEarned=new Set(latest.earned);
+      const changed=mutator(latest);
+      achievementData=latest;
+      if(!changed)return;
+      saveAchievementData();
+      const newlyUnlocked=ACHIEVEMENTS.find(item=>!previouslyEarned.has(item.id)&&latest.earned.includes(item.id));
+      if(newlyUnlocked){
+        achievementNotice=newlyUnlocked.emoji+' '+newlyUnlocked.name+' unlocked!';
+        achievementNoticeTime=3.2;
+      }
+      if(state==='achievements')showAchievements();
+    };
+    if(navigator.locks&&typeof navigator.locks.request==='function'){
+      navigator.locks.request('frog-jumper-achievements',persistUpdate).catch(()=>{
+        achievementNotice='Achievement progress could not be saved. Please try again.';
+        achievementNoticeTime=3.2;
+      });
+    }else{
+      // Keep single-tab play functional in browsers without Web Locks.
+      persistUpdate();
+    }
+  }
   function awardAchievement(id){
-    if(achievementData.earned.includes(id))return;
-    const item=ACHIEVEMENTS.find(a=>a.id===id);if(!item)return;
-    achievementData.earned.push(id);saveAchievementData();
-    achievementNotice=item.emoji+' '+item.name+' unlocked!';
-    achievementNoticeTime=3.2;
+    if(!ACHIEVEMENTS.some(item=>item.id===id))return;
+    updateAchievementData(data=>{
+      if(data.earned.includes(id))return false;
+      data.earned.push(id);
+      return true;
+    });
   }
   function recordCoinAchievement(){
-    achievementData.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,achievementData.coinsCollected+1);
-    if(achievementData.coinsCollected>=10)awardAchievement('coin_collector');
-    saveAchievementData();
+    updateAchievementData(data=>{
+      data.coinsCollected=Math.min(Number.MAX_SAFE_INTEGER,data.coinsCollected+1);
+      if(data.coinsCollected>=10&&!data.earned.includes('coin_collector'))data.earned.push('coin_collector');
+      return true;
+    });
   }
   function recordPlatformLanding(platform){
     if(!platform)return;
     const platformKey=infiniteWorld
       ? 'infinite:'+infiniteWorld.seed+':'+platform.id
       : 'level:'+levelIndex+':'+platform.id;
-    if(achievementData.visitedPlatforms.includes(platformKey)||achievementData.visitedPlatforms.length>=100)return;
-    achievementData.visitedPlatforms.push(platformKey);
-    achievementData.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,achievementData.platformsLanded+1);
-    if(achievementData.platformsLanded>=10)awardAchievement('platform_hopper');
-    if(achievementData.platformsLanded>=100)awardAchievement('platform_master');
-    saveAchievementData();
+    updateAchievementData(data=>{
+      if(data.visitedPlatforms.includes(platformKey)||data.visitedPlatforms.length>=100)return false;
+      data.visitedPlatforms.push(platformKey);
+      data.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,data.platformsLanded+1);
+      if(data.platformsLanded>=10&&!data.earned.includes('platform_hopper'))data.earned.push('platform_hopper');
+      if(data.platformsLanded>=100&&!data.earned.includes('platform_master'))data.earned.push('platform_master');
+      return true;
+    });
   }
   function showAchievements(){
     const earned=achievementData.earned;
@@ -826,6 +859,16 @@
     syncShopFromStorage();
     if(state==='shop')showShop(focusedItemId);
   });
+  window.addEventListener('storage',event=>{
+    if(event.key==='frogJumperAchievements'||event.key===null){
+      achievementData=loadAchievementData();
+      if(state==='achievements')showAchievements();
+    }
+    if(event.key==='frogJumperBestCoins'||event.key===null){
+      const bestLabel=document.getElementById('best-label');
+      if(bestLabel)bestLabel.textContent=getBestCoins();
+    }
+  });
 
   // Fix 1: Keep the best coin total across visits when browser storage is available.
   function getBestCoins(){
@@ -896,7 +939,7 @@
   }
   function ensureFrameLoop(){if(!rafId&&state==='playing'&&!document.hidden){lastTime=0;rafId=requestAnimationFrame(frame);}}
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
-  function showOverlay(kind){
+  function showOverlay(kind,options={}){
     state=kind;
     syncPauseControl();
     syncBossTools();
@@ -907,6 +950,7 @@
       menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER and SKIP LEVEL can each be used once per stage.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
+      multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${currentModeTotalCoins()} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
@@ -920,7 +964,7 @@
   function multiplayerModeLabel(mode){
     return ({level:'Level Adventure',race:'Robot Race',boss:'Boss Fight',infinite:'Infinite Explore'})[mode]||'Level Adventure';
   }
-  function showMultiplayerScreen(){
+  function showMultiplayerScreen(prefill={}){
     cancelMultiplayerAttempt();
     state='multiplayer';syncPauseControl();syncBossTools();window.clearTimeout(bottomBarTimer);
     bottomBar.classList.remove('is-hidden');overlay.hidden=false;
@@ -928,6 +972,10 @@
     const nameInput=overlay.querySelector('#mp-name');
     const modeInput=overlay.querySelector('#mp-mode');
     const codeInput=overlay.querySelector('#mp-code');
+    if(typeof prefill.name==='string')nameInput.value=prefill.name.slice(0,16)||'Frog';
+    if(['level','race','boss','infinite'].includes(prefill.mode))modeInput.value=prefill.mode;
+    const retryCode=String(prefill.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    if(retryCode)codeInput.value=retryCode;
     const status=overlay.querySelector('#mp-status');
     const createButton=overlay.querySelector('#mp-create');
     const joinButton=overlay.querySelector('#mp-join');
@@ -971,6 +1019,8 @@
     multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
+    let connectionOpened=false;
+    let connectionFailureHandled=false;
     socket.addEventListener('open',()=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       connectionOpened=true;
@@ -988,8 +1038,6 @@
         if(message.player&&message.player.id!==multiplayerPlayerId)multiplayerPlayers.set(message.player.id,message.player);
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
-    let connectionOpened=false;
-    let connectionFailureHandled=false;
     const handleConnectionFailure=()=>{
       if(connectionOpened||connectionFailureHandled||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
       connectionFailureHandled=true;
@@ -1000,7 +1048,13 @@
     };
     socket.addEventListener('close',()=>{
       if(!connectionOpened)handleConnectionFailure();
-      if(multiplayerSocket===socket){multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();}
+      if(multiplayerSocket===socket){
+        multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();
+        if(connectionOpened&&!['menu','multiplayer','shop','achievements','multiplayerDisconnected'].includes(state)){
+          multiplayerRoomCode='';multiplayerPlayerId='';
+          showOverlay('multiplayerDisconnected',{name,mode,code});
+        }
+      }
     });
     socket.addEventListener('error',handleConnectionFailure);
   }
