@@ -455,10 +455,10 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
     const nativeFetch=window.fetch.bind(window);
     window.fetch=async(input,init)=>{
       const url=String(input);
-      if(/\\/api\\/rooms\\/[A-HJ-NP-Z2-9]{6}\\/join(?:\\?|$)/.test(url)) {
+      if(url.includes('/api/rooms/')&&url.includes('/join')) {
         return new Response(JSON.stringify({token:'test-token'}),{status:200,headers:{'content-type':'application/json'}});
       }
-      if(/\\/api\\/rooms(?:\\?|$)/.test(url)) {
+      if(url.endsWith('/api/rooms')) {
         return new Response(JSON.stringify({code:'ABC234',mode:'level',capacity:10}),{status:201,headers:{'content-type':'application/json'}});
       }
       return nativeFetch(input,init);
