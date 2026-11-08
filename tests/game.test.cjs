@@ -90,8 +90,9 @@ test('modal popups expose dialog semantics and trap keyboard focus', async () =>
   assert.equal(await overlay.getAttribute('role'),'dialog');
   assert.equal(await overlay.getAttribute('aria-modal'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
+  const lastMenuAction=String(await overlay.locator('[data-action]').count()-1);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'5');
+  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),lastMenuAction);
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
   await page.getByRole('button',{name:'COIN SHOP'}).click();
@@ -343,7 +344,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','20'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','60'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
