@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
 <!-- CHANGE LOG: 2026-11-07 — Let Level Adventure players enter the portal without collecting every coin; only collected coins are rewarded. -->
 <!-- CHANGE LOG: 2026-11-06 — Add Cloudflare Durable Objects multiplayer rooms for up to 10 players in all four game modes; sync live frog positions. -->
 <!-- TEST FIX: 2026-11-06 — Verify mobile jumping with a real Playwright touchscreen tap so pointer-capture events follow the browser's actual touch lifecycle. -->
@@ -936,7 +937,7 @@
       try{
         const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
         const result=await response.json();if(attemptId!==multiplayerAttemptId)return;if(!response.ok)throw new Error(result.error||'Could not create the room.');
-        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId);
+        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId,()=>setBusy(false));
       }catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not create the room.';setBusy(false);}
     });
     joinButton.addEventListener('click',async()=>{
@@ -944,7 +945,7 @@
       if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){status.textContent='Enter a valid 6-character room code.';return;}
       cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;
       setBusy(true);status.textContent='Joining room '+code+'...';
-      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId);}
+      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId,()=>setBusy(false));}
       catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not join the room.';setBusy(false);}
     });
     overlay.querySelector('#mp-back').addEventListener('click',()=>{cancelMultiplayerAttempt();showOverlay('menu');});
@@ -957,7 +958,7 @@
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
     if(socket){try{socket.close(1000,'Left the room');}catch(_){}}
   }
-  async function connectToMultiplayerRoom(code,name,mode,statusElement,attemptId=multiplayerAttemptId){
+  async function connectToMultiplayerRoom(code,name,mode,statusElement,attemptId=multiplayerAttemptId,onConnectionFailure){
     if(attemptId!==multiplayerAttemptId)return;
     const controller=multiplayerRequestController||new AbortController();
     multiplayerRequestController=controller;
@@ -970,6 +971,7 @@
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
     socket.addEventListener('open',()=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
+      connectionOpened=true;
       multiplayerConnected=true;
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
       multiplayerRequestController=null;
@@ -984,12 +986,21 @@
         if(message.player&&message.player.id!==multiplayerPlayerId)multiplayerPlayers.set(message.player.id,message.player);
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
+    let connectionOpened=false;
+    let connectionFailureHandled=false;
+    const handleConnectionFailure=()=>{
+      if(connectionOpened||connectionFailureHandled||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
+      connectionFailureHandled=true;
+      multiplayerConnected=false;
+      multiplayerPlayers.clear();
+      if(statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
+      if(typeof onConnectionFailure==='function')onConnectionFailure();
+    };
     socket.addEventListener('close',()=>{
+      if(!connectionOpened)handleConnectionFailure();
       if(multiplayerSocket===socket){multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();}
     });
-    socket.addEventListener('error',()=>{
-      if(attemptId===multiplayerAttemptId&&statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
-    });
+    socket.addEventListener('error',handleConnectionFailure);
   }
   function leaveMultiplayerRoom(){cancelMultiplayerAttempt();}
   function drawRemotePlayers(){

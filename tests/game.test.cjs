@@ -429,6 +429,59 @@ test('Halloween Explorer unlocks only during October', async () => {
   assert.equal(await runInfiniteExploreAt('2026-10-15T12:00:00'),true,'October should unlock the seasonal achievement');
 });
 
+
+test('multiplayer buttons are re-enabled when the WebSocket fails before opening', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(() => {
+    window.__frogJumperTestSockets=[];
+    class FailingWebSocket extends EventTarget {
+      constructor(url) {
+        super();
+        this.url=url;
+        this.readyState=0;
+        window.__frogJumperTestSockets.push(this);
+      }
+      close(code=1000,reason='') {
+        if(this.readyState===3)return;
+        this.readyState=3;
+        this.dispatchEvent(new CloseEvent('close',{code,reason}));
+      }
+      failBeforeOpen() {
+        this.dispatchEvent(new Event('error'));
+        this.close(1006,'Simulated connection failure');
+      }
+    }
+    window.WebSocket=FailingWebSocket;
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.route('**/api/rooms',route=>route.fulfill({
+    status:201,contentType:'application/json',body:JSON.stringify({code:'ABC234',mode:'level',capacity:10})
+  }));
+  await page.route('**/api/rooms/**/join',route=>route.fulfill({
+    status:200,contentType:'application/json',body:JSON.stringify({token:'test-token'})
+  }));
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+
+  await page.locator('#mp-create').click();
+  await page.waitForFunction(()=>window.__frogJumperTestSockets.length===1);
+  await page.evaluate(()=>window.__frogJumperTestSockets[0].failBeforeOpen());
+  await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
+  assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
+
+  await page.locator('#mp-code').fill('ABC234');
+  await page.locator('#mp-join').click();
+  await page.waitForFunction(()=>window.__frogJumperTestSockets.length===2);
+  await page.evaluate(()=>window.__frogJumperTestSockets[1].failBeforeOpen());
+  await page.waitForFunction(()=>!document.querySelector('#mp-create').disabled&&!document.querySelector('#mp-join').disabled);
+  assert.match(await page.locator('#mp-status').textContent(),/Connection failed/i);
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
 test('browser without a 2D canvas context gets a helpful fallback instead of crashing', async () => {
   const context=await browser.newContext();
   await context.addInitScript(() => {
