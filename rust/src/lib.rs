@@ -18,7 +18,7 @@ pub fn step_player_motion(
     speed: f64,
     gravity: f64,
     max_fall_speed: f64,
-) -> Vec<f64> {
+) -> Box<[f64]> {
     let horizontal_velocity = axis * speed;
     let next_x = x + horizontal_velocity * dt;
 
@@ -32,6 +32,7 @@ pub fn step_player_motion(
         horizontal_velocity,
         next_vertical_velocity,
     ]
+    .into_boxed_slice()
 }
 
 #[cfg(test)]
