@@ -1,0 +1,36 @@
+name: Build Rust WebAssembly experiment
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build Rust physics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out experiment
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust and WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Run Rust unit tests
+        run: cargo test --manifest-path rust/Cargo.toml
+
+      - name: Build browser WebAssembly package
+        run: wasm-pack build rust --target web --release
+
+      - name: Upload generated WebAssembly package
+        uses: actions/upload-artifact@v4
+        with:
+          name: frog-jumper-rust-wasm
+          path: rust/pkg/
+          if-no-files-found: error
