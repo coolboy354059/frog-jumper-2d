@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-10 — Rust experiment: add an optional WebAssembly player-motion step with a JavaScript fallback; collision and gameplay rules remain in JavaScript. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issues #7, #8, and #10: serialize achievement writes across tabs, refresh achievement/best-score views on storage events, and show multiplayer disconnect recovery. -->
 <!-- CHANGE LOG: 2026-11-07 — Let Level Adventure players enter the portal without collecting every coin; only collected coins are rewarded. -->
@@ -181,6 +182,21 @@
 <script>
 (() => {
   'use strict';
+
+  // Optional Rust/WebAssembly movement calculation. If the generated package
+  // is absent or fails to initialize, the original JavaScript calculation runs.
+  let rustStepPlayerMotion = null;
+  import('./rust/pkg/frog_jumper_rust.js')
+    .then(async (rustModule) => {
+      await rustModule.default();
+      if (typeof rustModule.step_player_motion === 'function') {
+        rustStepPlayerMotion = rustModule.step_player_motion;
+        console.info('Frog Jumper Rust movement module loaded.');
+      }
+    })
+    .catch(() => {
+      console.info('Rust WebAssembly package unavailable; using JavaScript movement.');
+    });
   const canvas = document.getElementById('game');
   const overlay = document.getElementById('overlay');
   const MULTIPLAYER_API = 'https://tight-mud-4638.teodorc2000.workers.dev';
@@ -1227,15 +1243,31 @@
 
     const axis=(input.right?1:0)-(input.left?1:0);
     const speed=(292 + Math.min(12, Math.floor(levelIndex/5)*2))*(gameMode==='boss'&&bossSpeedTimer>0?1.65:1);
-    player.vx=axis*speed;
+    const previousBottom=player.y+player.h;
+    let rustMotion=null;
+    if(rustStepPlayerMotion){
+      try{
+        rustMotion=rustStepPlayerMotion(player.x,player.y,player.vy,axis,dt,speed,1580,900);
+      }catch(error){
+        console.warn('Rust movement failed; switching to JavaScript movement.',error);
+        rustStepPlayerMotion=null;
+      }
+    }
+    if(rustMotion&&rustMotion.length===4&&Number.isFinite(rustMotion[0])&&Number.isFinite(rustMotion[1])&&Number.isFinite(rustMotion[2])&&Number.isFinite(rustMotion[3])){
+      player.x=rustMotion[0];
+      player.y=rustMotion[1];
+      player.vx=rustMotion[2];
+      player.vy=rustMotion[3];
+    }else{
+      if(rustMotion)rustStepPlayerMotion=null;
+      player.vx=axis*speed;
+      player.x+=player.vx*dt;
+      player.vy=Math.min(900,player.vy+1580*dt);
+      player.y+=player.vy*dt;
+    }
     if(axis)player.face=axis;
-    player.x+=player.vx*dt;
     if(gameMode==='infinite') player.x=Math.max(infiniteWorld?.minX||0,player.x);
     else player.x=Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-player.w,player.x));
-
-    const previousBottom=player.y+player.h;
-    player.vy=Math.min(900,player.vy+1580*dt);
-    player.y+=player.vy*dt;
     player.wasOnGround=player.onGround;
     player.onGround=false;
     player.standingOn=null;
