@@ -258,12 +258,26 @@ test('pause menu can safely return to the title menu', async () => {
   await page.close();
 });
 
-test('shop displays all cosmetics and prevents unaffordable purchases', async () => {
+test('shop displays all cosmetics, including original class-inspired skins, and prevents unaffordable purchases', async () => {
   const {page}=await freshPage();
   await page.getByRole('button',{name:'COIN SHOP'}).click();
-  for (const item of ['Black Hat','Jupiter Skin','Tiny TV Hat']) await assertVisibleText(page,item);
+  for (const item of [
+    'Black Hat','Jupiter Skin','Tiny TV Hat',
+    'Red Quill','Longneck Pal','Sky Glider','Fishbone','Big-Eye Buddy',
+    'Little Mouse','Bear Buddy','Wacky Beak','Bunny Hop','Box Buddy',
+    'Whiskers','Tiny Chick','Little Alien'
+  ]) await assertVisibleText(page,item);
+  for (const id of [
+    'spiky','longneck','glider','fishbone','bigeyes','mouse','bear',
+    'longbeak','bunny','boxbot','kitty','chick','alien'
+  ]) {
+    const item=page.locator('[data-shop-item="'+id+'"]');
+    assert.equal(await item.count(),1,'shop should contain the '+id+' skin exactly once');
+    assert.equal(await item.isDisabled(),true,'new skins should not be purchasable without coins');
+  }
   const jupiter=page.locator('[data-shop-item="jupiter"]');
   assert.equal(await jupiter.isDisabled(), true);
+  assert.doesNotMatch(await page.locator('.shop-grid').innerText(), /Mario|Pikachu/i);
   await page.close();
 });
 
