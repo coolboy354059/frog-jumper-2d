@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-13 — Add Poppy and US Flag PNG frog skins to the shop and player renderer. -->
 <!-- CHANGE LOG: 2026-11-13 — Fix 54: Keep gamepad polling active while paused so the controller Menu button can resume; restart polling when a controller connects or the tab becomes visible. -->
 <!-- CHANGE LOG: 2026-11-13 — Define the shared polygon drawing helper used by original class-inspired creature skins. -->
 <!-- CHANGE LOG: 2026-11-13 — Replace Wacky Beak's placeholder vector with its transparent PNG sprite and lazy-load it only while equipped. -->
@@ -222,6 +223,8 @@
   const blackHatImage = new Image();
   const tvHatImage = new Image();
   const carSkinImage = new Image();
+  const poppySkinImage = new Image();
+  const usFlagSkinImage = new Image();
   function loadCosmeticImage(image,src){
     if(!image.src)image.src=src;
   }
@@ -232,7 +235,7 @@
   const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
-  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien']);
+  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien','poppy','usflag']);
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
@@ -813,6 +816,8 @@
       {id:'kitty',kind:'skin',name:'Whiskers',price:340,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
       {id:'chick',kind:'skin',name:'Tiny Chick',price:300,emoji:'🐥',description:'A sunny yellow chick frog with a tiny beak'},
       {id:'alien',kind:'skin',name:'Little Alien',price:450,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
+      {id:'poppy',kind:'skin',name:'Poppy Skin',price:500,emoji:'⭐',description:'A pop-art frog with a POP burst and star'},
+      {id:'usflag',kind:'skin',name:'US Flag Skin',price:500,emoji:'🇺🇸',description:'A patriotic frog carrying the waving US flag'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:500,emoji:'📺',description:'A tiny television for your frog'}
     ];
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
@@ -1431,12 +1436,20 @@
     const jupiter=equippedSkin==='jupiter';
     const car=equippedSkin==='car';
     const wackyBeak=equippedSkin==='longbeak';
+    const poppy=equippedSkin==='poppy';
+    const usFlag=equippedSkin==='usflag';
     if(jupiter)loadCosmeticImage(jupiterSkinImage,'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png');
     if(wackyBeak)loadCosmeticImage(wackyBeakSkinImage,'assets/wacky-beak.png');
     if(car)loadCosmeticImage(carSkinImage,'assets/car-skin.png');
+    if(poppy)loadCosmeticImage(poppySkinImage,'assets/poppy-skin.png');
+    if(usFlag)loadCosmeticImage(usFlagSkinImage,'assets/us-flag-skin.png');
     if(equippedHat==='black')loadCosmeticImage(blackHatImage,'assets/black-hat.png');
     if(equippedHat==='tv')loadCosmeticImage(tvHatImage,'assets/tv-hat.png');
-    if(car&&carSkinImage.complete&&carSkinImage.naturalWidth>0&&carSkinImage.naturalHeight>0){
+    if(poppy&&poppySkinImage.complete&&poppySkinImage.naturalWidth>0&&poppySkinImage.naturalHeight>0){
+      ctx.drawImage(poppySkinImage,-14,-14,64,64);
+    }else if(usFlag&&usFlagSkinImage.complete&&usFlagSkinImage.naturalWidth>0&&usFlagSkinImage.naturalHeight>0){
+      ctx.drawImage(usFlagSkinImage,-14,-14,64,64);
+    }else if(car&&carSkinImage.complete&&carSkinImage.naturalWidth>0&&carSkinImage.naturalHeight>0){
       ctx.drawImage(carSkinImage,-28,-12,92,63);
     }else if(jupiter && jupiterSkinImage.complete && jupiterSkinImage.naturalWidth>0 && jupiterSkinImage.naturalHeight>0){
       // Draw the entire original Jupiter image. Do not crop into it or zoom.
