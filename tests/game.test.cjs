@@ -808,10 +808,11 @@ test('gamepad menu button can pause and resume gameplay', async () => {
   }));
   assert.deepEqual(mockStatus,{method:'function',count:1,connected:true});
   await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await assertHidden(page,'#overlay');
   await page.waitForTimeout(100);
 
   await page.evaluate(()=>{window.__frogJumperTestGamepad.buttons[9].pressed=true;});
-  await assertVisibleText(page,'PAUSED');
+  await page.waitForFunction(()=>document.querySelector('#overlay')?.textContent.includes('PAUSED'),null,{timeout:1000});
 
   await page.evaluate(()=>{window.__frogJumperTestGamepad.buttons[9].pressed=false;});
   await page.waitForTimeout(120);
