@@ -1,4 +1,4 @@
-name = "tight-mud-4638"
+name = "frog-jumper-multiplayer-runner"
 main = "worker/index.js"
 compatibility_date = "2026-11-06"
 
@@ -8,7 +8,11 @@ class_name = "FrogRoom"
 
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["FrogRoom"]
+
+  [[migrations.transferred_classes]]
+  from = "FrogRoom"
+  from_script = "tight-mud-4638"
+  to = "FrogRoom"
 
 [vars]
 ALLOWED_ORIGINS = "https://coolboy354059.github.io"
