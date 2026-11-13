@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-13 — Define the shared polygon drawing helper used by original class-inspired creature skins. -->
 <!-- CHANGE LOG: 2026-11-13 — Replace Wacky Beak's placeholder vector with its transparent PNG sprite and lazy-load it only while equipped. -->
 <!-- CHANGE LOG: 2026-11-12 — Add 13 original class-inspired frog skins, with custom vector art and saved shop unlock support; omit Mario- and Pikachu-inspired drawings. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
@@ -1474,6 +1475,15 @@
         alien:{leg:'#487c69',body:'#75c7a6',outline:'#315d50',belly:'#d6f3c5',head:'#59ad8c',mouth:'#2f5747'}
       };
       const palette=palettes[equippedSkin]||palettes.red;
+      const skinPoly=(points,fill,stroke=palette.outline)=>{
+        ctx.beginPath();
+        ctx.moveTo(points[0][0],points[0][1]);
+        for(let i=1;i<points.length;i++)ctx.lineTo(points[i][0],points[i][1]);
+        ctx.closePath();
+        ctx.fillStyle=fill;
+        ctx.fill();
+        if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
+      };
       // Extra silhouettes are original classmates-inspired creatures, drawn behind the frog body.
       if(equippedSkin==='spiky'){
         for(let i=0;i<7;i++)skinPoly([[4+i*4,15],[6+i*4,4+(i%2)*3],[10+i*4,15]],i%2?'#b94a3b':'#f3a04b');
