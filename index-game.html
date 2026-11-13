@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-13 — Fix 54: Keep gamepad polling active while paused so the controller Menu button can resume; restart polling when a controller connects or the tab becomes visible. -->
 <!-- CHANGE LOG: 2026-11-13 — Define the shared polygon drawing helper used by original class-inspired creature skins. -->
 <!-- CHANGE LOG: 2026-11-13 — Replace Wacky Beak's placeholder vector with its transparent PNG sprite and lazy-load it only while equipped. -->
 <!-- CHANGE LOG: 2026-11-12 — Add 13 original class-inspired frog skins, with custom vector art and saved shop unlock support; omit Mario- and Pikachu-inspired drawings. -->
@@ -470,6 +471,7 @@
   const gamepadInput = {left:false,right:false};
   let previousGamepadJump=false;
   let previousGamepadMenu=false;
+  let gamepadConnected=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
   function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:TOTAL_LEVELS;}
@@ -954,7 +956,7 @@
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
     if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
   }
-  function ensureFrameLoop(){if(!rafId&&state==='playing'&&!document.hidden){lastTime=0;rafId=requestAnimationFrame(frame);}}
+  function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||(state==='paused'&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   function showOverlay(kind,options={}){
     state=kind;
@@ -1693,9 +1695,11 @@
     try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(_){pads=[];}
     const pad=Array.from(pads).find(p=>p&&p.connected);
     if(!pad){
+      gamepadConnected=false;
       gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();
       previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;return;
     }
+    gamepadConnected=true;
     const axisX=Number.isFinite(pad.axes?.[0])?pad.axes[0]:0;
     const left=axisX < -0.35 || !!pad.buttons?.[14]?.pressed;
     const right=axisX > 0.35 || !!pad.buttons?.[15]?.pressed;
@@ -1713,16 +1717,16 @@
     }
     previousGamepadJump=jump;previousGamepadMenu=menu;
   }
-  window.addEventListener('gamepadconnected',()=>{previousGamepadJump=false;previousGamepadMenu=false;});
+  window.addEventListener('gamepadconnected',()=>{previousGamepadJump=false;previousGamepadMenu=false;gamepadConnected=true;ensureFrameLoop();});
   window.addEventListener('gamepaddisconnected',()=>{gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();previousGamepadJump=false;previousGamepadMenu=false;});
 
   function frame(now){
     rafId=0;
-    if(state!=='playing'||document.hidden)return;
+    if(document.hidden||(state!=='playing'&&!(state==='paused'&&gamepadConnected)))return;
     pollGamepad();
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
-    if(achievementNoticeTime>0)achievementNoticeTime=Math.max(0,achievementNoticeTime-delta);
+    if(state==='playing'&&achievementNoticeTime>0)achievementNoticeTime=Math.max(0,achievementNoticeTime-delta);
     if(state==='playing'){
       accumulator+=delta;
       let count=0;
@@ -1730,7 +1734,8 @@
       if(count>=8)accumulator=0;
     }else{accumulator=0;}
     render();
-    if(state==='playing'&&!document.hidden)rafId=requestAnimationFrame(frame);
+    if(state==='paused'&&gamepadConnected&&!document.hidden)ensureFrameLoop();
+    else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);
   }
 
   document.addEventListener('keydown',e=>{
@@ -1754,7 +1759,10 @@
     if(e.code==='ArrowRight'||e.code==='KeyD'){keyboardInput.right=false;syncHorizontalInput();}
   });
   window.addEventListener('blur',clearInputs);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}
+    else if(state==='paused'&&gamepadConnected)ensureFrameLoop();
+  });
 
   const pauseControl=document.getElementById('pause-control');
   function syncPauseControl(){
