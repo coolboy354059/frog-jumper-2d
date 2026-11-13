@@ -1,10 +1,11 @@
 /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */
-const CACHE_VERSION = 'frog-jumper-shell-v1';
+const CACHE_VERSION = 'frog-jumper-shell-v2';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
 const SHELL_FILES = [
   './index-game.html',
   './assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png',
+  './assets/wacky-beak.png',
   './assets/black-hat.png',
   './assets/car-skin.png',
   './assets/tv-hat.png'
