@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-13 — Replace Wacky Beak's placeholder vector with its transparent PNG sprite and lazy-load it only while equipped. -->
 <!-- CHANGE LOG: 2026-11-12 — Add 13 original class-inspired frog skins, with custom vector art and saved shop unlock support; omit Mario- and Pikachu-inspired drawings. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issues #7, #8, and #10: serialize achievement writes across tabs, refresh achievement/best-score views on storage events, and show multiplayer disconnect recovery. -->
@@ -215,6 +216,7 @@
   });
   // Cosmetic PNGs load only when their matching item is equipped.
   const jupiterSkinImage = new Image();
+  const wackyBeakSkinImage = new Image();
   const blackHatImage = new Image();
   const tvHatImage = new Image();
   const carSkinImage = new Image();
@@ -1425,7 +1427,9 @@
     // Jupiter uses the uploaded full-frog artwork; all other skins use crisp vector-drawn palettes.
     const jupiter=equippedSkin==='jupiter';
     const car=equippedSkin==='car';
+    const wackyBeak=equippedSkin==='longbeak';
     if(jupiter)loadCosmeticImage(jupiterSkinImage,'assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png');
+    if(wackyBeak)loadCosmeticImage(wackyBeakSkinImage,'assets/wacky-beak.png');
     if(car)loadCosmeticImage(carSkinImage,'assets/car-skin.png');
     if(equippedHat==='black')loadCosmeticImage(blackHatImage,'assets/black-hat.png');
     if(equippedHat==='tv')loadCosmeticImage(tvHatImage,'assets/tv-hat.png');
@@ -1445,6 +1449,10 @@
         jupiterSkinImage,
         (PLAYER_W - imageW) / 2, (PLAYER_H - imageH) / 2, imageW, imageH
       );
+    }else if(wackyBeak && wackyBeakSkinImage.complete && wackyBeakSkinImage.naturalWidth>0 && wackyBeakSkinImage.naturalHeight>0){
+      // Use the supplied transparent PNG as the complete Wacky Beak character.
+      // It is intentionally a little larger than the normal frog to fit the long beak.
+      ctx.drawImage(wackyBeakSkinImage,-14,-14,64,64);
     }else{
       const palettes={
         red:{leg:'#b51f35',body:'#ef334b',outline:'#941b30',belly:'#ff9b9b',head:'#d92743',mouth:'#81172a'},
