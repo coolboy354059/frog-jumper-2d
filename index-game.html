@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-12 — Add 13 original class-inspired frog skins, with custom vector art and saved shop unlock support; omit Mario- and Pikachu-inspired drawings. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issue #12: restore multiplayer retry controls when a WebSocket fails or closes before opening. -->
 <!-- CHANGE LOG: 2026-11-08 — Fix issues #7, #8, and #10: serialize achievement writes across tabs, refresh achievement/best-score views on storage events, and show multiplayer disconnect recovery. -->
 <!-- CHANGE LOG: 2026-11-07 — Let Level Adventure players enter the portal without collecting every coin; only collected coins are rewarded. -->
@@ -227,7 +228,7 @@
   const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
-  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car']);
+  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien']);
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
@@ -794,6 +795,19 @@
       {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
       {id:'ninja',kind:'skin',name:'Ninja Frog',price:650,emoji:'🥷',description:'Dark stealth colors with a red headband'},
       {id:'car',kind:'skin',name:'Froggy Race Car',price:800,emoji:'🏎️',description:'A little red race car skin with 5× coin rewards'},
+      {id:'spiky',kind:'skin',name:'Red Quill',price:260,emoji:'🦔',description:'A warm orange frog with a row of bright back spikes'},
+      {id:'longneck',kind:'skin',name:'Longneck Pal',price:320,emoji:'🦒',description:'A tall, friendly creature with a long neck'},
+      {id:'glider',kind:'skin',name:'Sky Glider',price:350,emoji:'🪽',description:'A blue frog with wide gliding fins'},
+      {id:'fishbone',kind:'skin',name:'Fishbone',price:290,emoji:'🐟',description:'A sea-blue frog with a silly skeleton pattern'},
+      {id:'bigeyes',kind:'skin',name:'Big-Eye Buddy',price:300,emoji:'👀',description:'A purple-blue frog with extra-big eyes'},
+      {id:'mouse',kind:'skin',name:'Little Mouse',price:260,emoji:'🐭',description:'A soft gray frog with round pink ears'},
+      {id:'bear',kind:'skin',name:'Bear Buddy',price:330,emoji:'🐻',description:'A cozy brown bear-like frog'},
+      {id:'longbeak',kind:'skin',name:'Wacky Beak',price:300,emoji:'🐤',description:'A golden frog with a funny long beak'},
+      {id:'bunny',kind:'skin',name:'Bunny Hop',price:350,emoji:'🐰',description:'A fluffy pink bunny frog with tall ears'},
+      {id:'boxbot',kind:'skin',name:'Box Buddy',price:420,emoji:'🤖',description:'A square-headed little robot frog'},
+      {id:'kitty',kind:'skin',name:'Whiskers',price:340,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
+      {id:'chick',kind:'skin',name:'Tiny Chick',price:300,emoji:'🐥',description:'A sunny yellow chick frog with a tiny beak'},
+      {id:'alien',kind:'skin',name:'Little Alien',price:450,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:500,emoji:'📺',description:'A tiny television for your frog'}
     ];
     overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
@@ -1436,9 +1450,79 @@
         red:{leg:'#b51f35',body:'#ef334b',outline:'#941b30',belly:'#ff9b9b',head:'#d92743',mouth:'#81172a'},
         ocean:{leg:'#287aaf',body:'#3b9ad6',outline:'#205d85',belly:'#a8e9ff',head:'#2382c2',mouth:'#164e75'},
         gold:{leg:'#d78d18',body:'#ffc943',outline:'#a86b13',belly:'#fff0a5',head:'#edaa24',mouth:'#98600e'},
-        ninja:{leg:'#202635',body:'#333949',outline:'#161d29',belly:'#c8494f',head:'#252b3b',mouth:'#10151d'}
+        ninja:{leg:'#202635',body:'#333949',outline:'#161d29',belly:'#c8494f',head:'#252b3b',mouth:'#10151d'},
+        spiky:{leg:'#a64d35',body:'#e97845',outline:'#753c2d',belly:'#ffd2a4',head:'#d9643d',mouth:'#613125'},
+        longneck:{leg:'#87613e',body:'#b88b58',outline:'#68472f',belly:'#f1d6a5',head:'#a87849',mouth:'#60432e'},
+        glider:{leg:'#346f91',body:'#55a9c7',outline:'#24566f',belly:'#c1edf0',head:'#398cae',mouth:'#174a62'},
+        fishbone:{leg:'#567f99',body:'#8eb7c7',outline:'#4b6d83',belly:'#e4f5ed',head:'#719caf',mouth:'#3b596e'},
+        bigeyes:{leg:'#536b93',body:'#849bd1',outline:'#46557f',belly:'#e0e8ff',head:'#7189c5',mouth:'#35456f'},
+        mouse:{leg:'#777b91',body:'#a7aabd',outline:'#555a70',belly:'#f5d7dc',head:'#969bb2',mouth:'#56566c'},
+        bear:{leg:'#754b35',body:'#ad7850',outline:'#5b392b',belly:'#f0d1a8',head:'#94613f',mouth:'#543a2d'},
+        longbeak:{leg:'#a66c2d',body:'#e5b84e',outline:'#855323',belly:'#fff0b1',head:'#d99d36',mouth:'#75491c'},
+        bunny:{leg:'#a78d9b',body:'#e2cbd8',outline:'#8b7183',belly:'#fff0f3',head:'#d4b9c8',mouth:'#765b6c'},
+        boxbot:{leg:'#617b8d',body:'#9fb9c8',outline:'#465f70',belly:'#dff0f4',head:'#86a3b4',mouth:'#3d5665'},
+        kitty:{leg:'#9e7957',body:'#e4c49c',outline:'#75573e',belly:'#fff0d9',head:'#d4ad80',mouth:'#6a503a'},
+        chick:{leg:'#bd8128',body:'#ffdc58',outline:'#9b641c',belly:'#fff4bd',head:'#f2c83e',mouth:'#875318'},
+        alien:{leg:'#487c69',body:'#75c7a6',outline:'#315d50',belly:'#d6f3c5',head:'#59ad8c',mouth:'#2f5747'}
       };
       const palette=palettes[equippedSkin]||palettes.red;
+      // Extra silhouettes are original classmates-inspired creatures, drawn behind the frog body.
+      if(equippedSkin==='spiky'){
+        for(let i=0;i<7;i++)skinPoly([[4+i*4,15],[6+i*4,4+(i%2)*3],[10+i*4,15]],i%2?'#b94a3b':'#f3a04b');
+      }
+      if(equippedSkin==='longneck'){
+        roundedRect(13,-5,10,19,5,'#b88b58','#68472f');
+        ctx.fillStyle='#d3aa72';ctx.beginPath();ctx.arc(18,-5,7,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='glider'){
+        skinPoly([[7,15],[-5,7],[-2,25],[9,24]],'#3c91b6');
+        skinPoly([[29,15],[41,7],[38,25],[27,24]],'#3c91b6');
+      }
+      if(equippedSkin==='fishbone'){
+        ctx.strokeStyle='#e8f4e9';ctx.lineWidth=2;
+        ctx.beginPath();ctx.moveTo(7,14);ctx.lineTo(29,14);
+        for(let i=0;i<5;i++){ctx.moveTo(10+i*4,14);ctx.lineTo(8+i*4,21);ctx.moveTo(10+i*4,14);ctx.lineTo(8+i*4,7);}
+        ctx.stroke();
+        skinPoly([[29,14],[38,7],[38,21]],'#719caf');
+      }
+      if(equippedSkin==='bigeyes'){
+        ctx.fillStyle='#e8efff';ctx.beginPath();ctx.arc(10,10,9,0,Math.PI*2);ctx.arc(27,10,9,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#263b64';ctx.beginPath();ctx.arc(11,11,3,0,Math.PI*2);ctx.arc(26,11,3,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='mouse'||equippedSkin==='bear'){
+        const ear=equippedSkin==='mouse'?'#969bb2':'#94613f';
+        ctx.fillStyle=ear;ctx.beginPath();ctx.arc(5,4,7,0,Math.PI*2);ctx.arc(31,4,7,0,Math.PI*2);ctx.fill();
+        ctx.strokeStyle=palette.outline;ctx.lineWidth=1.4;ctx.stroke();
+        ctx.fillStyle=equippedSkin==='mouse'?'#f2b4bd':'#d9ad84';ctx.beginPath();ctx.arc(5,4,3.5,0,Math.PI*2);ctx.arc(31,4,3.5,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='longbeak'){
+        skinPoly([[15,17],[24,17],[19,27]],'#e99b27','#9d5e1b');
+        ctx.fillStyle='#c27b2e';ctx.beginPath();ctx.ellipse(3,20,5,8,-.3,0,Math.PI*2);ctx.ellipse(33,20,5,8,.3,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='bunny'){
+        ctx.save();ctx.translate(9,5);ctx.rotate(-.16);roundedRect(-5,-17,9,23,5,'#e2cbd8','#8b7183');ctx.restore();
+        ctx.save();ctx.translate(27,5);ctx.rotate(.16);roundedRect(-4,-17,9,23,5,'#e2cbd8','#8b7183');ctx.restore();
+        ctx.fillStyle='#f2a6b8';ctx.beginPath();ctx.ellipse(9,-5,2.5,7,-.16,0,Math.PI*2);ctx.ellipse(27,-5,2.5,7,.16,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='boxbot'){
+        roundedRect(4,3,28,29,5,'#86a3b4','#465f70');
+        ctx.fillStyle='#dffcff';ctx.fillRect(9,9,6,6);ctx.fillRect(23,9,6,6);
+        ctx.fillStyle='#273e51';ctx.fillRect(11,11,3,3);ctx.fillRect(25,11,3,3);
+      }
+      if(equippedSkin==='kitty'){
+        skinPoly([[4,10],[5,-4],[15,6]],'#d4ad80');
+        skinPoly([[21,6],[31,-4],[32,10]],'#d4ad80');
+        skinPoly([[7,5],[7,0],[11,5]],'#f3b4b4',null);
+        skinPoly([[25,5],[29,0],[29,5]],'#f3b4b4',null);
+      }
+      if(equippedSkin==='chick'){
+        ctx.fillStyle='#f2c83e';ctx.beginPath();ctx.ellipse(18,3,5,6,0,0,Math.PI*2);ctx.fill();
+        skinPoly([[14,17],[23,17],[18,24]],'#e99b27','#9b641c');
+      }
+      if(equippedSkin==='alien'){
+        ctx.strokeStyle='#315d50';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(12,5);ctx.lineTo(9,-3);ctx.moveTo(24,5);ctx.lineTo(27,-3);ctx.stroke();
+        ctx.fillStyle='#b2f2d8';ctx.beginPath();ctx.arc(9,-4,3,0,Math.PI*2);ctx.arc(27,-4,3,0,Math.PI*2);ctx.fill();
+      }
       roundedRect(2,20,12,14,5,palette.leg);roundedRect(22,20,12,14,5,palette.leg);
       roundedRect(3,14,30,20,10,palette.body,palette.outline);roundedRect(8,23,20,8,4,palette.belly);
       roundedRect(4,4,11,16,5,palette.head);roundedRect(21,4,11,16,5,palette.head);
@@ -1450,7 +1534,42 @@
       if(equippedSkin==='ocean'){
         ctx.fillStyle='#d6f7ff';ctx.beginPath();ctx.arc(5,23,1.7,0,Math.PI*2);ctx.arc(31,23,1.7,0,Math.PI*2);ctx.arc(7,27,1.2,0,Math.PI*2);ctx.arc(29,27,1.2,0,Math.PI*2);ctx.fill();
       }
-      if(equippedSkin==='gold'){
+      if(equippedSkin==='spiky'){
+        ctx.fillStyle='#fff1d7';ctx.beginPath();ctx.arc(7,24,2,0,Math.PI*2);ctx.arc(29,24,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='glider'){
+        ctx.fillStyle='#d9f6f3';ctx.beginPath();ctx.arc(7,26,2,0,Math.PI*2);ctx.arc(29,26,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='fishbone'){
+        ctx.strokeStyle='#e9f5ee';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(9,25);ctx.lineTo(27,25);ctx.stroke();
+      }
+      if(equippedSkin==='bigeyes'){
+        ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(18,25,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='mouse'){
+        ctx.fillStyle='#f2a6b8';ctx.beginPath();ctx.arc(18,19,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='bear'){
+        ctx.fillStyle='#f2dfc3';ctx.beginPath();ctx.ellipse(18,24,6,4,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#49342b';ctx.beginPath();ctx.arc(18,23,1.7,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='longbeak'){
+        ctx.fillStyle='#fff4c2';ctx.beginPath();ctx.arc(8,25,2,0,Math.PI*2);ctx.arc(28,25,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='boxbot'){
+        ctx.fillStyle='#6ff2e5';ctx.fillRect(10,25,5,3);ctx.fillRect(21,25,5,3);
+      }
+      if(equippedSkin==='kitty'){
+        ctx.strokeStyle='#6a503a';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(5,21);ctx.lineTo(0,20);ctx.moveTo(5,24);ctx.lineTo(0,26);ctx.moveTo(31,21);ctx.lineTo(36,20);ctx.moveTo(31,24);ctx.lineTo(36,26);ctx.stroke();
+      }
+      if(equippedSkin==='chick'){
+        ctx.fillStyle='#fff4c2';ctx.beginPath();ctx.arc(8,25,2,0,Math.PI*2);ctx.arc(28,25,2,0,Math.PI*2);ctx.fill();
+      }
+      if(equippedSkin==='alien'){
+        ctx.fillStyle='#f0fff8';ctx.beginPath();ctx.ellipse(10,11,5,6,0,0,Math.PI*2);ctx.ellipse(26,11,5,6,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#254c42';ctx.beginPath();ctx.ellipse(11,11,2,3,0,0,Math.PI*2);ctx.ellipse(25,11,2,3,0,0,Math.PI*2);ctx.fill();
+      }
+            if(equippedSkin==='gold'){
         ctx.fillStyle='#fff9d6';ctx.beginPath();ctx.arc(18,27,2.3,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#ffe17a';ctx.fillRect(5,6,3,2);ctx.fillRect(28,6,3,2);
       }
