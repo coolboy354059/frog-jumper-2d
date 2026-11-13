@@ -791,16 +791,22 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
 // REGRESSION TEST: 2026-11-13 — Verify a connected gamepad can resume after its Menu button pauses the game.
 test('gamepad menu button can pause and resume gameplay', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
-  await context.addInitScript(()=>{
-    const pad={connected:true,axes:[0,0],buttons:Array.from({length:10},()=>({pressed:false}))};
-    Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[pad]});
-    window.__frogJumperTestGamepad=pad;
-  });
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
   await page.goto(baseUrl,{waitUntil:'load'});
+  await page.evaluate(()=>{
+    const pad={connected:true,axes:[0,0],buttons:Array.from({length:10},()=>({pressed:false}))};
+    window.__frogJumperTestGamepad=pad;
+    Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__frogJumperTestGamepad]});
+  });
+  const mockStatus=await page.evaluate(()=>({
+    method:typeof navigator.getGamepads,
+    count:navigator.getGamepads().length,
+    connected:navigator.getGamepads()[0]?.connected
+  }));
+  assert.deepEqual(mockStatus,{method:'function',count:1,connected:true});
   await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
   await page.waitForTimeout(100);
 
