@@ -1569,7 +1569,21 @@
         ctx.fillStyle='#f0fff8';ctx.beginPath();ctx.ellipse(10,11,5,6,0,0,Math.PI*2);ctx.ellipse(26,11,5,6,0,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#254c42';ctx.beginPath();ctx.ellipse(11,11,2,3,0,0,Math.PI*2);ctx.ellipse(25,11,2,3,0,0,Math.PI*2);ctx.fill();
       }
-            if(equippedSkin==='gold'){
+            if(equippedSkin==='fishbone'){
+        ctx.strokeStyle='#f1fff5';ctx.lineWidth=1.6;ctx.beginPath();
+        for(let i=0;i<4;i++){const ribX=10+i*5;ctx.moveTo(ribX,16);ctx.lineTo(ribX-2,25);ctx.moveTo(ribX,16);ctx.lineTo(ribX-2,8);}
+        ctx.stroke();
+      }
+      if(equippedSkin==='bigeyes'){
+        ctx.fillStyle='#f4f7ff';ctx.beginPath();ctx.arc(10,10,8,0,Math.PI*2);ctx.arc(27,10,8,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#263b64';ctx.beginPath();ctx.arc(11,11,3.4,0,Math.PI*2);ctx.arc(26,11,3.4,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff';ctx.fillRect(10,9,2,2);ctx.fillRect(25,9,2,2);
+      }
+      if(equippedSkin==='longbeak'||equippedSkin==='chick'){
+        ctx.fillStyle=equippedSkin==='chick'?'#e99b27':'#e99b27';ctx.strokeStyle='#9b641c';ctx.lineWidth=1;
+        ctx.beginPath();ctx.moveTo(14,17);ctx.lineTo(23,17);ctx.lineTo(18.5,25);ctx.closePath();ctx.fill();ctx.stroke();
+      }
+      if(equippedSkin==='gold'){
         ctx.fillStyle='#fff9d6';ctx.beginPath();ctx.arc(18,27,2.3,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='#ffe17a';ctx.fillRect(5,6,3,2);ctx.fillRect(28,6,3,2);
       }
