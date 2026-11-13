@@ -281,6 +281,33 @@ test('shop displays all cosmetics, including original class-inspired skins, and 
   await page.close();
 });
 
+test('Wacky Beak skin can be equipped and its transparent PNG decodes in gameplay', async () => {
+  const {page,errors}=await freshPage();
+  await page.evaluate(() => localStorage.setItem('frogJumperShop', JSON.stringify({
+    ownedSkins:['red','longbeak'],
+    ownedHats:[],
+    equippedSkin:'longbeak',
+    equippedHat:'none'
+  })));
+  await page.reload({waitUntil:'load'});
+  const savedShop=await page.evaluate(()=>JSON.parse(localStorage.getItem('frogJumperShop')||'{}'));
+  assert.equal(savedShop.equippedSkin,'longbeak');
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await assertHidden(page,'#overlay');
+  const response=await page.request.get(baseUrl+'/assets/wacky-beak.png');
+  assert.equal(response.status(),200,'Wacky Beak PNG must load successfully');
+  assert.match(response.headers()['content-type']||'',/image\/png/i);
+  const pngInfo=await page.evaluate(async (src)=>{
+    const image=new Image();
+    image.src=src;
+    await image.decode();
+    return {width:image.naturalWidth,height:image.naturalHeight};
+  },baseUrl+'/assets/wacky-beak.png');
+  assert.deepEqual(pngInfo,{width:96,height:96});
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('malformed saved shop data does not crash the game', async () => {
   const {page,errors}=await freshPage();
   await page.evaluate(() => localStorage.setItem('frogJumperShop','{ definitely not json'));
@@ -659,7 +686,8 @@ test('all game artwork files are served successfully', async () => {
   for (const asset of [
     '/assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png',
     '/assets/black-hat.png',
-    '/assets/tv-hat.png'
+    '/assets/tv-hat.png',
+    '/assets/wacky-beak.png'
   ]) {
     const response=await page.request.get(baseUrl+asset);
     assert.equal(response.status(),200,asset+' must load');
