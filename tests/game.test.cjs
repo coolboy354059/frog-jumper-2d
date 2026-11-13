@@ -281,6 +281,27 @@ test('shop displays all cosmetics, including original class-inspired skins, and 
   await page.close();
 });
 
+test('Wacky Beak skin loads and uses its transparent PNG artwork in gameplay', async () => {
+  const {page,errors}=await freshPage();
+  await page.evaluate(() => localStorage.setItem('frogJumperShop', JSON.stringify({
+    ownedSkins:['red','longbeak'],
+    ownedHats:[],
+    equippedSkin:'longbeak',
+    equippedHat:'none'
+  })));
+  await page.reload({waitUntil:'load'});
+  const pngResponse=page.waitForResponse(response =>
+    response.url().endsWith('/assets/wacky-beak.png') && response.request().resourceType()==='image'
+  );
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  const response=await pngResponse;
+  assert.equal(response.status(),200,'Wacky Beak PNG must load successfully');
+  assert.match(response.headers()['content-type']||'',/image\/png/i);
+  await page.waitForTimeout(150);
+  assert.deepEqual(errors,[]);
+  await page.close();
+});
+
 test('malformed saved shop data does not crash the game', async () => {
   const {page,errors}=await freshPage();
   await page.evaluate(() => localStorage.setItem('frogJumperShop','{ definitely not json'));
