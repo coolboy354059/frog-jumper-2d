@@ -788,6 +788,34 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await context.close();
 });
 
+// REGRESSION TEST: 2026-11-13 — Verify a connected gamepad can resume after its Menu button pauses the game.
+test('gamepad menu button can pause and resume gameplay', async () => {
+  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await context.addInitScript(()=>{
+    const pad={connected:true,axes:[0,0],buttons:Array.from({length:10},()=>({pressed:false}))};
+    Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[pad]});
+    window.__frogJumperTestGamepad=pad;
+  });
+  const page=await context.newPage();
+  const errors=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.goto(baseUrl,{waitUntil:'load'});
+  await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+  await page.waitForTimeout(100);
+
+  await page.evaluate(()=>{window.__frogJumperTestGamepad.buttons[9].pressed=true;});
+  await assertVisibleText(page,'PAUSED');
+
+  await page.evaluate(()=>{window.__frogJumperTestGamepad.buttons[9].pressed=false;});
+  await page.waitForTimeout(120);
+  await page.evaluate(()=>{window.__frogJumperTestGamepad.buttons[9].pressed=true;});
+  await page.locator('#overlay').waitFor({state:'hidden',timeout:1000});
+
+  assert.deepEqual(errors,[]);
+  await context.close();
+});
+
 async function assertVisibleText(page,text) {
   const matches=page.locator('#overlay').getByText(text,{exact:true});
   assert.ok(await matches.count()>0,'Expected visible text: '+text);
