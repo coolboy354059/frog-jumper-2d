@@ -1,17 +1,26 @@
 /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */
-const CACHE_VERSION = 'frog-jumper-shell-v2';
+const CACHE_VERSION = 'frog-jumper-shell-v3';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
+
+// Only the main game page is required during installation.
 const SHELL_FILES = [
-  './index-game.html',
+  './index-game.html'
+];
+const SHELL_URLS = new Set(
+  SHELL_FILES.map(file => new URL(file, self.registration.scope).toString())
+);
+
+// Cosmetics are optional: cache each one only after the game actually requests it.
+const OPTIONAL_ASSET_FILES = [
   './assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png',
   './assets/wacky-beak.png',
   './assets/black-hat.png',
   './assets/car-skin.png',
   './assets/tv-hat.png'
 ];
-const SHELL_URLS = new Set(
-  SHELL_FILES.map(file => new URL(file, self.registration.scope).toString())
+const OPTIONAL_ASSET_URLS = new Set(
+  OPTIONAL_ASSET_FILES.map(file => new URL(file, self.registration.scope).toString())
 );
 
 self.addEventListener('install', event => {
@@ -58,10 +67,9 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Only the small, explicitly listed game-shell files are cached.
-  // Everything else (including dynamic URLs and query-string variants)
-  // goes straight to the network and is never added to Cache Storage.
-  const cacheKey = SHELL_URLS.has(url.href)
+  // Cache the game shell and approved optional cosmetics only when requested.
+  // Dynamic URLs and query-string variants are never added to Cache Storage.
+  const cacheKey = SHELL_URLS.has(url.href) || OPTIONAL_ASSET_URLS.has(url.href)
     ? url.href
     : null;
   if (!cacheKey) return;
