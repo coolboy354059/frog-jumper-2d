@@ -8,6 +8,10 @@ const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
+const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag"]);
+const ALLOWED_HATS = new Set(["none","black","tv"]);
+function cleanSkin(value) { return ALLOWED_SKINS.has(value) ? value : "red"; }
+function cleanHat(value) { return ALLOWED_HATS.has(value) ? value : "none"; }
 
 function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {
@@ -146,7 +150,8 @@ export class FrogRoom {
       }
       const token = crypto.randomUUID();
       await this.ctx.storage.put("ticket:" + token, {
-        name, mode: this.roomMode, createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
+        name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat),
+        createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
       });
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS });
@@ -170,6 +175,8 @@ export class FrogRoom {
         playerId: crypto.randomUUID(),
         name: ticket.name,
         mode: ticket.mode,
+        skin: cleanSkin(ticket.skin),
+        hat: cleanHat(ticket.hat),
         levelIndex: 0,
         x: 80,
         y: 440,
@@ -191,6 +198,7 @@ export class FrogRoom {
     return {
       id: player.playerId, name: player.name, mode: player.mode,
       levelIndex: player.levelIndex, x: player.x, y: player.y, face: player.face,
+      skin: cleanSkin(player.skin), hat: cleanHat(player.hat),
     };
   }
   getPlayers() {
@@ -213,9 +221,17 @@ export class FrogRoom {
     if (!player?.joined || typeof message !== "string" || message.length > 1024) return;
     let data;
     try { data = JSON.parse(message); } catch (_) { return; }
-    if (data.type === "move") {
+    if (data.type === "cosmetics") {
+      const skin = cleanSkin(data.skin);
+      const hat = cleanHat(data.hat);
+      if (skin === player.skin && hat === player.hat) return;
+      player.skin = skin;
+      player.hat = hat;
+      ws.serializeAttachment(player);
+      this.broadcast({ type: "player-updated", player: this.publicPlayer(player) }, ws);
+    } else if (data.type === "move") {
       const now = Date.now();
-      if (now - (player.updatedAt || 0) < 25) return;
+      if (now - (player.updatedAt || 0) < 70) return;
       const x = Number(data.x), y = Number(data.y), face = Number(data.face);
       const levelIndex = Number(data.levelIndex);
       if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 1_000_000 || Math.abs(y) > 10_000) return;

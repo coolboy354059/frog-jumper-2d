@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-14 — Optimize multiplayer movement updates to 85 ms and synchronize validated equipped skins and hats across players. -->
 <!-- CHANGE LOG: 2026-11-13 — Add Poppy and US Flag PNG frog skins to the shop and player renderer. -->
 <!-- CHANGE LOG: 2026-11-13 — Fix 54: Keep gamepad polling active while paused so the controller Menu button can resume; restart polling when a controller connects or the tab becomes visible. -->
 <!-- CHANGE LOG: 2026-11-13 — Define the shared polygon drawing helper used by original class-inspired creature skins. -->
@@ -850,7 +851,7 @@
           if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
         }
         shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;
-        saveShopData();showShop(id);
+        saveShopData();sendMultiplayerCosmetics();showShop(id);
       };
       // Web Locks serializes purchases made by different same-origin tabs.
       // The fresh read above also keeps older tabs in sync before every action.
@@ -876,6 +877,7 @@
     shopData=loadShopData();
     equippedSkin=shopData.equippedSkin;
     equippedHat=shopData.equippedHat;
+    sendMultiplayerCosmetics();
   }
   window.addEventListener('storage',event=>{
     if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
@@ -1036,7 +1038,7 @@
     if(attemptId!==multiplayerAttemptId)return;
     const controller=multiplayerRequestController||new AbortController();
     multiplayerRequestController=controller;
-    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
+    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin:equippedSkin,hat:equippedHat}),signal:controller.signal});
     const ticket=await response.json();
     if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
     if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
@@ -1083,20 +1085,25 @@
     socket.addEventListener('error',handleConnectionFailure);
   }
   function leaveMultiplayerRoom(){cancelMultiplayerAttempt();}
+  function sendMultiplayerCosmetics(){
+    if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN)return;
+    try{multiplayerSocket.send(JSON.stringify({type:'cosmetics',skin:equippedSkin,hat:equippedHat}));}catch(_){}
+  }
   function drawRemotePlayers(){
     if(!multiplayerConnected||!player)return;
     for(const other of multiplayerPlayers.values()){
       if(other.mode!==gameMode||other.levelIndex!==levelIndex)continue;
       const x=Math.round(other.x-cameraX),y=Math.round(other.y);
       if(x<-60||x>W+60||y<-70||y>H+70)continue;
-      let hash=0;for(let i=0;i<other.id.length;i++)hash=(hash*31+other.id.charCodeAt(i))|0;
-      const colors=['#48c7ed','#ffd34e','#a78bfa','#ff8c69','#6ee7a5','#f472b6'];
-      const color=colors[Math.abs(hash)%colors.length];
-      ctx.save();ctx.translate(x+PLAYER_W/2,y+PLAYER_H/2);ctx.scale(other.face<0?-1:1,1);
-      roundedRect(-15,2,12,13,5,color);roundedRect(3,2,12,13,5,color);
-      roundedRect(-17,-8,34,24,10,color,'#17313a');roundedRect(-14,-18,11,17,5,color);roundedRect(3,-18,11,17,5,color);
-      ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(-9,-12,5,0,Math.PI*2);ctx.arc(9,-12,5,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(-8,-12,2.2,0,Math.PI*2);ctx.arc(10,-12,2.2,0,Math.PI*2);ctx.fill();ctx.restore();
+      const previousPlayer=player,previousSkin=equippedSkin,previousHat=equippedHat;
+      try{
+        player={x:other.x,y:other.y,face:other.face<0?-1:1,w:previousPlayer.w,h:previousPlayer.h,invulnerable:0,blink:0,onGround:false};
+        equippedSkin=FROG_SKIN_IDS.has(other.skin)?other.skin:'red';
+        equippedHat=['black','tv'].includes(other.hat)?other.hat:'none';
+        drawPlayer();
+      }finally{
+        player=previousPlayer;equippedSkin=previousSkin;equippedHat=previousHat;
+      }
       ctx.save();ctx.font='bold 12px system-ui';ctx.textAlign='center';const label=String(other.name||'Frog').slice(0,16);
       const labelWidth=Math.min(W-16,ctx.measureText(label).width+14);
       roundedRect(Math.max(8,Math.min(W-labelWidth-8,x+PLAYER_W/2-labelWidth/2)),Math.max(8,y-31),labelWidth,20,7,'#102b36eF','#ffffff55');
@@ -1348,7 +1355,7 @@
       const portalReady=gameMode==='level'||gameMode==='race'||gameMode==='boss';
       if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){completeLevel();}
     }
-    if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=50){
+    if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=85){
       multiplayerLastSent=Date.now();
       try{multiplayerSocket.send(JSON.stringify({type:'move',x:player.x,y:player.y,face:player.face,levelIndex}));}catch(_){}
     }
