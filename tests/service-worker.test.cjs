@@ -91,3 +91,16 @@ test('optional cosmetic images are cached on first request and reused afterward'
   assert.equal(await second.text(), 'wacky-beak-image');
   assert.equal(networkCalls, 1, 'the second request should use the cached cosmetic');
 });
+
+test('the project root and index.html navigation fall back to the cached game page offline', async () => {
+  const worker = loadWorker(async () => { throw new Error('simulated offline network'); });
+  await installWorker(worker);
+  const gameUrl = new URL('index-game.html', scope).toString();
+  worker.entries.set(gameUrl, new Response('cached Frog Jumper game'));
+
+  for (const url of [scope, scope + 'index.html']) {
+    const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url });
+    assert.ok(response, 'the navigation should be handled by the service worker');
+    assert.equal(await response.text(), 'cached Frog Jumper game');
+  }
+});
