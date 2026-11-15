@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-15 — Preserve held movement keys, poll the title-screen controller, and share Infinite Explore terrain by room. -->
 <!-- CHANGE LOG: 2026-11-13 — Add Poppy and US Flag PNG frog skins to the shop and player renderer. -->
 <!-- CHANGE LOG: 2026-11-13 — Fix 54: Keep gamepad polling active while paused so the controller Menu button can resume; restart polling when a controller connects or the tab becomes visible. -->
 <!-- CHANGE LOG: 2026-11-13 — Define the shared polygon drawing helper used by original class-inspired creature skins. -->
@@ -469,6 +470,7 @@
   let infiniteWorld = null;
   let particles = [];
   const input = {left:false,right:false,jumpBuffer:0};
+  const heldMovementKeys = new Set();
   const keyboardInput = {left:false,right:false};
   const joystickInput = {left:false,right:false};
   const gamepadInput = {left:false,right:false};
@@ -678,6 +680,9 @@
     }
   }
   function setupInfiniteExplore(seed) {
+    // All six room-code characters fit exactly in a base-36 integer.
+    if(seed===undefined && multiplayerConnected && multiplayerRoomCode)
+      seed=parseInt(multiplayerRoomCode,36)>>>0;
     infiniteWorld = {
       seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
       chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0
@@ -754,7 +759,7 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
     try {
@@ -961,10 +966,10 @@
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
     if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
   }
-  function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||(state==='paused'&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
+  function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||((state==='paused'||state==='menu')&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   function showOverlay(kind,options={}){
-    state=kind;
+    state=kind;if(kind==='menu')ensureFrameLoop();
     syncPauseControl();
     syncBossTools();
     window.clearTimeout(bottomBarTimer);
@@ -1735,7 +1740,7 @@
 
   function frame(now){
     rafId=0;
-    if(document.hidden||(state!=='playing'&&!(state==='paused'&&gamepadConnected)))return;
+    if(document.hidden||(state!=='playing'&&!((state==='paused'||state==='menu')&&gamepadConnected)))return;
     pollGamepad();
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
@@ -1747,7 +1752,7 @@
       if(count>=8)accumulator=0;
     }else{accumulator=0;}
     render();
-    if(state==='paused'&&gamepadConnected&&!document.hidden)ensureFrameLoop();
+    if((state==='paused'||state==='menu')&&gamepadConnected&&!document.hidden)ensureFrameLoop();
     else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);
   }
 
@@ -1756,8 +1761,8 @@
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
     const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){heldMovementKeys.add(code);keyboardInput.left=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){heldMovementKeys.add(code);keyboardInput.right=true;syncHorizontalInput();}
     if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
     if(useGameControls&&code==='KeyF'&&!e.repeat&&gameMode==='boss')shootFire();
     if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
@@ -1768,13 +1773,13 @@
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
-    if(e.code==='ArrowLeft'||e.code==='KeyA'){keyboardInput.left=false;syncHorizontalInput();}
-    if(e.code==='ArrowRight'||e.code==='KeyD'){keyboardInput.right=false;syncHorizontalInput();}
+    if(e.code==='ArrowLeft'||e.code==='KeyA'){heldMovementKeys.delete(e.code);keyboardInput.left=heldMovementKeys.has('KeyA')||heldMovementKeys.has('ArrowLeft');syncHorizontalInput();}
+    if(e.code==='ArrowRight'||e.code==='KeyD'){heldMovementKeys.delete(e.code);keyboardInput.right=heldMovementKeys.has('KeyD')||heldMovementKeys.has('ArrowRight');syncHorizontalInput();}
   });
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}
-    else if(state==='paused'&&gamepadConnected)ensureFrameLoop();
+    else if((state==='paused'||state==='menu')&&gamepadConnected)ensureFrameLoop();
   });
 
   const pauseControl=document.getElementById('pause-control');

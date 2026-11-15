@@ -104,3 +104,12 @@ test('the project root and index.html navigation fall back to the cached game pa
     assert.equal(await response.text(), 'cached Frog Jumper game');
   }
 });
+
+test('online root navigation does not overwrite the cached game with the redirect page', async () => {
+  const worker = loadWorker(async () => new Response('redirect page'));
+  const gameUrl = new URL('index-game.html', scope).toString();
+  worker.entries.set(gameUrl, new Response('cached game'));
+  const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url: scope });
+  assert.equal(await response.text(), 'redirect page');
+  assert.equal(await worker.entries.get(gameUrl).text(), 'cached game');
+});

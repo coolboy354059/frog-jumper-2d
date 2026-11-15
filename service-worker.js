@@ -1,5 +1,5 @@
 /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */
-const CACHE_VERSION = 'frog-jumper-shell-v4';
+const CACHE_VERSION = 'frog-jumper-shell-v5';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
 const SCOPE_URL = new URL(self.registration.scope);
@@ -52,12 +52,12 @@ self.addEventListener('fetch', event => {
       const cache = await caches.open(CACHE_NAME);
       try {
         const response = await fetch(request);
-        if (response && response.ok) await cache.put(GAME_URL, response.clone());
+        if (response && response.ok && url.pathname === new URL(GAME_URL).pathname) await cache.put(GAME_URL, response.clone());
         return response;
       } catch (_) {
         const cached = await cache.match(GAME_URL);
         if (cached) return cached;
-        return new Response('Frog Jumper has not been saved for offline play yet. Open the game once while online, then try again.', {
+        return new Response('Frog Jumper has somehow not been saved for offline play yet. HOW DONT U HAVE WIFI.', {
           status: 503,
           headers: { 'Content-Type': 'text/plain; charset=utf-8' }
         });
