@@ -831,3 +831,25 @@ async function assertVisibleText(page,text) {
 async function assertHidden(page,selector) {
   await page.locator(selector).waitFor({state:'hidden'});
 }
+
+// Regression: skips are limited per run, including on touch-sized screens.
+for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
+  test('boss skips are limited to three per run at '+viewport.width, async () => {
+    const context=await browser.newContext({viewport});
+    const page=await context.newPage();
+    await page.goto(baseUrl,{waitUntil:'load'});
+    await page.getByRole('button',{name:'BOSS FIGHT'}).click();
+    const skip=page.locator('#boss-skip');
+    for(let remaining=3;remaining>0;remaining--){
+      assert.match(await skip.textContent(),new RegExp('\\('+remaining+'\\)'));
+      await skip.click();
+    }
+    assert.equal(await skip.isDisabled(),true);
+    await page.keyboard.press('p');
+    await page.getByRole('button',{name:'MENU',exact:true}).click();
+    await page.getByRole('button',{name:'BOSS FIGHT'}).click();
+    assert.equal(await skip.isEnabled(),true);
+    assert.match(await skip.textContent(),/3/);
+    await context.close();
+  });
+}
