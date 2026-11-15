@@ -433,7 +433,8 @@
   let robot = null;
   let boss = null;
   let fireProjectiles = [];
-  let bossPowerups = {speed:true,skip:true};
+  let bossPowerups = {speed:true};
+  let bossSkipsRemaining = 3;
   let bossSpeedTimer = 0;
   let fireCooldown = 0;
   let previousGamepadFire = false;
@@ -724,7 +725,7 @@
     fireProjectiles = [];
     bossSpeedTimer = 0;
     fireCooldown = 0;
-    bossPowerups = {speed:true,skip:true};
+    bossPowerups = {speed:true};
     if(gameMode==='boss' && level.bossLevel){
       const finalPlatform=platforms[platforms.length-1];
       const health=3+Math.floor((levelIndex+1)/10);
@@ -737,6 +738,7 @@
   }
   function startGame(mode='level'){
     gameMode = mode;
+    bossSkipsRemaining = 3;
     if(mode==='infinite'&&new Date().getMonth()===9)awardAchievement('halloween_explorer');
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
     if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
@@ -931,7 +933,8 @@
     if(!bossTools)return;
     bossTools.hidden=!(gameMode==='boss'&&state==='playing');
     bossSpeedButton.disabled=!bossPowerups.speed;
-    bossSkipButton.disabled=!bossPowerups.skip;
+    bossSkipButton.disabled=bossSkipsRemaining<=0;
+    bossSkipButton.textContent=`⏭ SKIP LEVEL (${bossSkipsRemaining})`;
     bossSpeedButton.textContent=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
   }
   function shootFire(){
@@ -949,8 +952,8 @@
     setupLevel(levelIndex+1);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function useBossSkip(){
-    if(gameMode!=='boss'||state!=='playing'||!bossPowerups.skip)return;
-    bossPowerups.skip=false;advanceModeLevel();
+    if(gameMode!=='boss'||state!=='playing'||bossSkipsRemaining<=0)return;
+    bossSkipsRemaining--;advanceModeLevel();
   }
   bossFireButton.addEventListener('click',shootFire);
   bossSpeedButton.addEventListener('click',useBossSpeed);
@@ -974,7 +977,7 @@
     overlay.hidden=false;
     const content={
       menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER and SKIP LEVEL can each be used once per stage.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
