@@ -159,7 +159,7 @@
 <!-- BUG HUNT FOLLOW-UP: Initialize the unique-platform list for new or unreadable achievement saves. -->
 </head>
 <body>
-<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite" hidden>
+<div class="maintenance-screen" id="maintenance-screen" role="status" aria-live="polite">
   <div class="maintenance-card"><div class="maintenance-icon" aria-hidden="true">🛠️🐸</div><h2>MAINTENANCE</h2><p>Please wait! We\u0027re fixing bugs and adding new features.</p></div>
 </div>
 <div class="app">
@@ -228,6 +228,20 @@
   const usFlagSkinImage = new Image();
   function loadCosmeticImage(image,src){
     if(!image.src)image.src=src;
+  }
+
+  // Build transparent PNG name sprites once, without external artwork.
+  const nameSkinImages = {};
+  function getNameSkinImage(name) {
+    if (nameSkinImages[name]) return nameSkinImages[name];
+    const c=document.createElement('canvas');c.width=320;c.height=120;
+    const g=c.getContext('2d');const label=name==='kiera'?'KIERA':'TEO';
+    g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
+    g.font='900 '+(name==='kiera'?70:96)+'px system-ui, sans-serif';
+    g.lineWidth=14;g.strokeStyle=name==='kiera'?'#8b2674':'#a21d28';g.strokeText(label,160,60,290);
+    g.lineWidth=8;g.strokeStyle='#fff';g.strokeText(label,160,60,290);
+    g.fillStyle=name==='kiera'?'#f48ac9':'#f3484b';g.fillText(label,160,60,290);
+    const img=new Image();img.src=c.toDataURL('image/png');nameSkinImages[name]=img;return img;
   }
 
   const PLAYER_W = 36, PLAYER_H = 36;
@@ -1466,7 +1480,10 @@
     if(usFlag)loadCosmeticImage(usFlagSkinImage,'assets/us-flag-skin.png');
     if(equippedHat==='black')loadCosmeticImage(blackHatImage,'assets/black-hat.png');
     if(equippedHat==='tv')loadCosmeticImage(tvHatImage,'assets/tv-hat.png');
-    if(poppy&&poppySkinImage.complete&&poppySkinImage.naturalWidth>0&&poppySkinImage.naturalHeight>0){
+    const nameSkin=(equippedSkin==='kiera'||equippedSkin==='teo')?getNameSkinImage(equippedSkin):null;
+    if(nameSkin&&nameSkin.complete&&nameSkin.naturalWidth>0){
+      ctx.save();if(player.face<0){ctx.translate(36,0);ctx.scale(-1,1);}ctx.drawImage(nameSkin,-6,8,48,20);ctx.restore();
+    }else if(poppy&&poppySkinImage.complete&&poppySkinImage.naturalWidth>0&&poppySkinImage.naturalHeight>0){
       ctx.drawImage(poppySkinImage,-14,-14,64,64);
     }else if(usFlag&&usFlagSkinImage.complete&&usFlagSkinImage.naturalWidth>0&&usFlagSkinImage.naturalHeight>0){
       ctx.drawImage(usFlagSkinImage,-14,-14,64,64);
