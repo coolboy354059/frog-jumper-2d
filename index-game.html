@@ -236,7 +236,7 @@
   const BOSS_TOTAL_LEVELS = 45;
   const COINS_PER_LEVEL = 5;
   const TOTAL_COINS = TOTAL_LEVELS * COINS_PER_LEVEL;
-  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien','poppy','usflag','rainbow','popcorn','flowerpot']);
+  const FROG_SKIN_IDS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien','poppy','usflag','rainbow','popcorn','flowerpot','dinosaur','bee','king','baggy','kiera','teo','buff','steve']);
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
@@ -806,6 +806,14 @@
       {id:'gold',kind:'skin',name:'Golden Froggy',price:300,emoji:'✨',description:'A shiny sunshine-yellow frog'},
       {id:'ninja',kind:'skin',name:'Ninja Frog',price:650,emoji:'🥷',description:'Dark stealth colors with a red headband'},
       {id:'car',kind:'skin',name:'Froggy Race Car',price:800,emoji:'🏎️',description:'A little red race car skin with 5× coin rewards'},
+      {id:'dinosaur',kind:'skin',name:'Dinosaur Frog',price:300,emoji:'🦕',description:'A long neck dinosaur inspired by a drawing'},
+      {id:'bee',kind:'skin',name:'Bee Frog',price:300,emoji:'🐝',description:'A buzzing frog with wings and stripes'},
+      {id:'king',kind:'skin',name:'King Frog',price:1500,emoji:'👑',description:'A crowned frog that earns 10× coins'},
+      {id:'baggy',kind:'skin',name:'Baggy Frog',price:600,emoji:'🎒',description:'A baggy frog that earns 2× coins'},
+      {id:'kiera',kind:'skin',name:'Kiera',price:300,emoji:'💬',description:'Kiera in colorful bubble letters'},
+      {id:'teo',kind:'skin',name:'Teo',price:300,emoji:'🔤',description:'A frog inspired by the TEO drawing'},
+      {id:'buff',kind:'skin',name:'Buff Frog',price:400,emoji:'💪',description:'A strong frog with big muscles'},
+      {id:'steve',kind:'skin',name:'Steve',price:300,emoji:'🟦',description:'A blocky adventurer inspired by the drawing'},
       {id:'rainbow',kind:'skin',name:'Rainbow Frog',price:300,emoji:'🌈',description:'A cheerful rainbow inspired by a class drawing'},
       {id:'popcorn',kind:'skin',name:'Popcorn Frog',price:300,emoji:'🍿',description:'A striped popcorn box with fluffy popcorn'},
       {id:'flowerpot',kind:'skin',name:'Flowerpot Frog',price:300,emoji:'🌼',description:'A heart decorated flowerpot with three flowers'},
@@ -1239,7 +1247,7 @@
     if(gameMode==='boss' && boss&&boss.alive)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
-    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='car'?5:1));
+    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1));
     clearInputs();
     if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -1302,7 +1310,7 @@
       const dx=(player.x+player.w/2)-c.x,dy=(player.y+player.h/2)-c.y;
       if(dx*dx+dy*dy<34*34){
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
-        const coinReward=equippedSkin==='car'?5:1;
+        const coinReward=equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1;
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
         if(gameMode==='infinite')bankWalletCoins(coinReward);
@@ -1488,6 +1496,14 @@
         ocean:{leg:'#287aaf',body:'#3b9ad6',outline:'#205d85',belly:'#a8e9ff',head:'#2382c2',mouth:'#164e75'},
         gold:{leg:'#d78d18',body:'#ffc943',outline:'#a86b13',belly:'#fff0a5',head:'#edaa24',mouth:'#98600e'},
         ninja:{leg:'#202635',body:'#333949',outline:'#161d29',belly:'#c8494f',head:'#252b3b',mouth:'#10151d'},
+        dinosaur:{leg:'#438853',body:'#6dbd71',outline:'#326c42',belly:'#c1e9a0',head:'#66b96d',mouth:'#326c42'},
+        bee:{leg:'#a8701b',body:'#ffd34d',outline:'#754e1d',belly:'#ffec9c',head:'#f9c638',mouth:'#573b20'},
+        king:{leg:'#46834c',body:'#78c36c',outline:'#376c40',belly:'#d5f4b0',head:'#6ab45e',mouth:'#315c36'},
+        baggy:{leg:'#77659a',body:'#b9a6d9',outline:'#63527e',belly:'#e1d4f5',head:'#a998ce',mouth:'#514369'},
+        kiera:{leg:'#a74a86',body:'#ffb6dc',outline:'#a34c83',belly:'#ffe1f2',head:'#f6a4d0',mouth:'#78385e'},
+        teo:{leg:'#b22731',body:'#f0444e',outline:'#90222c',belly:'#ffc3a0',head:'#eb3d49',mouth:'#74212a'},
+        buff:{leg:'#58893c',body:'#9bd65b',outline:'#49742d',belly:'#d5f4a2',head:'#8ecb4e',mouth:'#3e652b'},
+        steve:{leg:'#274f85',body:'#45b7ba',outline:'#28566b',belly:'#68d4ce',head:'#b97950',mouth:'#543a32'},
         rainbow:{leg:'#7958b3',body:'#87c7ef',outline:'#536a9d',belly:'#e5f6ff',head:'#8fcff4',mouth:'#324f70'},
         popcorn:{leg:'#c83b3b',body:'#fff0ce',outline:'#a63131',belly:'#fff6de',head:'#fff0ce',mouth:'#623630'},
         flowerpot:{leg:'#914d32',body:'#d98957',outline:'#814a36',belly:'#ffc9a6',head:'#d98957',mouth:'#6d3929'},
@@ -1516,6 +1532,12 @@
         if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.4;ctx.stroke();}
       };
       // Extra silhouettes are original classmates-inspired creatures, drawn behind the frog body.
+      if(equippedSkin==='dinosaur'){roundedRect(13,-6,10,23,5,'#6dbd71','#326c42');ctx.fillStyle='#80cb7d';ctx.beginPath();ctx.arc(18,-6,7,0,Math.PI*2);ctx.fill();}
+      if(equippedSkin==='bee'){ctx.fillStyle='#d5f5ff';ctx.beginPath();ctx.ellipse(3,14,7,5,-.5,0,Math.PI*2);ctx.ellipse(33,14,7,5,.5,0,Math.PI*2);ctx.fill();}
+      if(equippedSkin==='king'){skinPoly([[6,5],[5,-5],[12,0],[18,-8],[24,0],[31,-5],[30,5]],'#f7c943','#a87915');}
+      if(equippedSkin==='baggy'){roundedRect(0,18,36,16,4,'#a995cb','#63527e');}
+      if(equippedSkin==='buff'){roundedRect(-5,17,11,12,5,'#9bd65b','#49742d');roundedRect(30,17,11,12,5,'#9bd65b','#49742d');}
+
       if(equippedSkin==='rainbow'){
         const colors=['#e94b55','#f49a43','#f7d753','#63c977','#5aa5e6','#9a74cf'];
         colors.forEach((color,i)=>{ctx.strokeStyle=color;ctx.lineWidth=3;ctx.beginPath();ctx.arc(18,18,18-i*2.4,Math.PI,0);ctx.stroke();});
@@ -1590,6 +1612,13 @@
       ctx.fillStyle='#132c32';ctx.beginPath();ctx.arc(12,11,3.2,0,Math.PI*2);ctx.arc(27,11,3.2,0,Math.PI*2);ctx.fill();
       ctx.fillStyle='#fff';ctx.fillRect(11,9,2,2);ctx.fillRect(26,9,2,2);
       ctx.strokeStyle=palette.mouth;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,21);ctx.quadraticCurveTo(18,25,23,21);ctx.stroke();
+
+      if(equippedSkin==='bee'){ctx.fillStyle='#593e26';ctx.fillRect(9,24,4,7);ctx.fillRect(19,24,4,7);ctx.fillRect(27,24,3,7);}
+      if(equippedSkin==='kiera'||equippedSkin==='teo'){
+        ctx.save();ctx.translate(18,27);if(player.face<0)ctx.scale(-1,1);
+        ctx.font='bold '+(equippedSkin==='kiera'?'8':'10')+'px sans-serif';ctx.textAlign='center';ctx.lineWidth=3;ctx.strokeStyle='#fff';ctx.strokeText(equippedSkin==='kiera'?'KIERA':'TEO',0,0);ctx.fillStyle=equippedSkin==='kiera'?'#bc3d91':'#d12b39';ctx.fillText(equippedSkin==='kiera'?'KIERA':'TEO',0,0);ctx.restore();
+      }
+      if(equippedSkin==='buff'){ctx.strokeStyle='#5b9636';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(13,24);ctx.lineTo(23,24);ctx.moveTo(13,27);ctx.lineTo(23,27);ctx.stroke();}
       if(equippedSkin==='popcorn'){ctx.fillStyle='#d44747';ctx.fillRect(7,23,3,8);ctx.fillRect(16,23,3,8);ctx.fillRect(25,23,3,8);}
       if(equippedSkin==='flowerpot'){ctx.fillStyle='#e64d70';ctx.beginPath();ctx.moveTo(18,30);ctx.bezierCurveTo(7,24,12,20,18,25);ctx.bezierCurveTo(24,20,29,24,18,30);ctx.fill();}
       if(equippedSkin==='red'){ctx.fillStyle='#ff8a93';ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(5,21,3,0,Math.PI*2);ctx.arc(31,21,3,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
