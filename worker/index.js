@@ -108,9 +108,18 @@ export class FrogRoom {
     this.env = env;
     this.roomCreated = false;
     this.roomMode = "level";
+    this.worldSeed = 0;
+    this.worldStartedAt = 0;
     this.ctx.blockConcurrencyWhile(async () => {
       this.roomCreated = (await this.ctx.storage.get("created")) === true;
       this.roomMode = (await this.ctx.storage.get("mode")) || "level";
+      if(this.roomCreated){
+        const seed=await this.ctx.storage.get("worldSeed");
+        const started=await this.ctx.storage.get("worldStartedAt");
+        this.worldSeed=Number.isInteger(seed)&&seed>=0&&seed<=0xFFFFFFFF?seed:crypto.getRandomValues(new Uint32Array(1))[0];
+        this.worldStartedAt=Number.isSafeInteger(started)&&started>0?started:Date.now();
+        await this.ctx.storage.put({worldSeed:this.worldSeed,worldStartedAt:this.worldStartedAt});
+      }
     });
   }
 
@@ -135,7 +144,9 @@ export class FrogRoom {
       if (!ALLOWED_MODES.has(body.mode)) return json({ error: "Invalid game mode." }, 400);
       this.roomCreated = true;
       this.roomMode = body.mode;
-      await this.ctx.storage.put({ created: true, mode: body.mode });
+      this.worldSeed=crypto.getRandomValues(new Uint32Array(1))[0];
+      this.worldStartedAt=Date.now();
+      await this.ctx.storage.put({ created: true, mode: body.mode, worldSeed:this.worldSeed, worldStartedAt:this.worldStartedAt });
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ ok: true, mode: body.mode });
     }
@@ -158,7 +169,7 @@ export class FrogRoom {
         createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
       });
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
-      return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS });
+      return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS, worldSeed:this.worldSeed, worldStartedAt:this.worldStartedAt });
     }
 
     if (url.pathname === "/connect" && request.headers.get("Upgrade")?.toLowerCase() === "websocket") {
@@ -278,6 +289,8 @@ export class FrogRoom {
     }
     await this.ctx.storage.delete("created");
     await this.ctx.storage.delete("mode");
+    await this.ctx.storage.delete("worldSeed");
+    await this.ctx.storage.delete("worldStartedAt");
     this.roomCreated = false;
   }
 }
