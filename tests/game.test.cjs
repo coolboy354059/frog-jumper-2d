@@ -853,3 +853,52 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     await context.close();
   });
 }
+
+
+test('controller can start from the initial menu and after returning to it (#41)',async()=>{
+  const context=await browser.newContext();
+  await context.addInitScript(()=>{
+    window.__menuPad={connected:true,axes:[0],buttons:Array.from({length:16},()=>({pressed:false}))};
+    Object.defineProperty(navigator,'getGamepads',{configurable:true,value:()=>[window.__menuPad]});
+  });
+  const page=await context.newPage();await page.goto(baseUrl);
+  await page.evaluate(()=>{window.__menuPad.buttons[9].pressed=true;});
+  await assertHidden(page,'#overlay');
+  await page.evaluate(()=>{window.__menuPad.buttons[9].pressed=false;});
+  await page.waitForTimeout(100);
+  await page.keyboard.press('p');await page.getByRole('button',{name:'MENU',exact:true}).click();
+  await page.evaluate(()=>{window.__menuPad.buttons[9].pressed=true;});
+  await assertHidden(page,'#overlay');await context.close();
+});
+
+test('Boss fire click returns keyboard focus and movement keys to gameplay (#45)',async()=>{
+  const {page,errors}=await freshPage();
+  await page.getByRole('button',{name:'BOSS FIGHT',exact:true}).click();
+  await page.locator('#boss-fire').click();
+  assert.equal(await page.evaluate(()=>document.activeElement?.id),'game');
+  await page.evaluate(()=>{
+    window.__bossKeyPrevented=[];
+    document.addEventListener('keydown',e=>{if(['ArrowRight','Space'].includes(e.code))window.__bossKeyPrevented.push(e.defaultPrevented);});
+  });
+  await page.keyboard.press('ArrowRight');await page.keyboard.press('Space');
+  assert.deepEqual(await page.evaluate(()=>window.__bossKeyPrevented),[true,true]);
+  assert.deepEqual(errors,[]);await page.close();
+});
+
+for(const viewport of [{width:1280,height:800},{width:390,height:844}]){
+  test('Race retry preserves later stage at '+viewport.width+' (#49)',async()=>{
+    const fs=require('node:fs'),path=require('node:path');
+    const source=fs.readFileSync(path.join(__dirname,'..','index-game.html'),'utf8');
+    const marker="  setupLevel(0);\n  showOverlay('menu');\n  render();";
+    assert.ok(source.includes(marker),'test fixture must match the startup block');
+    const html=source.replace(marker,"  gameMode='race';setupLevel(6);showOverlay('robotWon');render();\n  window.__raceRetryState=()=>({levelIndex,state});");
+    const context=await browser.newContext({viewport,hasTouch:viewport.width<500});
+    const page=await context.newPage();
+    await page.route('**/index-game.html',route=>route.fulfill({contentType:'text/html',body:html}));
+    await page.goto(baseUrl+'/index-game.html');
+    const retry=page.getByRole('button',{name:'RETRY RACE',exact:true});
+    if(viewport.width<500)await retry.tap();else await retry.click();
+    assert.deepEqual(await page.evaluate(()=>window.__raceRetryState()),{levelIndex:6,state:'playing'});
+    await context.close();
+  });
+}
