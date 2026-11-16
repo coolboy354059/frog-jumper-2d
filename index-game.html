@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Retry failed cosmetic PNG loads with a five-second backoff when the item is rendered again (#47). -->
 <!-- CHANGE LOG: 2026-11-16 — Save wallet and shop ownership in one atomic record, migrate old saves, and report failed writes without charging a failed purchase (#46). -->
 <!-- CHANGE LOG: 2026-11-16 — Keep unsaved achievement progress in memory and count Boss platforms separately from Adventure/Race (#43, #48). -->
 <!-- CHANGE LOG: 2026-11-16 — Poll connected controllers on the main menu as well as during play and pause (#41). -->
@@ -231,7 +232,12 @@
   const poppySkinImage = new Image();
   const usFlagSkinImage = new Image();
   function loadCosmeticImage(image,src){
-    if(!image.src)image.src=src;
+    const now=Date.now();
+    const retry=image.complete&&image.naturalWidth===0&&now>=(image.frogRetryAt||0);
+    if(!image.src||retry){
+      image.frogRetryAt=now+5000;
+      image.src=src;
+    }
   }
 
   // Build transparent PNG name sprites once, without external artwork.
