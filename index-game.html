@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Send cosmetic updates only when equipped items change, including changes during room connection (#32). -->
 <!-- CHANGE LOG: 2026-11-16 — Place bosses every third stage while keeping Stage 1 as the warm-up (#33). -->
 <!-- CHANGE LOG: 2026-11-16 — Bound generated Adventure/Race platform rises to reachable heights, including Level 77 (#44). -->
 <!-- CHANGE LOG: 2026-11-16 — Retry the current Robot Race stage from both the result button and R key (#49). -->
@@ -208,6 +209,7 @@
   let multiplayerMode = 'level';
   let multiplayerLastSent = 0;
   let multiplayerConnected = false;
+  let multiplayerLastCosmetics = null;
   const stage = document.getElementById('stage');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -1114,7 +1116,7 @@
     activateOverlayDialog(nameInput);
   }
   function cancelMultiplayerAttempt(){
-    multiplayerAttemptId++;
+    multiplayerAttemptId++;multiplayerLastCosmetics=null;
     if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
     const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
@@ -1124,7 +1126,8 @@
     if(attemptId!==multiplayerAttemptId)return;
     const controller=multiplayerRequestController||new AbortController();
     multiplayerRequestController=controller;
-    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin:equippedSkin,hat:equippedHat}),signal:controller.signal});
+    const joiningCosmetics={skin:equippedSkin,hat:equippedHat};
+    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,...joiningCosmetics}),signal:controller.signal});
     const ticket=await response.json();
     if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
     if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
@@ -1137,6 +1140,8 @@
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       connectionOpened=true;
       multiplayerConnected=true;
+      multiplayerLastCosmetics=JSON.stringify(joiningCosmetics);
+      sendMultiplayerCosmetics();
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
       multiplayerRequestController=null;
       startGame(mode);
@@ -1173,7 +1178,9 @@
   function leaveMultiplayerRoom(){cancelMultiplayerAttempt();}
   function sendMultiplayerCosmetics(){
     if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN)return;
-    try{multiplayerSocket.send(JSON.stringify({type:'cosmetics',skin:equippedSkin,hat:equippedHat}));}catch(_){}
+    const signature=JSON.stringify({skin:equippedSkin,hat:equippedHat});
+    if(signature===multiplayerLastCosmetics)return;
+    try{multiplayerSocket.send(JSON.stringify({type:'cosmetics',skin:equippedSkin,hat:equippedHat}));multiplayerLastCosmetics=signature;}catch(_){}
   }
   function drawRemotePlayers(){
     if(!multiplayerConnected||!player)return;
