@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Keep unsaved achievement progress in memory and count Boss platforms separately from Adventure/Race (#43, #48). -->
 <!-- CHANGE LOG: 2026-11-16 — Poll connected controllers on the main menu as well as during play and pause (#41). -->
 <!-- CHANGE LOG: 2026-11-16 — Preserve pickup-time bonus rewards, discard the full unfinished reward on restart/skip, and show reward totals without a mismatched maximum (#30, #31, #40). -->
 <!-- CHANGE LOG: 2026-11-14 — Optimize multiplayer movement updates to 85 ms and synchronize validated equipped skins and hats across players. -->
@@ -521,6 +522,12 @@
       // Always merge into the latest saved snapshot while holding the shared lock.
       // This prevents a second tab from saving an older in-memory copy over new progress.
       const latest=loadAchievementData();
+      // Retain this page's unsaved progress when storage is blocked or full.
+      const memory=achievementData;
+      latest.earned=[...new Set([...latest.earned,...memory.earned])];
+      latest.coinsCollected=Math.max(latest.coinsCollected,memory.coinsCollected);
+      latest.platformsLanded=Math.max(latest.platformsLanded,memory.platformsLanded);
+      latest.visitedPlatforms=[...new Set([...latest.visitedPlatforms,...memory.visitedPlatforms])].slice(0,100);
       const previouslyEarned=new Set(latest.earned);
       const changed=mutator(latest);
       achievementData=latest;
@@ -562,7 +569,7 @@
     if(!platform)return;
     const platformKey=infiniteWorld
       ? 'infinite:'+infiniteWorld.seed+':'+platform.id
-      : 'level:'+levelIndex+':'+platform.id;
+      : (gameMode==='boss'?'boss:':'level:')+levelIndex+':'+platform.id;
     updateAchievementData(data=>{
       if(data.visitedPlatforms.includes(platformKey)||data.visitedPlatforms.length>=100)return false;
       data.visitedPlatforms.push(platformKey);
