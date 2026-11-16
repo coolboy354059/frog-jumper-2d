@@ -1,4 +1,4 @@
-/* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */
+   /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */ 
 const CACHE_VERSION = 'frog-jumper-shell-v5';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
