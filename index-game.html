@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Keep desktop controls active after Boss tool use and return focus to gameplay (#45). -->
 <!-- CHANGE LOG: 2026-11-16 — Retry failed cosmetic PNG loads with a five-second backoff when the item is rendered again (#47). -->
 <!-- CHANGE LOG: 2026-11-16 — Save wallet and shop ownership in one atomic record, migrate old saves, and report failed writes without charging a failed purchase (#46). -->
 <!-- CHANGE LOG: 2026-11-16 — Keep unsaved achievement progress in memory and count Boss platforms separately from Adventure/Race (#43, #48). -->
@@ -1020,6 +1021,7 @@
     totalCoins=Math.max(0,totalCoins-levelCoinReward);
     bossSkipsRemaining--;advanceModeLevel();
   }
+  bossTools.addEventListener('click',()=>{if(state==='playing')canvas.focus({preventScroll:true});});
   bossFireButton.addEventListener('click',shootFire);
   bossSpeedButton.addEventListener('click',useBossSpeed);
   bossSkipButton.addEventListener('click',useBossSkip);
@@ -1873,7 +1875,7 @@
   document.addEventListener('keydown',e=>{
     const code=e.code;
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
-    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
+    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control'||(state==='playing'&&e.target.closest&&!!e.target.closest('#boss-tools'));
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
     if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){keyboardInput.left=true;syncHorizontalInput();}
     if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){keyboardInput.right=true;syncHorizontalInput();}
