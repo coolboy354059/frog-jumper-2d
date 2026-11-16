@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Place bosses every third stage while keeping Stage 1 as the warm-up (#33). -->
 <!-- CHANGE LOG: 2026-11-16 — Bound generated Adventure/Race platform rises to reachable heights, including Level 77 (#44). -->
 <!-- CHANGE LOG: 2026-11-16 — Retry the current Robot Race stage from both the result button and R key (#49). -->
 <!-- CHANGE LOG: 2026-11-16 — Keep desktop controls active after Boss tool use and return focus to gameplay (#45). -->
@@ -464,7 +465,7 @@
     if(difficulty>=3&&!movers.some(function(m){return m.index===6;})){
       movers.push({index:6,amp:Math.min(22,10+difficulty),speed:1.1+difficulty*.06,phase:number*.4});
     }
-    return {...base,name:base.name+' · Stage '+number,subtitle:'Boss campaign · Challenge '+(difficulty+1),themeIndex,platforms,enemies,movers,difficulty,bossLevel:number%10===0};
+    return {...base,name:base.name+' · Stage '+number,subtitle:'Boss campaign · Challenge '+(difficulty+1),themeIndex,platforms,enemies,movers,difficulty,bossLevel:number>1&&number%3===0};
   });
 
   let state = 'menu';
