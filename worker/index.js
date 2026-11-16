@@ -8,7 +8,7 @@ const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
-const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag"]);
+const ALLOWED_SKINS = new Set(['red','jupiter','ocean','gold','ninja','car','spiky','longneck','glider','fishbone','bigeyes','mouse','bear','longbeak','bunny','boxbot','kitty','chick','alien','poppy','usflag','rainbow','popcorn','flowerpot','dinosaur','bee','king','baggy','kiera','teo','buff','steve']);
 const ALLOWED_HATS = new Set(["none","black","tv"]);
 function cleanSkin(value) { return ALLOWED_SKINS.has(value) ? value : "red"; }
 function cleanHat(value) { return ALLOWED_HATS.has(value) ? value : "none"; }
@@ -57,7 +57,8 @@ export default {
     }
 
     if (url.pathname === "/api/rooms" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Expected a JSON object." }, 400, headers);
       const mode = ALLOWED_MODES.has(body.mode) ? body.mode : null;
       if (!mode) return json({ error: "Choose a valid game mode." }, 400, headers);
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -81,7 +82,8 @@ export default {
       const action = routeParts[4];
       const room = env.ROOMS.get(env.ROOMS.idFromName(code));
       if (action === "join" && request.method === "POST") {
-        const body = await request.json().catch(() => ({}));
+        const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Expected a JSON object." }, 400, headers);
         const response = await room.fetch("https://room.internal/join", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -128,7 +130,8 @@ export class FrogRoom {
     const url = new URL(request.url);
     if (url.pathname === "/create" && request.method === "POST") {
       if (this.roomCreated) return json({ error: "Room code already exists." }, 409);
-      const body = await request.json().catch(() => ({}));
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Expected a JSON object." }, 400);
       if (!ALLOWED_MODES.has(body.mode)) return json({ error: "Invalid game mode." }, 400);
       this.roomCreated = true;
       this.roomMode = body.mode;
@@ -140,7 +143,8 @@ export class FrogRoom {
     if (!this.roomCreated) return json({ error: "Room not found. Check the code or create a new room." }, 404);
 
     if (url.pathname === "/join" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await request.json().catch(() => null);
+      if (!body || typeof body !== "object" || Array.isArray(body)) return json({ error: "Expected a JSON object." }, 400);
       const name = cleanName(body.name);
       if (body.mode !== this.roomMode) {
         return json({ error: "This room is for " + this.roomMode + ". Choose the same game mode to join." }, 409);
@@ -221,6 +225,7 @@ export class FrogRoom {
     if (!player?.joined || typeof message !== "string" || message.length > 1024) return;
     let data;
     try { data = JSON.parse(message); } catch (_) { return; }
+    if (!data || typeof data !== "object" || Array.isArray(data)) return;
     if (data.type === "cosmetics") {
       const skin = cleanSkin(data.skin);
       const hat = cleanHat(data.hat);
