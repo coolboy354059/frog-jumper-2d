@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Preserve pickup-time bonus rewards, discard the full unfinished reward on restart/skip, and show reward totals without a mismatched maximum (#30, #31, #40). -->
 <!-- CHANGE LOG: 2026-11-14 — Optimize multiplayer movement updates to 85 ms and synchronize validated equipped skins and hats across players. -->
 <!-- CHANGE LOG: 2026-11-13 — Add Poppy and US Flag PNG frog skins to the shop and player renderer. -->
 <!-- CHANGE LOG: 2026-11-13 — Fix 54: Keep gamepad polling active while paused so the controller Menu button can resume; restart polling when a controller connects or the tab becomes visible. -->
@@ -461,6 +462,7 @@
   let cameraX = 0;
   let totalCoins = 0;
   let coinsThisLevel = 0;
+  let levelCoinReward = 0;
   let achievementData = loadAchievementData();
   let achievementNotice = '';
   let achievementNoticeTime = 0;
@@ -706,7 +708,7 @@
     player=makePlayer(54,start.y-PLAYER_H);
     player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
-    cameraX=0;coinsThisLevel=0;
+    cameraX=0;coinsThisLevel=0;levelCoinReward=0;
     maintainInfiniteWorld();
     updateHUD();
   }
@@ -747,7 +749,7 @@
     }
     checkpoint={x:54,y:platforms[0].y-PLAYER_H};
     cameraX=0;
-    coinsThisLevel=0;
+    coinsThisLevel=0;levelCoinReward=0;
     updateHUD();
   }
   function startGame(mode='level'){
@@ -766,7 +768,7 @@
       return;
     }
     // Coins are already banked on a level-complete screen; only discard coins from an unfinished level.
-    if(state!=='levelComplete') totalCoins = Math.max(0, totalCoins - coinsThisLevel);
+    if(state!=='levelComplete') totalCoins = Math.max(0, totalCoins - levelCoinReward);
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
@@ -978,6 +980,7 @@
   }
   function useBossSkip(){
     if(gameMode!=='boss'||state!=='playing'||bossSkipsRemaining<=0)return;
+    totalCoins=Math.max(0,totalCoins-levelCoinReward);
     bossSkipsRemaining--;advanceModeLevel();
   }
   bossFireButton.addEventListener('click',shootFire);
@@ -1007,7 +1010,7 @@
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${currentModeTotalCoins()} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
@@ -1261,7 +1264,7 @@
     if(gameMode==='boss' && boss&&boss.alive)return;
     // Level and race coins become permanent only after the player reaches the portal.
     // Wallet rewards share the shop lock to prevent cross-tab lost updates.
-    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1));
+    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(levelCoinReward);
     clearInputs();
     if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
   }
@@ -1325,6 +1328,7 @@
       if(dx*dx+dy*dy<34*34){
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
         const coinReward=equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1;
+        levelCoinReward=Math.min(Number.MAX_SAFE_INTEGER,levelCoinReward+coinReward);
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
         if(gameMode==='infinite')bankWalletCoins(coinReward);
