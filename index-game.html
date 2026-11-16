@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Share room terrain seed/clock, synchronize generated hazards, and respawn without rerolling multiplayer worlds (#42); Worker also validates message shapes and all supported skins (#34, #37). -->
 <!-- CHANGE LOG: 2026-11-16 — Send cosmetic updates only when equipped items change, including changes during room connection (#32). -->
 <!-- CHANGE LOG: 2026-11-16 — Place bosses every third stage while keeping Stage 1 as the warm-up (#33). -->
 <!-- CHANGE LOG: 2026-11-16 — Bound generated Adventure/Race platform rises to reachable heights, including Level 77 (#44). -->
@@ -210,6 +211,8 @@
   let multiplayerLastSent = 0;
   let multiplayerConnected = false;
   let multiplayerLastCosmetics = null;
+  let multiplayerWorldSeed = null;
+  let multiplayerWorldStartedAt = 0;
   const stage = document.getElementById('stage');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -645,6 +648,7 @@
       x:p.x+24,y:p.y-24,w:enemyWidth,h:24,platformId:null,platformRef:p,
       minX:p.x+8,maxX:p.x+p.w-enemyWidth-8,
       vx:direction*(82+Math.min(48,infiniteWorld.chunkIndex*2)),
+      startX:p.x+24,initialVx:direction*(82+Math.min(48,infiniteWorld.chunkIndex*2)),
       alive:true,phase
     });
   }
@@ -733,7 +737,7 @@
       seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
       chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0
     };
-    elapsed=0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
+    elapsed=multiplayerConnected&&multiplayerWorldStartedAt>0?Math.max(0,(Date.now()-multiplayerWorldStartedAt)/1000):0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
     levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;
     const start={id:0,x:0,baseY:515,y:515,w:260,h:20,prevY:515,moving:null};
     platforms.push(start);
@@ -790,12 +794,16 @@
     bossSkipsRemaining = 3;
     if(mode==='infinite'&&new Date().getMonth()===9)awardAchievement('halloween_explorer');
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
-    if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
+    if (mode === 'infinite') setupInfiniteExplore(multiplayerConnected&&multiplayerMode==='infinite'?multiplayerWorldSeed:undefined); else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
   }
   function restartCurrentLevel(){
     if (gameMode === 'infinite') {
+      if(multiplayerConnected&&multiplayerWorldSeed!==null){
+        // Keep shared terrain and already-taken coins; respawn instead of rerolling a private world.
+        player.invulnerable=0;hurt();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});return;
+      }
       // A restarted run gets a fresh seed so immediately banked pickups cannot be farmed again.
       lives=Infinity;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
@@ -1062,7 +1070,7 @@
     const content={
       menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
-      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
+      paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?(multiplayerConnected?'RESPAWN':'RESTART RUN'):'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
@@ -1116,7 +1124,7 @@
     activateOverlayDialog(nameInput);
   }
   function cancelMultiplayerAttempt(){
-    multiplayerAttemptId++;multiplayerLastCosmetics=null;
+    multiplayerAttemptId++;multiplayerLastCosmetics=null;multiplayerWorldSeed=null;multiplayerWorldStartedAt=0;
     if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
     const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
@@ -1131,6 +1139,11 @@
     const ticket=await response.json();
     if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
     if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
+    if(mode==='infinite'){
+      if(!Number.isInteger(ticket.worldSeed)||ticket.worldSeed<0||ticket.worldSeed>0xFFFFFFFF||!Number.isSafeInteger(ticket.worldStartedAt)||ticket.worldStartedAt<=0)
+        throw new Error('This Infinite Explore room could not be loaded. Please try again later.');
+      multiplayerWorldSeed=ticket.worldSeed;multiplayerWorldStartedAt=ticket.worldStartedAt;
+    }
     multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
@@ -1335,6 +1348,7 @@
   function update(dt){
     if(state!=='playing')return;
     ticks++;elapsed+=dt;
+    if(gameMode==='infinite'&&multiplayerConnected&&multiplayerWorldStartedAt>0)elapsed=Math.max(0,(Date.now()-multiplayerWorldStartedAt)/1000);
     player.jumpBuffer=Math.max(player.jumpBuffer-dt,0);
     player.invulnerable=Math.max(0,player.invulnerable-dt);
     player.blink+=dt*12;
@@ -1405,7 +1419,12 @@
       if(!e.alive)continue;
       const ep=e.platformRef || platforms[e.platformId];if(!ep)continue;
       e.y=ep.y-e.h;
-      e.x+=e.vx*dt;
+      if(gameMode==='infinite'&&multiplayerConnected&&multiplayerWorldStartedAt>0){
+        const span=e.maxX-e.minX;
+        const travel=e.startX-e.minX+e.initialVx*elapsed;
+        const cycle=((travel%(2*span))+2*span)%(2*span);
+        e.x=e.minX+(cycle<=span?cycle:2*span-cycle);
+      }else e.x+=e.vx*dt;
       if(e.x<e.minX){e.x=e.minX;e.vx=Math.abs(e.vx)}
       if(e.x>e.maxX){e.x=e.maxX;e.vx=-Math.abs(e.vx)}
       const hit=player.x+player.w-6>e.x&&player.x+6<e.x+e.w&&player.y+player.h>e.y+4&&player.y+5<e.y+e.h;
