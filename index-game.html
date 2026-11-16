@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-16 — Bound generated Adventure/Race platform rises to reachable heights, including Level 77 (#44). -->
 <!-- CHANGE LOG: 2026-11-16 — Retry the current Robot Race stage from both the result button and R key (#49). -->
 <!-- CHANGE LOG: 2026-11-16 — Keep desktop controls active after Boss tool use and return focus to gameplay (#45). -->
 <!-- CHANGE LOG: 2026-11-16 — Retry failed cosmetic PNG loads with a five-second backoff when the item is rendered again (#47). -->
@@ -421,6 +422,18 @@
     });
   }
 
+
+  // Bound every generated rise, including the worst lift phases, below the
+  // frog's jump apex. Preserve the five original authored layouts.
+  for(let i=WORLD_TEMPLATES.length;i<LEVELS.length;i++){
+    const stage=LEVELS[i];
+    for(let p=1;p<stage.platforms.length;p++){
+      const previous=stage.platforms[p-1],next=stage.platforms[p];
+      const fromAmp=stage.movers.find(m=>m.index===p-1)?.amp||0;
+      const toAmp=stage.movers.find(m=>m.index===p)?.amp||0;
+      next[1]=Math.max(next[1],previous[1]+fromAmp+toAmp-105);
+    }
+  }
 
   // A separate Boss Fight campaign: five new layouts, never pulled from Adventure.
   const BOSS_WORLD_TEMPLATES = [
