@@ -9,7 +9,7 @@ const vm = require('node:vm');
 const workerSource = fs.readFileSync(path.join(__dirname, '..', 'service-worker.js'), 'utf8');
 const scope = 'https://example.test/frog-jumper-2d/';
 
-function loadWorker(fetchImpl) {
+function loadWorker(fetchImpl, failures = {}) {
   const handlers = {};
   const entries = new Map();
   let installFiles = [];
@@ -22,11 +22,12 @@ function loadWorker(fetchImpl) {
       return value ? value.clone() : null;
     },
     async put(key, response) {
+      if (failures.put) throw new Error('cache put failed');
       entries.set(typeof key === 'string' ? key : key.url, response.clone());
     }
   };
   const caches = {
-    async open() { return cache; },
+    async open() { if (failures.open) throw new Error('cache open failed'); return cache; },
     async keys() { return []; },
     async delete() { return true; }
   };
@@ -112,4 +113,33 @@ test('online root navigation does not overwrite the cached game with the redirec
   const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url: scope });
   assert.equal(await response.text(), 'redirect page');
   assert.equal(await worker.entries.get(gameUrl).text(), 'cached game');
+});
+
+test('all newer optional skins are cached on demand', async () => {
+  for (const file of ['poppy-skin.png', 'us-flag-skin.png']) {
+    let calls = 0;
+    const worker = loadWorker(async () => { calls++; return new Response('skin'); });
+    const request = { method: 'GET', mode: 'no-cors', url: scope + 'assets/' + file };
+    assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
+    assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
+    assert.equal(calls, 1);
+  }
+});
+
+test('successful network responses survive runtime cache failures', async () => {
+  for (const failure of ['open', 'put']) {
+    for (const [mode, path] of [['navigate', 'index-game.html'], ['no-cors', 'assets/poppy-skin.png']]) {
+      const worker = loadWorker(async () => new Response('network success'), { [failure]: true });
+      const response = await dispatchFetch(worker, { method: 'GET', mode, url: scope + path });
+      assert.equal(await response.text(), 'network success', failure + ' ' + path);
+    }
+  }
+});
+
+test('navigation HTTP errors use saved game, or preserve the error if none is cached', async () => {
+  const worker = loadWorker(async () => new Response('server error', { status: 503 }));
+  const request = { method: 'GET', mode: 'navigate', url: scope + 'index-game.html' };
+  assert.equal((await dispatchFetch(worker, request)).status, 503);
+  worker.entries.set(scope + 'index-game.html', new Response('saved game'));
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'saved game');
 });
