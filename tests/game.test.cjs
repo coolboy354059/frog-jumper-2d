@@ -853,3 +853,37 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     await context.close();
   });
 }
+
+for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
+  test('menu, shop, and boss buttons have comfortable tap targets at '+viewport.width,async()=>{
+    const page=await browser.newPage({viewport});
+    try {
+      await page.goto(baseUrl,{waitUntil:'load'});
+      const checkTargets=async(selector)=>{
+        const sizes=await page.locator(selector).evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>({text:b.textContent.trim(),width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})));
+        assert.ok(sizes.length>0);
+        for(const size of sizes) assert.ok(size.width>=44&&size.height>=44,JSON.stringify(size));
+      };
+      await checkTargets('#overlay button');
+      await page.getByRole('button',{name:'COIN SHOP'}).click();
+      await checkTargets('#overlay button');
+      await page.getByRole('button',{name:'BACK TO MENU'}).click();
+      await page.getByRole('button',{name:'BOSS FIGHT',exact:true}).click();
+      await checkTargets('.boss-tool');
+    } finally { await page.close(); }
+  });
+}
+test('bottom bar stays visible while a keyboard button has focus',async()=>{
+  const {page}=await freshPage();
+  try {
+    await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+    await page.locator('#bar-fullscreen').focus();
+    await page.evaluate(()=>document.querySelector('#bottom-bar').classList.add('is-hidden'));
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector('#bottom-bar')).opacity==='1');
+    assert.equal(await page.locator('#bar-fullscreen').evaluate(b=>b===document.activeElement),true);
+    assert.equal(await page.locator('#bottom-bar').evaluate(b=>getComputedStyle(b).pointerEvents),'auto');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.locator('#bar-exit').evaluate(b=>b.matches(':focus-visible')),true);
+    assert.equal(await page.locator('#bar-exit').evaluate(b=>getComputedStyle(b).outlineStyle),'solid');
+  } finally { await page.close(); }
+});

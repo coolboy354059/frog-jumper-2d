@@ -105,6 +105,11 @@
 
 
 
+
+  /* Keep controls comfortable to tap and visible during keyboard navigation. */
+  .action,.boss-tool{min-width:44px;min-height:44px}
+  button:focus-visible{outline:3px solid #fff;outline-offset:3px;box-shadow:0 0 0 6px #102b36}
+  .bottom-bar.is-hidden:focus-within{opacity:1;transform:none;pointer-events:auto}
 </style>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
