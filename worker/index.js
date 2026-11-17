@@ -8,7 +8,7 @@ const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
-const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag"]);
+const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag","rainbow","popcorn","flowerpot","dinosaur","bee","king","baggy","kiera","teo","buff","steve"]);
 const ALLOWED_HATS = new Set(["none","black","tv"]);
 function cleanSkin(value) { return ALLOWED_SKINS.has(value) ? value : "red"; }
 function cleanHat(value) { return ALLOWED_HATS.has(value) ? value : "none"; }

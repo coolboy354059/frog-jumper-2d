@@ -231,8 +231,18 @@
   const carSkinImage = new Image();
   const poppySkinImage = new Image();
   const usFlagSkinImage = new Image();
+  const cosmeticLoads = new WeakMap();
   function loadCosmeticImage(image,src){
-    if(!image.src)image.src=src;
+    let status=cosmeticLoads.get(image);
+    if(!status){
+      status={retryAt:0,failed:false};
+      cosmeticLoads.set(image,status);
+      image.addEventListener('error',()=>{status.failed=true;status.retryAt=Date.now()+5000;});
+      image.addEventListener('load',()=>{status.failed=false;});
+    }
+    if(!image.src||(status.failed&&Date.now()>=status.retryAt)){
+      status.failed=false;image.src=src;
+    }
   }
 
   // Build transparent PNG name sprites once, without external artwork.
@@ -396,6 +406,8 @@
       const w = Math.max(minWidth, p[2] - widthLoss);
       return [x, y, w];
     });
+    // Keep Level 77's second platform within jumping height.
+    if (i === 76) platforms[2][1]=Math.max(platforms[2][1],platforms[1][1]-110);
     const enemies = [...base.enemies];
     if (round >= 2 && !enemies.includes(4)) enemies.push(4);
     if (round >= 4 && !enemies.includes(5)) enemies.push(5);
@@ -466,6 +478,8 @@
   let cameraX = 0;
   let totalCoins = 0;
   let coinsThisLevel = 0;
+  let pendingLevelReward = 0;
+  let achievementStorageAvailable = true;
   let achievementData = loadAchievementData();
   let achievementNotice = '';
   let achievementNoticeTime = 0;
@@ -514,22 +528,23 @@
         platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
         visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
       };
-    }catch(_){return defaults;}
+    }catch(_){achievementStorageAvailable=false;return defaults;}
   }
   function saveAchievementData(){
-    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){}
+    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){achievementStorageAvailable=false;}
   }
   function updateAchievementData(mutator){
     const persistUpdate=()=>{
       // Always merge into the latest saved snapshot while holding the shared lock.
       // This prevents a second tab from saving an older in-memory copy over new progress.
-      const latest=loadAchievementData();
-      const previouslyEarned=new Set(latest.earned);
-      const changed=mutator(latest);
-      achievementData=latest;
+      const latest=achievementStorageAvailable?loadAchievementData():achievementData;
+      const data=achievementStorageAvailable?latest:achievementData;
+      const previouslyEarned=new Set(data.earned);
+      const changed=mutator(data);
+      achievementData=data;
       if(!changed)return;
       saveAchievementData();
-      const newlyUnlocked=ACHIEVEMENTS.find(item=>!previouslyEarned.has(item.id)&&latest.earned.includes(item.id));
+      const newlyUnlocked=ACHIEVEMENTS.find(item=>!previouslyEarned.has(item.id)&&data.earned.includes(item.id));
       if(newlyUnlocked){
         achievementNotice=newlyUnlocked.emoji+' '+newlyUnlocked.name+' unlocked!';
         achievementNoticeTime=3.2;
@@ -715,7 +730,7 @@
     player=makePlayer(54,start.y-PLAYER_H);
     player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
-    cameraX=0;coinsThisLevel=0;
+    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;
     maintainInfiniteWorld();
     updateHUD();
   }
@@ -756,7 +771,7 @@
     }
     checkpoint={x:54,y:platforms[0].y-PLAYER_H};
     cameraX=0;
-    coinsThisLevel=0;
+    coinsThisLevel=0;pendingLevelReward=0;
     updateHUD();
   }
   function startGame(mode='level'){
@@ -775,7 +790,7 @@
       return;
     }
     // Coins are already banked on a level-complete screen; only discard coins from an unfinished level.
-    if(state!=='levelComplete') totalCoins = Math.max(0, totalCoins - coinsThisLevel);
+    if(state!=='levelComplete') totalCoins = Math.max(0, totalCoins - pendingLevelReward);
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
@@ -797,8 +812,9 @@
     try {
       const safeValue = Number.isFinite(value) ? Math.floor(value) : 0;
       window.localStorage.setItem(key, String(Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, safeValue))));
+      return true;
     } catch (_) {
-      // Ignore storage restrictions from private browsing or sandboxed environments.
+      return false;
     }
   }
   function loadShopData(){
@@ -817,9 +833,9 @@
     }catch(_){return defaults;}
   }
   function saveShopData(){
-    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));}catch(_){}
+    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));return true;}catch(_){return false;}
   }
-  function saveWallet(){writeStoredNumber('frogJumperWalletCoins',walletCoins);}
+  function saveWallet(){return writeStoredNumber('frogJumperWalletCoins',walletCoins);}
   function showShop(focusItemId=null){
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
@@ -874,6 +890,7 @@
         shopData=loadShopData();
         equippedSkin=shopData.equippedSkin;
         equippedHat=shopData.equippedHat;
+        const oldShop=JSON.stringify(shopData), oldWallet=walletCoins;
         const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
         const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
         if(currentlyEquipped){
@@ -881,13 +898,27 @@
         }else{
           if(!owned){
             if(walletCoins<item.price){showShop(id);return;}
-            walletCoins-=item.price;saveWallet();
+            walletCoins-=item.price;
             if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);
           }
           if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
         }
         shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;
-        saveShopData();sendMultiplayerCosmetics();showShop(id);
+        if(!saveShopData()){
+          walletCoins=oldWallet;shopData=JSON.parse(oldShop);
+          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
+          window.alert('Could not save the shop change. Your coins were not spent.');
+          showShop(id);return;
+        }
+        if(walletCoins!==oldWallet&&!saveWallet()){
+          // Save ownership first so a failed debit cannot take coins without an item.
+          shopData=JSON.parse(oldShop);walletCoins=oldWallet;
+          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
+          saveShopData();
+          window.alert('Could not save the purchase. Your coins were not spent.');
+          showShop(id);return;
+        }
+        sendMultiplayerCosmetics();showShop(id);
       };
       // Web Locks serializes purchases made by different same-origin tabs.
       // The fresh read above also keeps older tabs in sync before every action.
@@ -909,11 +940,12 @@
   }
 
   function syncShopFromStorage(){
+    const previousSkin=equippedSkin, previousHat=equippedHat;
     walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
     shopData=loadShopData();
     equippedSkin=shopData.equippedSkin;
     equippedHat=shopData.equippedHat;
-    sendMultiplayerCosmetics();
+    if(previousSkin!==equippedSkin||previousHat!==equippedHat)sendMultiplayerCosmetics();
   }
   window.addEventListener('storage',event=>{
     if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
@@ -923,7 +955,7 @@
   });
   window.addEventListener('storage',event=>{
     if(event.key==='frogJumperAchievements'||event.key===null){
-      achievementData=loadAchievementData();
+      if(achievementStorageAvailable)achievementData=loadAchievementData();
       if(state==='achievements')showAchievements();
     }
     if(event.key==='frogJumperBestCoins'||event.key===null){
@@ -989,9 +1021,12 @@
     if(gameMode!=='boss'||state!=='playing'||bossSkipsRemaining<=0)return;
     bossSkipsRemaining--;advanceModeLevel();
   }
-  bossFireButton.addEventListener('click',shootFire);
-  bossSpeedButton.addEventListener('click',useBossSpeed);
-  bossSkipButton.addEventListener('click',useBossSkip);
+  [[bossFireButton,shootFire],[bossSpeedButton,useBossSpeed],[bossSkipButton,useBossSkip]].forEach(([button,action])=>{
+    button.addEventListener('click',event=>{
+      action();
+      if(event.detail>0&&state==='playing')canvas.focus({preventScroll:true});
+    });
+  });
 
   function activateOverlayDialog(focusTarget){
     overlay.setAttribute('role','dialog');
@@ -1014,9 +1049,11 @@
       help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
+      saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
+      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${currentModeTotalCoins()} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${totalCoins} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
@@ -1221,19 +1258,18 @@
   }
 
   async function bankWalletCoins(amount){
-    if(!Number.isSafeInteger(amount)||amount<=0)return;
-    if(!navigator.locks||typeof navigator.locks.request!=='function'){
-      window.alert('This browser cannot safely sync coin rewards across tabs. Please use a browser with Web Locks support.');
-      return;
-    }
+    if(!Number.isSafeInteger(amount)||amount<=0)return true;
+    if(!navigator.locks||typeof navigator.locks.request!=='function')return false;
     try{
-      await navigator.locks.request('frog-jumper-shop-economy',()=>{
+      return await navigator.locks.request('frog-jumper-shop-economy',()=>{
+        const previousWallet=walletCoins;
         walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
-        saveWallet();
+        if(!saveWallet()){walletCoins=previousWallet;return false;}
         syncShopFromStorage();
         updateHUD();
+        return true;
       });
-    }catch(_){window.alert('Frog Jumper could not safely save those coins. Please try again.');}
+    }catch(_){return false;}
   }
 
   function updateBossCombat(dt){
@@ -1266,12 +1302,16 @@
     syncBossTools();
   }
 
-  function completeLevel(){
+  async function completeLevel(){
     if(gameMode==='boss' && boss&&boss.alive)return;
-    // Level and race coins become permanent only after the player reaches the portal.
-    // Wallet rewards share the shop lock to prevent cross-tab lost updates.
-    if(gameMode!=='infinite'&&coinsThisLevel>0)bankWalletCoins(coinsThisLevel*(equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1));
     clearInputs();
+    if(gameMode!=='infinite'&&pendingLevelReward>0){
+      showOverlay('saving');
+      const saved=await bankWalletCoins(pendingLevelReward);
+      if(state!=='saving')return;
+      if(!saved){showOverlay('rewardSaveFailed');return;}
+      pendingLevelReward=0;
+    }
     if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
   }
   function update(dt){
@@ -1335,8 +1375,9 @@
         c.taken=true;coinsThisLevel++;recordCoinAchievement();
         const coinReward=equippedSkin==='king'?10:equippedSkin==='car'?5:equippedSkin==='baggy'?2:1;
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
+        if(gameMode!=='infinite')pendingLevelReward=Math.min(Number.MAX_SAFE_INTEGER,pendingLevelReward+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite')bankWalletCoins(coinReward);
+        if(gameMode==='infinite')bankWalletCoins(coinReward).then(saved=>{if(!saved)window.alert('Frog Jumper could not save those coins.');});
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }
