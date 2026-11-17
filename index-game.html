@@ -444,7 +444,7 @@
     if(difficulty>=3&&!movers.some(function(m){return m.index===6;})){
       movers.push({index:6,amp:Math.min(22,10+difficulty),speed:1.1+difficulty*.06,phase:number*.4});
     }
-    return {...base,name:base.name+' · Stage '+number,subtitle:'Boss campaign · Challenge '+(difficulty+1),themeIndex,platforms,enemies,movers,difficulty,bossLevel:number%10===0};
+    return {...base,name:base.name+' · Stage '+number,subtitle:'Boss campaign · Challenge '+(difficulty+1),themeIndex,platforms,enemies,movers,difficulty,bossLevel:number%3===0};
   });
 
   let state = 'menu';
@@ -565,7 +565,7 @@
     if(!platform)return;
     const platformKey=infiniteWorld
       ? 'infinite:'+infiniteWorld.seed+':'+platform.id
-      : 'level:'+levelIndex+':'+platform.id;
+      : (gameMode==='boss'?'boss:':'level:')+levelIndex+':'+platform.id;
     updateAchievementData(data=>{
       if(data.visitedPlatforms.includes(platformKey)||data.visitedPlatforms.length>=100)return false;
       data.visitedPlatforms.push(platformKey);
@@ -1017,7 +1017,7 @@
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You collected ${totalCoins} of ${currentModeTotalCoins()} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
-      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]}
+      robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
