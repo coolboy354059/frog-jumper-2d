@@ -794,7 +794,7 @@
     setupLevel(levelIndex);state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
   }
   function restartRun(){startGame(gameMode);}
-  function returnToMenu(){leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
+  function returnToMenu(){clearMathQuiz();leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
 
   function readStoredNumber(key, fallback = 0) {
@@ -985,7 +985,7 @@
     const coinLabel=document.getElementById('coin-label');
     const lifeLabel=document.getElementById('life-label');
     const progress=document.getElementById('level-progress');
-    if(levelLabel) levelLabel.textContent=gameMode==='infinite' ? `Infinite Explore · ${level.name}` : `${gameMode==='boss'?'Boss Fight':(gameMode==='race'?'Race':'Adventure')} ${levelIndex+1} · ${level.name}`;
+    if(levelLabel) levelLabel.textContent=gameMode==='infinite' ? `Infinite Explore · ${level.name}` : `${gameMode==='boss'?'Boss Fight':(gameMode==='race'?'Race':gameMode==='math'?'Math':'Adventure')} ${levelIndex+1} · ${level.name}`;
     if(coinLabel) coinLabel.textContent=totalCoins;
     if(lifeLabel) lifeLabel.textContent=lives===Infinity?'∞':(lives>0?'❤️ '.repeat(lives).trim().replaceAll(' ',' '):'—');
     if(progress) progress.style.width=`${Math.min(100,((levelIndex + coinsThisLevel/COINS_PER_LEVEL)/currentModeTotalLevels())*100)}%`;
@@ -1037,6 +1037,65 @@
   }
   function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||((state==='paused'||state==='menu')&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
+  const mathOperations=['Addition','Subtraction','Multiplication','Division'];
+  let mathOperation='Addition', mathQuiz=null;
+
+  function makeMathQuestion(operation){
+    const pick=(min,max)=>min+Math.floor(Math.random()*(max-min+1));
+    let a=pick(12,79), b=pick(2,19), sign='+', answer;
+    if(operation==='Subtraction'){a=Math.max(a,b)+b;sign='−';answer=a-b;}
+    else if(operation==='Multiplication'){a=pick(2,12);b=pick(2,12);sign='×';answer=a*b;}
+    else if(operation==='Division'){b=pick(2,12);answer=pick(2,12);a=answer*b;sign='÷';}
+    else answer=a+b;
+    const answers=new Set([answer]);
+    for(const offset of [1,-1,2])answers.add(answer+offset);
+    const choices=[...answers];
+    for(let i=choices.length-1;i>0;i--){const j=pick(0,i);[choices[i],choices[j]]=[choices[j],choices[i]];}
+    return {prompt:a+' '+sign+' '+b,answer,choices};
+  }
+  function clearMathQuiz(){
+    if(mathQuiz)window.clearInterval(mathQuiz.timer);
+    mathQuiz=null;
+  }
+  function finishMathQuiz(quiz){
+    if(quiz!==mathQuiz)return;
+    clearMathQuiz();
+    if(quiz.correct>0)completeLevel();
+    else showOverlay('mathRetry',{text:quiz.feedback+' Try two new questions at this portal.'});
+  }
+  function beginMathQuiz(){
+    clearInputs();clearMathQuiz();
+    const first=makeMathQuestion(mathOperation);
+    let second=makeMathQuestion(mathOperation);
+    while(second.prompt===first.prompt)second=makeMathQuestion(mathOperation);
+    const quiz={questions:[first,second],index:0,correct:0,deadline:Date.now()+40000,feedback:'',timer:null};
+    mathQuiz=quiz;
+    function tick(){
+      if(quiz!==mathQuiz)return;
+      const seconds=Math.ceil((quiz.deadline-Date.now())/1000);
+      if(seconds<=0){quiz.feedback='Time is up.';finishMathQuiz(quiz);return;}
+      const label=overlay.querySelector('[data-math-clock]');
+      if(label)label.textContent=seconds+' seconds left';
+    }
+    function ask(){
+      const index=quiz.index,q=quiz.questions[index];
+      const choose=value=>{
+        if(quiz!==mathQuiz||quiz.index!==index)return;
+        if(Date.now()>=quiz.deadline){tick();return;}
+        const correct=value===q.answer;
+        if(correct)quiz.correct++;
+        quiz.feedback=(correct?'Correct! ':'Answer: ')+q.prompt+' = '+q.answer+'.';
+        if(++quiz.index===2){finishMathQuiz(quiz);return;}
+        ask();
+      };
+      showOverlay('mathQuestion',{title:q.prompt+' = ?',text:
+        (quiz.feedback?quiz.feedback+' ':'')+'Question '+(index+1)+' of 2 · Get one right to open the portal.',
+        buttons:q.choices.map(value=>[String(value),'secondary',()=>choose(value)])});
+      tick();
+    }
+    quiz.timer=window.setInterval(tick,250);ask();
+  }
+
   function showOverlay(kind,options={}){
     state=kind;if(kind==='menu')ensureFrameLoop();
     syncPauseControl();
@@ -1045,7 +1104,10 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['MATH MODE','secondary',()=>showOverlay('mathSetup')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
+      mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
+      mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
       help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
@@ -1058,6 +1120,12 @@
     }[kind];
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    if(kind==='mathQuestion'){
+      const clockLabel=document.createElement('p');
+      clockLabel.dataset.mathClock='';
+      clockLabel.setAttribute('role','timer');
+      overlay.querySelector('.button-row').before(clockLabel);
+    }
     if(kind==='menu'){
       const racingLink=document.createElement('a');
       racingLink.className='action ghost';
@@ -1437,8 +1505,8 @@
       const playerCenterX=player.x+player.w/2;
       const playerCenterY=player.y+player.h/2;
       const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
-      const portalReady=gameMode==='level'||gameMode==='race'||gameMode==='boss';
-      if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){completeLevel();}
+      const portalReady=gameMode==='level'||gameMode==='math'||gameMode==='race'||gameMode==='boss';
+      if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){if(gameMode==='math')beginMathQuiz();else completeLevel();}
     }
     if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=85){
       multiplayerLastSent=Date.now();
@@ -1508,7 +1576,7 @@
   }
   function drawPortal(){
     if(gameMode==='infinite' || !platforms.length) return;
-    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='level'||gameMode==='race'||(gameMode==='boss'?(!boss||!boss.alive):false);
+    const end=platforms[platforms.length-1];const x=end.x+end.w*.68-cameraX,y=end.y-75;const unlocked=gameMode==='level'||gameMode==='math'||gameMode==='race'||(gameMode==='boss'?(!boss||!boss.alive):false);
     ctx.save();ctx.translate(x,y);
     if(gameMode==='boss'){ctx.fillStyle=unlocked?'#9b59ff':'#52377b';ctx.beginPath();ctx.ellipse(0,38,24,37,0,0,Math.PI*2);ctx.fill();ctx.restore();return;}
     const pulse=reduceMotion?1:1+Math.sin(elapsed*4)*.055;
