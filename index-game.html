@@ -1058,6 +1058,13 @@
     }[kind];
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    if(kind==='menu'){
+      const racingLink=document.createElement('a');
+      racingLink.className='action ghost';
+      racingLink.href='https://coolboy354059.github.io/frog-racing/';
+      racingLink.textContent='Play Frog Racing';
+      overlay.querySelector('.button-row').append(racingLink);
+    }
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
     activateOverlayDialog(overlay.querySelector('[data-action="0"]'));
   }
