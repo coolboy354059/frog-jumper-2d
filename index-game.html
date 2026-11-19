@@ -1104,7 +1104,7 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:thanksgivingSeason?'🦃 Happy Thanksgiving! Choose your game mode!':'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['MATH MODE','secondary',()=>showOverlay('mathSetup')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:'🦃 Happy Thanksgiving! Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['MATH MODE','secondary',()=>showOverlay('mathSetup')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
       mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
       mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
@@ -1883,7 +1883,6 @@
     // The robot is identified by its appearance, without a text label.
   }
   function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
-  const thanksgivingSeason = new Date().getMonth() === 10;
   function drawThanksgivingTurkeys(){
     const time = reduceMotion ? 0 : elapsed;
     function oval(x,y,rx,ry,angle,color){
@@ -1914,7 +1913,7 @@
   }
   function render(){
     drawBackground();
-    if(thanksgivingSeason)drawThanksgivingTurkeys();
+    drawThanksgivingTurkeys();
     if(achievementNoticeTime>0){
       ctx.save();ctx.font='bold 18px system-ui';ctx.textAlign='center';
       const label=achievementNotice;const width=Math.min(W-32,ctx.measureText(label).width+34);
