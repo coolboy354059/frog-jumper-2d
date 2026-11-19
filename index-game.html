@@ -1131,7 +1131,11 @@
       racingLink.className='action ghost';
       racingLink.href='https://coolboy354059.github.io/frog-racing/';
       racingLink.textContent='Play Frog Racing';
-      overlay.querySelector('.button-row').append(racingLink);
+      const adLink=document.createElement('a');
+      adLink.className='action ghost';
+      adLink.href='assets/frog-jumper-ad.mp4';
+      adLink.textContent='Watch Frog Jumper Ad';
+      overlay.querySelector('.button-row').append(racingLink,adLink);
     }
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
     activateOverlayDialog(overlay.querySelector('[data-action="0"]'));
