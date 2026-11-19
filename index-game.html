@@ -1104,7 +1104,7 @@
     bottomBar.classList.remove('is-hidden');
     overlay.hidden=false;
     const content={
-      menu:{emoji:'🐸',title:'FROG JUMPER',text:'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['MATH MODE','secondary',()=>showOverlay('mathSetup')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
+      menu:{emoji:'🐸',title:'FROG JUMPER',text:thanksgivingSeason?'🦃 Happy Thanksgiving! Choose your game mode!':'Choose your game mode!',buttons:[['PLAY LEVEL ADVENTURE','primary',()=>startGame('level')],['MATH MODE','secondary',()=>showOverlay('mathSetup')],['BOSS FIGHT','secondary',()=>startGame('boss')],['ROBOT RACE','secondary',()=>startGame('race')],['INFINITE EXPLORE','secondary',()=>startGame('infinite')],['MULTIPLAYER','secondary',()=>showMultiplayerScreen()],['COIN SHOP','ghost',()=>showShop()],['ACHIEVEMENTS','ghost',()=>showAchievements()],['HOW TO PLAY','ghost',()=>showOverlay('help')]]},
       mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
       mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
       mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
@@ -1883,8 +1883,38 @@
     // The robot is identified by its appearance, without a text label.
   }
   function drawParticles(){if(reduceMotion)return;for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.fillRect(p.x-cameraX,p.y,p.size,p.size);}ctx.globalAlpha=1;}
+  const thanksgivingSeason = new Date().getMonth() === 10;
+  function drawThanksgivingTurkeys(){
+    const time = reduceMotion ? 0 : elapsed;
+    function oval(x,y,rx,ry,angle,color){
+      ctx.fillStyle=color;
+      ctx.beginPath();
+      ctx.ellipse(x,y,rx,ry,angle,0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.save();
+    for(let i=0;i<4;i++){
+      const x=(time*(34+i*3)+120+i*258)%(W+100)-50;
+      ctx.save();
+      ctx.translate(x,87+i%3*34+Math.sin(time*2+i)*5);
+      ctx.scale(.68+i%2*.18,.68+i%2*.18);
+      for(let f=0;f<5;f++){
+        const angle=(f-2)*.32;
+        oval(-13-Math.cos(angle)*7,-3+Math.sin(angle)*12,13,4,angle,['#ad5029','#df8734','#884427','#e6a246','#a75029'][f]);
+      }
+      oval(0,1,13,8,0,'#714026');
+      oval(-2,-4,6,11,-.7+Math.sin(time*8+i)*.65,'#b57643');
+      oval(12,-7,5,6,0,'#ac5040');
+      oval(14,-2,2,4,0,'#cb4037');
+      ctx.fillStyle='#f3af42';ctx.beginPath();ctx.moveTo(16,-8);ctx.lineTo(23,-6);ctx.lineTo(16,-5);ctx.fill();
+      oval(14,-9,1,1,0,'#261a19');
+      ctx.restore();
+    }
+    ctx.restore();
+  }
   function render(){
     drawBackground();
+    if(thanksgivingSeason)drawThanksgivingTurkeys();
     if(achievementNoticeTime>0){
       ctx.save();ctx.font='bold 18px system-ui';ctx.textAlign='center';
       const label=achievementNotice;const width=Math.min(W-32,ctx.measureText(label).width+34);
