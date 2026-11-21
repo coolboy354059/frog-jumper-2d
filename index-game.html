@@ -480,6 +480,8 @@
   let totalCoins = 0;
   let coinsThisLevel = 0;
   let pendingLevelReward = 0;
+  let pendingInfiniteReward = 0;
+  let infiniteBankInFlight = false;
   let achievementStorageAvailable = true;
   let achievementData = loadAchievementData();
   let achievementNotice = '';
@@ -511,6 +513,8 @@
   const gamepadInput = {left:false,right:false};
   let previousGamepadJump=false;
   let previousGamepadMenu=false;
+  let previousGamepadNavNext=false;
+  let previousGamepadNavPrev=false;
   let gamepadConnected=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
@@ -1039,7 +1043,7 @@
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
     if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
   }
-  function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||((state==='paused'||state==='menu')&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
+  function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&gamepadConnected))){lastTime=0;rafId=requestAnimationFrame(frame);}}
   function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   const mathOperations=['Addition','Subtraction','Multiplication','Division'];
   let mathOperation='Addition', mathQuiz=null;
@@ -1106,7 +1110,7 @@
   }
 
   function showOverlay(kind,options={}){
-    state=kind;if(kind==='menu')ensureFrameLoop();
+    state=kind;ensureFrameLoop();
     syncPauseControl();
     syncBossTools();
     window.clearTimeout(bottomBarTimer);
@@ -1117,14 +1121,14 @@
       mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
       mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
       mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. In menus, D-pad or Left Stick chooses a button and A picks it. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
       rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
-      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${totalCoins} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
+      gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.${pendingLevelReward>0?` You picked up ${pendingLevelReward} more on this level, but they were not saved because the level was not finished.`:''} Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
@@ -1346,6 +1350,17 @@
     if(overlap){showOverlay('robotWon');clearInputs();}
   }
 
+  function bankInfiniteCoins(){
+    if(infiniteBankInFlight||pendingInfiniteReward<=0)return;
+    infiniteBankInFlight=true;
+    const amount=pendingInfiniteReward;
+    bankWalletCoins(amount).then(saved=>{
+      infiniteBankInFlight=false;
+      if(saved){pendingInfiniteReward=Math.max(0,pendingInfiniteReward-amount);if(pendingInfiniteReward>0)bankInfiniteCoins();}
+      else window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');
+    });
+  }
+
   async function bankWalletCoins(amount){
     if(!Number.isSafeInteger(amount)||amount<=0)return true;
     if(!navigator.locks||typeof navigator.locks.request!=='function')return false;
@@ -1466,7 +1481,7 @@
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         if(gameMode!=='infinite')pendingLevelReward=Math.min(Number.MAX_SAFE_INTEGER,pendingLevelReward+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite')bankWalletCoins(coinReward).then(saved=>{if(!saved)window.alert('Frog Jumper could not save those coins.');});
+        if(gameMode==='infinite'){pendingInfiniteReward=Math.min(Number.MAX_SAFE_INTEGER,pendingInfiniteReward+coinReward);bankInfiniteCoins();}
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }
@@ -1953,7 +1968,7 @@
     if(!pad){
       gamepadConnected=false;
       gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();
-      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;return;
+      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;previousGamepadNavNext=false;previousGamepadNavPrev=false;return;
     }
     gamepadConnected=true;
     const axisX=Number.isFinite(pad.axes?.[0])?pad.axes[0]:0;
@@ -1963,6 +1978,27 @@
     const jump=!!pad.buttons?.[0]?.pressed;
     const fire=!!pad.buttons?.[2]?.pressed;
     const menu=!!pad.buttons?.[9]?.pressed;
+    // Controller menu support: D-pad or left stick moves between popup buttons, A picks the focused one.
+    const overlayActive=typeof overlay!=='undefined'&&overlay&&!overlay.hidden&&state!=='playing';
+    if(overlayActive){
+      const axisY=Number.isFinite(pad.axes?.[1])?pad.axes[1]:0;
+      const navNext=!!pad.buttons?.[13]?.pressed||!!pad.buttons?.[15]?.pressed||axisY>0.35;
+      const navPrev=!!pad.buttons?.[12]?.pressed||!!pad.buttons?.[14]?.pressed||axisY<-0.35;
+      const step=(navNext&&!previousGamepadNavNext)?1:((navPrev&&!previousGamepadNavPrev)?-1:0);
+      if(step){
+        const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
+        if(focusable.length){
+          const current=focusable.indexOf(document.activeElement);
+          const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
+          next.focus({preventScroll:true});
+        }
+      }
+      previousGamepadNavNext=navNext;previousGamepadNavPrev=navPrev;
+      if(jump&&!previousGamepadJump){
+        const active=document.activeElement;
+        if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
+      }
+    }else{previousGamepadNavNext=false;previousGamepadNavPrev=false;}
     if(fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
     previousGamepadFire=fire;
     if(jump&&!previousGamepadJump&&state==='playing')requestJump();
@@ -1978,7 +2014,7 @@
 
   function frame(now){
     rafId=0;
-    if(document.hidden||(state!=='playing'&&!((state==='paused'||state==='menu')&&gamepadConnected)))return;
+    if(document.hidden||(state!=='playing'&&!((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&gamepadConnected)))return;
     pollGamepad();
     if(!lastTime)lastTime=now;
     let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
@@ -1990,7 +2026,7 @@
       if(count>=8)accumulator=0;
     }else{accumulator=0;}
     render();
-    if((state==='paused'||state==='menu')&&gamepadConnected&&!document.hidden)ensureFrameLoop();
+    if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&gamepadConnected&&!document.hidden)ensureFrameLoop();
     else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);
   }
 
@@ -2017,7 +2053,7 @@
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{
     if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}
-    else if((state==='paused'||state==='menu')&&gamepadConnected)ensureFrameLoop();
+    else if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&gamepadConnected)ensureFrameLoop();
   });
 
   const pauseControl=document.getElementById('pause-control');

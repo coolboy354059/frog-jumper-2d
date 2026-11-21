@@ -86,7 +86,8 @@ test('shop write failures never debit coins without ownership',()=>{
   }
 });
 test('game-over text does not compare bonus rewards with a pickup maximum',()=>{
-  assert.ok(html.includes('You earned ${totalCoins} coins.'));
+  assert.ok(html.includes('You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.'));
+  assert.ok(html.includes('they were not saved because the level was not finished'));
 });
 
 test('controller menu input starts Adventure and polling does not duplicate frames',()=>{
@@ -169,4 +170,45 @@ test('skipping a boss stage loses the coins picked up on that stage',()=>{
     const currentModeTotalLevels=()=>45,showOverlay=s=>{screen=s},setupLevel=n=>{nextLevel=n},hideOverlay=()=>{},clearInputs=()=>{},canvas={focus(){}};
     ${code} useBossSkip();return [screen,nextLevel,totalCoins,pendingLevelReward,coinsThisLevel,bossSkipsRemaining,bossStagesSkipped];`)();
   assert.deepEqual(result,['',11,18,0,0,1,1]);
+});
+
+test('controller D-pad and A button can select other menu modes',()=>{
+  const poll=part('function pollGamepad(){',"window.addEventListener('gamepadconnected'");
+  const result=Function(`let state='menu',gamepadConnected=false,started='';
+    let previousGamepadFire=false,previousGamepadJump=false,previousGamepadMenu=false,previousGamepadNavNext=false,previousGamepadNavPrev=false;
+    const gamepadInput={},clicked=[];
+    const buttons=['PLAY LEVEL ADVENTURE','MATH MODE','ROBOT RACE'].map(label=>({label,hidden:false,getAttribute:()=>null,focus(){document.activeElement=this;},click(){clicked.push(label);}}));
+    const document={hidden:false,activeElement:buttons[0]};
+    const overlay={hidden:false,contains:el=>buttons.includes(el),querySelectorAll:()=>buttons};
+    let padButtons=Array.from({length:16},()=>({pressed:false}));
+    const navigator={getGamepads:()=>[{connected:true,axes:[0,0],buttons:padButtons}]};
+    const syncHorizontalInput=()=>{},startGame=mode=>{started=mode;},requestJump=()=>{},shootFire=()=>{},clearInputs=()=>{},showOverlay=()=>{},hideOverlay=()=>{};
+    ${poll}
+    const press=i=>{padButtons=Array.from({length:16},()=>({pressed:false}));if(i>=0)padButtons[i].pressed=true;pollGamepad();};
+    press(13);press(-1);
+    const afterOneDown=document.activeElement.label;
+    press(0);
+    document.activeElement=buttons[0];
+    press(-1);press(13);press(-1);press(13);press(-1);press(0);
+    return {afterOneDown,clicked};`)();
+  assert.equal(result.afterOneDown,'MATH MODE');
+  assert.deepEqual(result.clicked,['MATH MODE','ROBOT RACE']);
+});
+
+test('infinite explore keeps unpaid coins and retries instead of losing them',async()=>{
+  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  let attempts=0,paid=0;const alerts=[];
+  const bank=async amount=>{attempts++;if(attempts===1)return false;paid+=amount;return true;};
+  const harness=Function('bank','alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false;
+    const window={alert:msg=>alerts.push(msg)};
+    const bankWalletCoins=bank;
+    ${code} return {bankInfiniteCoins,get pending(){return pendingInfiniteReward;}};`)(bank,alerts);
+  harness.bankInfiniteCoins();
+  await new Promise(r=>setTimeout(r,0));
+  assert.equal(harness.pending,5,'failed save should keep the coins pending');
+  assert.equal(alerts.length,1);
+  harness.bankInfiniteCoins();
+  await new Promise(r=>setTimeout(r,0));
+  assert.equal(harness.pending,0,'retry should clear the pending coins');
+  assert.equal(paid,5,'coins should be paid exactly once');
 });
