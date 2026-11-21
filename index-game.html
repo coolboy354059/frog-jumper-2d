@@ -397,11 +397,15 @@
     const base = WORLD_TEMPLATES[themeIndex];
     const gapBonus = Math.min(24, round * 4);
     const widthLoss = Math.min(20, round * 3);
+    let prevPlatformY = base.platforms[0][1];
     const platforms = base.platforms.map((p, pi) => {
       if (pi === 0) return [...p];
       const x = p[0] + pi * gapBonus;
       const pattern = pi >= 1 && pi <= 7 ? Math.sin(pi * 1.7 + round * 0.85) * round * 4 : 0;
-      const y = Math.max(340, Math.min(525, p[1] + pattern));
+      // The frog's jump tops out near 136px, so never let a platform sit more
+      // than 120px above the one before it or the level cannot be finished.
+      const y = Math.max(Math.max(340, Math.min(525, p[1] + pattern)), prevPlatformY - 120);
+      prevPlatformY = y;
       const minWidth = pi === base.platforms.length - 1 ? 350 : 82;
       const w = Math.max(minWidth, p[2] - widthLoss);
       return [x, y, w];
@@ -443,11 +447,15 @@
     const difficulty=number===1?0:Math.floor((number-1)/3);
     const gapGain=Math.min(23,difficulty*1.45);
     const widthLoss=Math.min(24,difficulty*1.05);
+    let prevBossY=base.platforms[0][1];
     const platforms=base.platforms.map(function(p,pi){
       if(pi===0)return [...p];
       const heightShift=Math.sin(number*.57+pi*1.31)*Math.min(25,difficulty*1.45);
       const minimumWidth=pi===base.platforms.length-1?390:82;
-      return [p[0]+pi*gapGain,Math.max(340,Math.min(515,p[1]+heightShift)),Math.max(minimumWidth,p[2]-widthLoss)];
+      // Same 120px rise cap as Adventure so every boss jump stays reachable.
+      const y=Math.max(Math.max(340,Math.min(515,p[1]+heightShift)),prevBossY-120);
+      prevBossY=y;
+      return [p[0]+pi*gapGain,y,Math.max(minimumWidth,p[2]-widthLoss)];
     });
     const enemies=[...base.enemies];
     if(difficulty>=2&&!enemies.includes(5))enemies.push(5);
@@ -482,6 +490,10 @@
   let pendingLevelReward = 0;
   let pendingInfiniteReward = 0;
   let infiniteBankInFlight = false;
+  let infiniteSaveWarned = false;
+  // Levels whose coins were already banked this run, so restarting a finished
+  // level cannot respawn its coins for a second payout.
+  let bankedCoinLevels = new Set();
   let achievementStorageAvailable = true;
   let achievementData = loadAchievementData();
   let achievementNotice = '';
@@ -735,7 +747,7 @@
     player=makePlayer(54,start.y-PLAYER_H);
     player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
-    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;pendingInfiniteReward=0;
+    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;pendingInfiniteReward=0;infiniteSaveWarned=false;
     maintainInfiniteWorld();
     updateHUD();
   }
@@ -751,9 +763,12 @@
       if(p) p.moving={amp:m.amp,speed:m.speed,phase:m.phase};
     }
     coins = [];
+    // A level already finished this run keeps its coins collected, so pressing
+    // R on the Level Complete screen cannot farm the same coins again.
+    const coinsAlreadyBanked=bankedCoinLevels.has(gameMode+':'+index);
     for (let i=1;i<=COINS_PER_LEVEL;i++) {
       const p = platforms[i];
-      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:false,phase:i*1.7});
+      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:coinsAlreadyBanked,phase:i*1.7});
     }
     enemies=[];
     for (const idx of level.enemies) {
@@ -784,7 +799,7 @@
     bossSkipsRemaining = 3;
     bossStagesSkipped = 0;
     if(mode==='infinite'&&new Date().getMonth()===9)awardAchievement('halloween_explorer');
-    lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
+    lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;bankedCoinLevels.clear();
     if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
     state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
     showBottomBar();
@@ -1283,8 +1298,10 @@
     const label='ROOM '+multiplayerRoomCode+'  '+count+'/10';
     ctx.save();ctx.font='bold 13px system-ui';ctx.textAlign='right';
     const width=ctx.measureText(label).width+22;
-    roundedRect(W-width-12,12,width,30,9,'#102b36eF','#d5ff7d');
-    ctx.fillStyle='#f4ffd9';ctx.fillText(label,W-23,32);ctx.restore();
+    // Boss Fight tools sit at the top-right too, so drop the room label below them.
+    const top=(gameMode==='boss'&&state==='playing')?54:12;
+    roundedRect(W-width-12,top,width,30,9,'#102b36eF','#d5ff7d');
+    ctx.fillStyle='#f4ffd9';ctx.fillText(label,W-23,top+20);ctx.restore();
   }
   function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
   function hurt(){
@@ -1310,13 +1327,14 @@
         // near the edge. Estimate airtime from the height difference, then
         // begin the jump at the position that puts the robot over that target.
         const rise=next.y-current.y;
-        const airtime=(680+Math.sqrt(680*680+4*790*rise))/1580;
+        const airtime=(655+Math.sqrt(655*655+4*790*rise))/1580;
         // Land near the left side to preserve runway for the following jump.
         const landingX=next.x+Math.min(8,(next.w-robot.w)*0.5);
         const latestLaunchX=current.x+current.w-robot.w-4;
         const launchX=Math.min(latestLaunchX,landingX-robot.vx*airtime);
         if(robot.x>=launchX){
-          robot.vy=-680;robot.onGround=false;robot.standingOn=null;robot.y-=1;
+          // Match the frog's jump strength so the robot cannot clear jumps the player cannot.
+          robot.vy=-655;robot.onGround=false;robot.standingOn=null;robot.y-=1;
         }
       }
     }
@@ -1340,14 +1358,25 @@
       // targetIndex points to the next platform, so the last safe landing
       // is targetIndex - 1. Recover there instead of falling back an extra platform.
       const safeIndex=Math.max(0,Math.min(platforms.length-1,robot.targetIndex-1));
-      const safe=platforms[safeIndex] || platforms[0];
+      let safe=platforms[safeIndex] || platforms[0];
+      // After three falls on the same jump, drop the robot on the target
+      // platform so it can never stay stuck forever.
+      if(robot.falls>=3){
+        safe=platforms[Math.min(robot.targetIndex,platforms.length-1)] || safe;
+        robot.falls=0;
+      }
       robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
       robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
     }
     const end=level.platforms[level.platforms.length-1];
     const portalX=end[0]+end[2]*.68, portalY=end[1]-75;
     const overlap=robot.x+robot.w>portalX-24 && robot.x<portalX+24 && robot.y+robot.h>portalY && robot.y<portalY+88;
-    if(overlap){showOverlay('robotWon');clearInputs();}
+    if(overlap){
+      // The robot moves before the player's portal check each step, so if the
+      // frog is at the portal too, the tie goes to the player instead.
+      const playerAtPortal=player&&Math.abs(player.x+player.w/2-portalX)<42&&player.y+player.h/2>portalY-8&&player.y+player.h/2<portalY+88;
+      if(!playerAtPortal){showOverlay('robotWon');clearInputs();}
+    }
   }
 
   function bankInfiniteCoins(){
@@ -1357,7 +1386,7 @@
     bankWalletCoins(amount).then(saved=>{
       infiniteBankInFlight=false;
       if(saved){pendingInfiniteReward=Math.max(0,pendingInfiniteReward-amount);if(pendingInfiniteReward>0)bankInfiniteCoins();}
-      else window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');
+      else if(!infiniteSaveWarned){infiniteSaveWarned=true;window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');}
     });
   }
 
@@ -1416,6 +1445,7 @@
       const saved=await bankWalletCoins(pendingLevelReward);
       if(state!=='saving')return;
       if(!saved){showOverlay('rewardSaveFailed');return;}
+      bankedCoinLevels.add(gameMode+':'+levelIndex);
       pendingLevelReward=0;
     }
     if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');

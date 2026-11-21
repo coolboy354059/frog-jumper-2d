@@ -60,11 +60,15 @@ async function installWorker(worker) {
 
 async function dispatchFetch(worker, request) {
   let pending;
+  const waits = [];
   worker.handlers.fetch({
     request,
-    respondWith(value) { pending = Promise.resolve(value); }
+    respondWith(value) { pending = Promise.resolve(value); },
+    waitUntil(value) { waits.push(Promise.resolve(value)); }
   });
-  return pending ? pending : null;
+  const result = pending ? await pending : null;
+  await Promise.all(waits);
+  return result;
 }
 
 test('installation precaches only the essential game page, not optional cosmetics', async () => {
@@ -89,8 +93,23 @@ test('optional cosmetic images are cached on first request and reused afterward'
   assert.equal(worker.entries.has(assetUrl), true);
 
   const second = await dispatchFetch(worker, request);
-  assert.equal(await second.text(), 'wacky-beak-image');
-  assert.equal(networkCalls, 1, 'the second request should use the cached cosmetic');
+  assert.equal(await second.text(), 'wacky-beak-image', 'the second request should be served from the cache right away');
+  assert.equal(networkCalls, 2, 'the cached cosmetic should also refresh in the background');
+});
+
+test('a changed cosmetic picture replaces the cached copy in the background', async () => {
+  let body = 'old-skin-image';
+  const worker = loadWorker(async () => new Response(body));
+  await installWorker(worker);
+
+  const assetUrl = scope + 'assets/wacky-beak.png';
+  const request = { method: 'GET', mode: 'no-cors', url: assetUrl };
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'old-skin-image');
+
+  body = 'new-skin-image';
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'old-skin-image', 'the saved copy is served while the refresh runs');
+  assert.equal(await worker.entries.get(assetUrl).text(), 'new-skin-image', 'the background refresh should store the new picture');
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'new-skin-image', 'later requests get the updated picture');
 });
 
 test('the project root and index.html navigation fall back to the cached game page offline', async () => {
@@ -122,7 +141,7 @@ test('all newer optional skins are cached on demand', async () => {
     const request = { method: 'GET', mode: 'no-cors', url: scope + 'assets/' + file };
     assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
     assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
-    assert.equal(calls, 1);
+    assert.equal(calls, 2, 'first request caches the skin, second serves the cache and refreshes in the background');
   }
 });
 

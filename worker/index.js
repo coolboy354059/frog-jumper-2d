@@ -6,6 +6,9 @@ const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_PLAYERS = 10;
 const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
+const JOIN_RATE_WINDOW_MS = 60_000;
+const JOIN_RATE_MAX_PER_IP = 6;
+const MAX_PENDING_TICKETS_PER_IP = 3;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
 const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag","rainbow","popcorn","flowerpot","dinosaur","bee","king","baggy","kiera","teo","buff","steve"]);
@@ -88,10 +91,11 @@ export default {
       if (action === "join" && request.method === "POST") {
         const body = await readJsonObject(request);
         if (!body) return json({ error: "Send a JSON object to join a room." }, 400, headers);
+        const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("x-forwarded-for") || "unknown";
         const response = await room.fetch("https://room.internal/join", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...body, ip }),
         });
         const result = await response.json().catch(() => ({}));
         return json(result, response.status, headers);
@@ -153,12 +157,30 @@ export class FrogRoom {
       if (body.mode !== this.roomMode) {
         return json({ error: "This room is for " + this.roomMode + ". Choose the same game mode to join." }, 409);
       }
+      // Rate-limit joins per IP so one client cannot grab every reservation
+      // with fake tickets and block the whole room.
+      const ip = String(body.ip || "unknown").slice(0, 64);
+      const now = Date.now();
+      const logKey = "joinip:" + ip;
+      const recent = ((await this.ctx.storage.get(logKey)) || []).filter(t => now - t < JOIN_RATE_WINDOW_MS);
+      if (recent.length >= JOIN_RATE_MAX_PER_IP) {
+        return json({ error: "Too many join tries. Wait a minute and try again." }, 429);
+      }
+      recent.push(now);
+      await this.ctx.storage.put(logKey, recent);
+      let pendingForIp = 0;
+      for (const [, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
+        if (ticket && ticket.ip === ip && ticket.expiresAt > now) pendingForIp++;
+      }
+      if (pendingForIp >= MAX_PENDING_TICKETS_PER_IP) {
+        return json({ error: "Too many join tries. Wait a minute and try again." }, 429);
+      }
       if (await this.countReservations() >= MAX_PLAYERS) {
         return json({ error: "This room is full (10/10 players)." }, 409);
       }
       const token = crypto.randomUUID();
       await this.ctx.storage.put("ticket:" + token, {
-        name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat),
+        name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat), ip,
         createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
       });
       // Two joins at the same moment can both pass the first count, so count
@@ -280,6 +302,9 @@ export class FrogRoom {
     const now = Date.now();
     for (const [key, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
       if (!ticket || ticket.expiresAt <= now) await this.ctx.storage.delete(key);
+    }
+    for (const [key, log] of await this.ctx.storage.list({ prefix: "joinip:" })) {
+      if (!Array.isArray(log) || !log.some(t => now - t < JOIN_RATE_WINDOW_MS)) await this.ctx.storage.delete(key);
     }
     const active = this.ctx.getWebSockets().some(ws => ws.deserializeAttachment()?.joined);
     if (active) {

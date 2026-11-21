@@ -1,5 +1,5 @@
    /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */ 
-const CACHE_VERSION = 'frog-jumper-shell-v12';
+const CACHE_VERSION = 'frog-jumper-shell-v13';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
 const SCOPE_URL = new URL(self.registration.scope);
@@ -86,7 +86,18 @@ self.addEventListener('fetch', event => {
     try {
       cache = await caches.open(CACHE_NAME);
       const cached = await cache.match(cacheKey);
-      if (cached) return cached;
+      if (cached) {
+        // Cosmetic pictures refresh in the background (stale-while-revalidate)
+        // so a changed skin PNG updates without waiting for a version bump,
+        // while offline play still gets the saved copy right away.
+        if (OPTIONAL_ASSET_URLS.has(cacheKey)) {
+          const refresh = fetch(request).then(async response => {
+            if (response && response.ok) { try { await cache.put(cacheKey, response.clone()); } catch (_) {} }
+          }).catch(() => {});
+          if (typeof event.waitUntil === 'function') event.waitUntil(refresh);
+        }
+        return cached;
+      }
     } catch (_) {}
     try {
       const response = await fetch(request);

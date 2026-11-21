@@ -41,7 +41,7 @@ test('restarting discards the full reward value',()=>{
 test('completion waits for the pickup-time reward to save',async()=>{
   const code=part('async function completeLevel(){','function update(dt)');
   let resolve;const pending=new Promise(r=>resolve=r);let banked=0,screen='';
-  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing';
+  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Set();
     const bankWalletCoins=bank,clearInputs=()=>{},currentModeTotalLevels=()=>3,showOverlay=s=>{state=s;show(s)};
     ${code} return completeLevel;`)(n=>{banked=n;return pending},s=>screen=s);
   const completion=harness();assert.equal(banked,7);assert.equal(screen,'saving');
@@ -104,7 +104,7 @@ test('controller menu input starts Adventure and polling does not duplicate fram
 });
 test('multiplayer restarts use the same room seed',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
+  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,infiniteSaveWarned;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
     ${setup}setupInfiniteExplore();const first=infiniteWorld.seed;setupInfiniteExplore();return [first,infiniteWorld.seed];`)();
   assert.deepEqual(result,[parseInt('ABC123',36)>>>0,parseInt('ABC123',36)>>>0]);
@@ -199,7 +199,7 @@ test('infinite explore keeps unpaid coins and retries instead of losing them',as
   const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
   let attempts=0,paid=0;const alerts=[];
   const bank=async amount=>{attempts++;if(attempts===1)return false;paid+=amount;return true;};
-  const harness=Function('bank','alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false;
+  const harness=Function('bank','alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
     const window={alert:msg=>alerts.push(msg)};
     const bankWalletCoins=bank;
     ${code} return {bankInfiniteCoins,get pending(){return pendingInfiniteReward;}};`)(bank,alerts);
@@ -241,7 +241,7 @@ test('boss stages do not use Adventure lava or theme decorations',()=>{
 
 test('a fresh Infinite Explore run forgets unpaid coins from the last run',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,pendingInfiniteReward=9;
+  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,pendingInfiniteReward=9,infiniteSaveWarned=true;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
     ${setup}setupInfiniteExplore(123);return pendingInfiniteReward;`)();
   assert.equal(result,0);
@@ -270,4 +270,98 @@ test('menu frame loop runs and animates without a controller',()=>{
   assert.equal(result.scheduled,1,'menu should schedule frames with no gamepad');
   assert.ok(result.renders>=2,'menu should keep rendering');
   assert.ok(result.elapsed>0,'menu background time should advance so turkeys and clouds move');
+});
+
+test('every Adventure and Boss jump stays within the frog jump height',()=>{
+  const levels=Function('const TOTAL_LEVELS=105;'+part('const LEVELS = [','// A separate Boss Fight campaign')+';return LEVELS')();
+  assert.equal(levels.length,105);
+  for(const [i,lv] of levels.entries()){
+    for(let p=1;p<lv.platforms.length;p++){
+      const rise=lv.platforms[p-1][1]-lv.platforms[p][1];
+      assert.ok(rise<=120,`Adventure level ${i+1} platform ${p} rises ${rise}px, above the 120px cap`);
+    }
+  }
+  const bossPart=part('const BOSS_WORLD_TEMPLATES = [','let state =');
+  const bossLevels=Function('const BOSS_TOTAL_LEVELS=45;'+bossPart+';return BOSS_LEVELS')();
+  assert.equal(bossLevels.length,45);
+  for(const [i,lv] of bossLevels.entries()){
+    for(let p=1;p<lv.platforms.length;p++){
+      const rise=lv.platforms[p-1][1]-lv.platforms[p][1];
+      assert.ok(rise<=120,`Boss level ${i+1} platform ${p} rises ${rise}px, above the 120px cap`);
+    }
+  }
+});
+
+test('robot jump strength matches the frog and it cannot stay stuck',()=>{
+  assert.ok(html.includes('robot.vy=-655'),'robot should jump with the frog strength');
+  assert.ok(!html.includes('robot.vy=-680'),'robot must not out-jump the frog');
+  assert.ok(html.includes('(655+Math.sqrt(655*655'),'robot airtime math should use the frog jump strength');
+  assert.ok(html.includes('robot.falls>=3'),'robot should recover forward after repeated falls');
+});
+
+test('robot does not win a tie at the portal',()=>{
+  const code=part('function updateRobot(dt){','function bankInfiniteCoins()');
+  const run=Function('playerX',`let state='playing',levelIndex=0,screen='';
+    const H=600,W=960;
+    const platforms=[{id:0,x:0,y:515,w:250,prevY:515},{id:1,x:1700,y:500,w:400,prevY:500}];
+    const level={platforms:[[0,515,250],[1700,500,400]]};
+    const robot={x:1960,y:464,w:36,h:36,vx:0,vy:0,onGround:true,standingOn:platforms[1],targetIndex:2,falls:0,stumble:0};
+    const player={x:playerX,y:464,w:36,h:36};
+    const showOverlay=s=>{screen=s},clearInputs=()=>{};
+    ${code} updateRobot(1/120);return screen;`);
+  assert.equal(run(1954),'','frog at the portal too means the player wins the tie');
+  assert.equal(run(100),'robotWon','robot alone at the portal still wins');
+});
+
+test('restarting a finished level does not respawn its coins',()=>{
+  const code=part('function setupLevel(index) {','function startGame(');
+  const run=Function('banked',`let gameMode='level',infiniteWorld,levelIndex,level,elapsed,ticks,platforms,coins,enemies,particles,player,robot,boss,fireProjectiles,bossSpeedTimer,fireCooldown,bossPowerups,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
+    const COINS_PER_LEVEL=5,PLAYER_H=36;
+    const fake={platforms:[[0,515,250],[300,460,120],[500,400,120],[700,450,120],[900,380,120],[1100,430,120],[1300,370,120],[1500,430,120],[1700,500,400]],movers:[],enemies:[],bossLevel:false};
+    const currentModeLevels=()=>[fake],makePlayer=(x,y)=>({x,y,w:36,h:36,onGround:false,standingOn:null}),updateHUD=()=>{};
+    const bankedCoinLevels=new Set(banked?['level:0']:[]);
+    ${code} setupLevel(0);return coins.map(c=>c.taken);`);
+  assert.deepEqual(run(false),[false,false,false,false,false],'fresh level coins are collectible');
+  assert.deepEqual(run(true),[true,true,true,true,true],'banked level coins stay collected after restart');
+});
+
+test('infinite explore save warning shows at most once per run',async()=>{
+  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  const alerts=[];
+  const harness=Function('alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
+    const window={alert:msg=>alerts.push(msg)};
+    const bankWalletCoins=async()=>false;
+    ${code} return bankInfiniteCoins;`)(alerts);
+  for(let i=0;i<3;i++){harness();await new Promise(r=>setTimeout(r,0));}
+  assert.equal(alerts.length,1,'repeated save failures should warn only once');
+});
+
+test('boss tools do not cover the multiplayer room label',()=>{
+  const code=part('function drawMultiplayerHud(){','function requestJump()');
+  assert.ok(code.includes("(gameMode==='boss'&&state==='playing')?54:12"),'room label should drop below the boss tools in Boss Fight');
+});
+
+test('worker rate-limits room joins per IP',async()=>{
+  const deps=worker.slice(0,worker.indexOf('export default'));
+  const roomClass=worker.slice(worker.indexOf('export class FrogRoom')).replace('export class FrogRoom','class FrogRoom');
+  const FrogRoom=Function(deps+roomClass+';return FrogRoom')();
+  const store=new Map();
+  const ctx={
+    storage:{
+      async get(k){return store.get(k);},
+      async put(k,v){ if(typeof k==='object'){for(const [key,value] of Object.entries(k))store.set(key,value);} else store.set(k,v); },
+      async delete(k){store.delete(k);},
+      async list({prefix}){const out=new Map();for(const [k,v] of store)if(k.startsWith(prefix))out.set(k,v);return out;},
+      async setAlarm(){}
+    },
+    blockConcurrencyWhile(fn){return fn();},
+    getWebSockets(){return [];}
+  };
+  const room=new FrogRoom(ctx,{});
+  const req=(path,body)=>({url:'https://room.internal'+path,method:'POST',json:async()=>body,headers:{get:()=>null}});
+  assert.equal((await room.fetch(req('/create',{mode:'level'}))).status,200);
+  let lastStatus=0;
+  for(let i=0;i<7;i++) lastStatus=(await room.fetch(req('/join',{name:'Frog',mode:'level',ip:'1.2.3.4'}))).status;
+  assert.equal(lastStatus,429,'one IP hammering join should be rate-limited');
+  assert.equal((await room.fetch(req('/join',{name:'Frog',mode:'level',ip:'5.6.7.8'}))).status,200,'a different IP can still join');
 });
