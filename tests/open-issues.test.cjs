@@ -59,6 +59,18 @@ test('game and worker allow the same skins',()=>{
   const b=worker.match(/const ALLOWED_SKINS = new Set\((\[[^\]]+\])\)/);
   assert.ok(a&&b);assert.deepEqual(Function('return '+a[1])().sort(),Function('return '+b[1])().sort());
 });
+test('new embedded PNG skins are in the shop with valid sprite data',()=>{
+  for(const [id,price] of [['pirate',250],['superhero',300],['wizard',350],['astronaut',400]]){
+    assert.ok(html.includes(`{id:'${id}',kind:'skin'`),`${id} missing from shop items`);
+    assert.ok(html.includes(`id:'${id}',kind:'skin',name:`)&&html.includes(`price:${price}`),`${id} price changed`);
+    const m=html.match(new RegExp(`${id}:\\{image:new Image\\(\\),src:'data:image/png;base64,([A-Za-z0-9+/=]+)'\\}`));
+    assert.ok(m,`${id} embedded sprite missing`);
+    const buf=Buffer.from(m[1],'base64');
+    assert.equal(buf.slice(0,8).toString('hex'),'89504e470d0a1a0a',`${id} sprite is not a PNG`);
+    assert.ok(html.includes(`'${id}'`),`${id} missing from skin ids`);
+  }
+  assert.ok(html.includes('EMBEDDED_SKIN_IMAGES[equippedSkin]'));
+});
 test('clicking boss tools returns focus to the game for keyboard controls',()=>{
   const code=part('[[bossFireButton,shootFire]','function activateOverlayDialog');
   const result=Function(`let calls=0;const buttons=Array.from({length:3},()=>({addEventListener(_,fn){this.click=fn}}));
