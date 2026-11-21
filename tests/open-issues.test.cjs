@@ -108,3 +108,44 @@ test('multiplayer restarts use the same room seed',()=>{
     ${setup}setupInfiniteExplore();const first=infiniteWorld.seed;setupInfiniteExplore();return [first,infiniteWorld.seed];`)();
   assert.deepEqual(result,[parseInt('ABC123',36)>>>0,parseInt('ABC123',36)>>>0]);
 });
+
+test('math choices do not always make the answer second smallest',()=>{
+  const code=part('function makeMathQuestion(operation){','function clearMathQuiz()');
+  const make=Function(code+';return makeMathQuestion')();
+  const ranks=new Set();
+  for(let i=0;i<200;i++){
+    const q=make(['Addition','Subtraction','Multiplication','Division'][i%4]);
+    assert.equal(q.choices.length,4);
+    assert.equal(new Set(q.choices).size,4);
+    assert.ok(q.choices.includes(q.answer));
+    ranks.add([...q.choices].sort((a,b)=>a-b).indexOf(q.answer));
+  }
+  assert.ok(ranks.size>1,'answer rank should vary, got '+[...ranks].join(','));
+});
+
+test('worker JSON helper rejects null and other non-object bodies',async()=>{
+  const code=worker.slice(worker.indexOf('async function readJsonObject'),worker.indexOf('export default'));
+  const read=Function(code+';return readJsonObject')();
+  const req=value=>({json:async()=>value});
+  assert.equal(await read(req(null)),null);
+  assert.equal(await read(req([1,2])),null);
+  assert.equal(await read(req('x')),null);
+  assert.equal(await read(req(5)),null);
+  assert.deepEqual(await read(req({mode:'level'})),{mode:'level'});
+  assert.equal(await read({json:async()=>{throw new Error('bad')}}),null);
+});
+
+test('math victory text names Math Mode',()=>{
+  assert.ok(html.includes("gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels"));
+});
+
+test('old multiplayer socket messages are ignored',()=>{
+  const code=part("socket.addEventListener('message',event=>{","socket.addEventListener('close'");
+  assert.ok(code.includes('attemptId!==multiplayerAttemptId||multiplayerSocket!==socket'));
+});
+
+test('math quiz timer pauses while the tab is hidden',()=>{
+  const code=part('function beginMathQuiz(){','function showOverlay(kind,options={})');
+  assert.ok(code.includes('document.hidden'));
+  assert.ok(code.includes('quiz.deadline+=Date.now()-quiz.hiddenAt'));
+});

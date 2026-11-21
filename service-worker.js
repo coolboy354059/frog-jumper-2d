@@ -1,5 +1,5 @@
    /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */ 
-const CACHE_VERSION = 'frog-jumper-shell-v11';
+const CACHE_VERSION = 'frog-jumper-shell-v12';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
 const SCOPE_URL = new URL(self.registration.scope);
@@ -47,7 +47,7 @@ self.addEventListener('fetch', event => {
   // Handle the normal project root and direct game-page navigations alike.
   // A root navigation redirects online; offline, serve the cached game page.
   const isGameNavigation = request.mode === 'navigate' && (
-    ROOT_NAVIGATION_PATHS.has(url.pathname) || url.pathname.endsWith('/index-game.html')
+    ROOT_NAVIGATION_PATHS.has(url.pathname) || url.pathname === new URL(GAME_URL).pathname
   );
   if (isGameNavigation) {
     event.respondWith((async () => {

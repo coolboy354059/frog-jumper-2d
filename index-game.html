@@ -1048,7 +1048,10 @@
     else if(operation==='Division'){b=pick(2,12);answer=pick(2,12);a=answer*b;sign='÷';}
     else answer=a+b;
     const answers=new Set([answer]);
-    for(const offset of [1,-1,2])answers.add(answer+offset);
+    const offsets=[-10,-5,-4,-3,-2,-1,1,2,3,4,5,10];
+    for(let i=offsets.length-1;i>0;i--){const j=pick(0,i);[offsets[i],offsets[j]]=[offsets[j],offsets[i]];}
+    for(const offset of offsets){if(answers.size>=4)break;const value=answer+offset;if(value>0)answers.add(value);}
+    for(let extra=11;answers.size<4;extra++)answers.add(answer+extra);
     const choices=[...answers];
     for(let i=choices.length-1;i>0;i--){const j=pick(0,i);[choices[i],choices[j]]=[choices[j],choices[i]];}
     return {prompt:a+' '+sign+' '+b,answer,choices};
@@ -1068,10 +1071,12 @@
     const first=makeMathQuestion(mathOperation);
     let second=makeMathQuestion(mathOperation);
     while(second.prompt===first.prompt)second=makeMathQuestion(mathOperation);
-    const quiz={questions:[first,second],index:0,correct:0,deadline:Date.now()+40000,feedback:'',timer:null};
+    const quiz={questions:[first,second],index:0,correct:0,deadline:Date.now()+40000,feedback:'',timer:null,hiddenAt:null};
     mathQuiz=quiz;
     function tick(){
       if(quiz!==mathQuiz)return;
+      if(document.hidden){if(!quiz.hiddenAt)quiz.hiddenAt=Date.now();return;}
+      if(quiz.hiddenAt){quiz.deadline+=Date.now()-quiz.hiddenAt;quiz.hiddenAt=null;}
       const seconds=Math.ceil((quiz.deadline-Date.now())/1000);
       if(seconds<=0){quiz.feedback='Time is up.';finishMathQuiz(quiz);return;}
       const label=overlay.querySelector('[data-math-clock]');
@@ -1114,7 +1119,7 @@
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
       rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${totalCoins} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
@@ -1209,6 +1214,7 @@
       startGame(mode);
     });
     socket.addEventListener('message',event=>{
+      if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
       let message;try{message=JSON.parse(event.data);}catch(_){return;}
       if(message.type==='welcome'){
         multiplayerPlayerId=message.playerId;

@@ -143,3 +143,12 @@ test('navigation HTTP errors use saved game, or preserve the error if none is ca
   worker.entries.set(scope + 'index-game.html', new Response('saved game'));
   assert.equal(await (await dispatchFetch(worker, request)).text(), 'saved game');
 });
+
+test('unrelated missing pages ending in index-game.html are not served the game', async () => {
+  const worker = loadWorker(async () => { throw new Error('simulated offline network'); });
+  await installWorker(worker);
+  const gameUrl = new URL('index-game.html', scope).toString();
+  worker.entries.set(gameUrl, new Response('cached Frog Jumper game'));
+  const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url: scope + 'missing/index-game.html' });
+  assert.equal(response, null, 'the service worker should not handle unrelated missing pages');
+});

@@ -45,6 +45,10 @@ function makeCode() {
 function cleanName(value) {
   return String(value || "Frog").replace(/[<>\u0000-\u001f]/g, "").trim().slice(0, MAX_NAME_LENGTH) || "Frog";
 }
+async function readJsonObject(request) {
+  const body = await request.json().catch(() => null);
+  return body !== null && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
 
 export default {
   async fetch(request, env) {
@@ -57,7 +61,8 @@ export default {
     }
 
     if (url.pathname === "/api/rooms" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object with a game mode." }, 400, headers);
       const mode = ALLOWED_MODES.has(body.mode) ? body.mode : null;
       if (!mode) return json({ error: "Choose a valid game mode." }, 400, headers);
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -81,7 +86,8 @@ export default {
       const action = routeParts[4];
       const room = env.ROOMS.get(env.ROOMS.idFromName(code));
       if (action === "join" && request.method === "POST") {
-        const body = await request.json().catch(() => ({}));
+        const body = await readJsonObject(request);
+        if (!body) return json({ error: "Send a JSON object to join a room." }, 400, headers);
         const response = await room.fetch("https://room.internal/join", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -128,7 +134,8 @@ export class FrogRoom {
     const url = new URL(request.url);
     if (url.pathname === "/create" && request.method === "POST") {
       if (this.roomCreated) return json({ error: "Room code already exists." }, 409);
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object with a game mode." }, 400);
       if (!ALLOWED_MODES.has(body.mode)) return json({ error: "Invalid game mode." }, 400);
       this.roomCreated = true;
       this.roomMode = body.mode;
@@ -140,7 +147,8 @@ export class FrogRoom {
     if (!this.roomCreated) return json({ error: "Room not found. Check the code or create a new room." }, 404);
 
     if (url.pathname === "/join" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object to join a room." }, 400);
       const name = cleanName(body.name);
       if (body.mode !== this.roomMode) {
         return json({ error: "This room is for " + this.roomMode + ". Choose the same game mode to join." }, 409);
