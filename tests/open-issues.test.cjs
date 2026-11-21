@@ -222,3 +222,52 @@ test('coins save anyway in browsers without Web Locks',async()=>{
   assert.deepEqual(await run(true),[true,17],'no-lock save should bank the coins');
   assert.deepEqual(await run(false),[false,10],'failed storage write should restore the wallet');
 });
+
+test('enemy speed is capped below the frog top speed',()=>{
+  const m=html.match(/vx:\(idx%2\?1:-1\)\*(.+?),alive:true/);
+  assert.ok(m,'enemy speed expression should exist');
+  const speed=Function('idx','levelIndex','return Math.abs('+m[1]+')');
+  assert.equal(speed(0,0),100,'level 1 keeps the gentle starting speed');
+  assert.ok(speed(1,104)<=280,'late levels must not outrun the frog');
+  assert.ok(speed(0,104)<292,'enemies stay slower than the frog base speed');
+});
+
+test('boss stages do not use Adventure lava or theme decorations',()=>{
+  assert.ok(html.includes("const lava=gameMode!=='boss'&&level.themeIndex===3&&player.y+player.h>585;"));
+  assert.ok(html.includes("if(gameMode!=='boss'&&level.themeIndex===2){ // fireflies and moonlit glints"));
+  assert.ok(html.includes("if(gameMode!=='boss'&&level.themeIndex===3){for(let i=0;i<18;i++)"));
+  assert.ok(html.includes("else if(gameMode!=='boss'&&level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';"));
+});
+
+test('a fresh Infinite Explore run forgets unpaid coins from the last run',()=>{
+  const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
+  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,pendingInfiniteReward=9;
+    const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
+    ${setup}setupInfiniteExplore(123);return pendingInfiniteReward;`)();
+  assert.equal(result,0);
+});
+
+test('worker checks room capacity before eating a join ticket',()=>{
+  const connect=worker.slice(worker.indexOf('url.pathname === "/connect"'));
+  const fullCheck=connect.indexOf('if (active >= MAX_PLAYERS)');
+  const eatTicket=connect.indexOf('await this.ctx.storage.delete("ticket:" + token);',fullCheck);
+  assert.ok(fullCheck>=0&&eatTicket>fullCheck,'full-room check must run before the ticket is deleted');
+  assert.ok(connect.includes('await this.ctx.storage.put("ticket:" + token, ticket);'),'ticket is handed back if the room fills mid-connect');
+  const join=worker.slice(worker.indexOf('url.pathname === "/join"'),worker.indexOf('url.pathname === "/connect"'));
+  const put=join.indexOf('await this.ctx.storage.put("ticket:" + token');
+  const recount=join.indexOf('await this.countReservations() > MAX_PLAYERS');
+  assert.ok(put>=0&&recount>put,'join recounts after reserving so simultaneous joins cannot overfill');
+});
+
+test('menu frame loop runs and animates without a controller',()=>{
+  const ensure=part('function ensureFrameLoop(){','function hideOverlay()');
+  const frame=part('function frame(now){',"document.addEventListener('keydown'");
+  const result=Function(`let rafId=0,lastTime=0,state='menu',elapsed=0,accumulator=0,achievementNoticeTime=0,renders=0;
+    const document={hidden:false},overlay={hidden:false},FIXED_DT=1/60;
+    const pollGamepad=()=>{},update=()=>{},render=()=>{renders++};
+    const requestAnimationFrame=()=>1;
+    ${ensure}${frame}ensureFrameLoop();const scheduled=rafId;frame(1000);frame(1016);return {scheduled,renders,elapsed};`)();
+  assert.equal(result.scheduled,1,'menu should schedule frames with no gamepad');
+  assert.ok(result.renders>=2,'menu should keep rendering');
+  assert.ok(result.elapsed>0,'menu background time should advance so turkeys and clouds move');
+});

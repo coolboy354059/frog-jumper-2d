@@ -161,6 +161,12 @@ export class FrogRoom {
         name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat),
         createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
       });
+      // Two joins at the same moment can both pass the first count, so count
+      // again with this ticket included and give the spot back if it overfilled.
+      if (await this.countReservations() > MAX_PLAYERS) {
+        await this.ctx.storage.delete("ticket:" + token);
+        return json({ error: "This room is full (10/10 players)." }, 409);
+      }
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS });
     }
@@ -172,9 +178,15 @@ export class FrogRoom {
         if (ticket) await this.ctx.storage.delete("ticket:" + token);
         return json({ error: "Join ticket expired. Please join the room again." }, 401);
       }
-      await this.ctx.storage.delete("ticket:" + token);
       const active = this.ctx.getWebSockets().filter(ws => ws.deserializeAttachment()?.joined).length;
       if (active >= MAX_PLAYERS) return json({ error: "This room is full (10/10 players)." }, 409);
+      await this.ctx.storage.delete("ticket:" + token);
+      // If the room filled while the ticket was being used, hand the ticket
+      // back so the player can retry instead of joining all over again.
+      if (this.ctx.getWebSockets().filter(ws => ws.deserializeAttachment()?.joined).length >= MAX_PLAYERS) {
+        await this.ctx.storage.put("ticket:" + token, ticket);
+        return json({ error: "This room is full (10/10 players)." }, 409);
+      }
 
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);

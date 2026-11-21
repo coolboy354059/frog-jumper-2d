@@ -11,7 +11,7 @@ test('both physical keys must be released before horizontal movement stops',()=>
 });
 test('controller can start a game from the title screen after an idle frame',()=>{
  let pressed=false,started=false,next;
- const c={rafId:0,state:'menu',gamepadConnected:true,document:{hidden:false},gamepadInput:{},navigator:{getGamepads:()=>[{connected:true,buttons:Array.from({length:10},(_,i)=>({pressed:i===9&&pressed}))}]},previousGamepadJump:false,previousGamepadFire:false,previousGamepadMenu:false,syncHorizontalInput(){},requestAnimationFrame:f=>(next=f,1),lastTime:0,render(){},startGame:()=>{started=true}};
+ const c={rafId:0,state:'menu',elapsed:0,accumulator:0,achievementNoticeTime:0,FIXED_DT:1/60,update(){},gamepadConnected:true,document:{hidden:false},gamepadInput:{},navigator:{getGamepads:()=>[{connected:true,buttons:Array.from({length:10},(_,i)=>({pressed:i===9&&pressed}))}]},previousGamepadJump:false,previousGamepadFire:false,previousGamepadMenu:false,syncHorizontalInput(){},requestAnimationFrame:f=>(next=f,1),lastTime:0,render(){},startGame:()=>{started=true}};
  vm.runInNewContext(section('  function ensureFrameLoop','  function hideOverlay')+section('  function pollGamepad','  window.addEventListener(\'gamepadconnected')+section('  function frame(now)','  document.addEventListener(\'keydown')+';ensureFrameLoop()',c);
  next(1);pressed=true;next(17);assert.ok(started);
 });
