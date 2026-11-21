@@ -212,3 +212,13 @@ test('infinite explore keeps unpaid coins and retries instead of losing them',as
   assert.equal(harness.pending,0,'retry should clear the pending coins');
   assert.equal(paid,5,'coins should be paid exactly once');
 });
+
+test('coins save anyway in browsers without Web Locks',async()=>{
+  const code=part('async function bankWalletCoins(amount){','function updateBossCombat(dt)');
+  const run=Function('saveOk',`let walletCoins=10;
+    const navigator={};
+    const readStoredNumber=()=>10,saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
+    ${code} return bankWalletCoins(7).then(saved=>[saved,walletCoins]);`);
+  assert.deepEqual(await run(true),[true,17],'no-lock save should bank the coins');
+  assert.deepEqual(await run(false),[false,10],'failed storage write should restore the wallet');
+});

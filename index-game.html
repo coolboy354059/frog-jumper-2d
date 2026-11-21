@@ -1363,16 +1363,18 @@
 
   async function bankWalletCoins(amount){
     if(!Number.isSafeInteger(amount)||amount<=0)return true;
-    if(!navigator.locks||typeof navigator.locks.request!=='function')return false;
+    const deposit=()=>{
+      const previousWallet=walletCoins;
+      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
+      if(!saveWallet()){walletCoins=previousWallet;return false;}
+      syncShopFromStorage();
+      updateHUD();
+      return true;
+    };
+    // Save coins anyway in browsers without Web Locks so finishing a level cannot get stuck.
+    if(!navigator.locks||typeof navigator.locks.request!=='function')return deposit();
     try{
-      return await navigator.locks.request('frog-jumper-shop-economy',()=>{
-        const previousWallet=walletCoins;
-        walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
-        if(!saveWallet()){walletCoins=previousWallet;return false;}
-        syncShopFromStorage();
-        updateHUD();
-        return true;
-      });
+      return await navigator.locks.request('frog-jumper-shop-economy',deposit);
     }catch(_){return false;}
   }
 
