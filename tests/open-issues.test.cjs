@@ -152,7 +152,7 @@ test('math quiz timer pauses while the tab is hidden',()=>{
 
 test('skipping the final boss still wins and counts the skip',()=>{
   const code=part('function advanceModeLevel(){','[[bossFireButton');
-  const result=Function(`let gameMode='boss',state='playing',bossSkipsRemaining=1,bossStagesSkipped=0,levelIndex=44,screen='';
+  const result=Function(`let gameMode='boss',state='playing',bossSkipsRemaining=1,bossStagesSkipped=0,levelIndex=44,screen='',totalCoins=0,pendingLevelReward=0,coinsThisLevel=0;
     const currentModeTotalLevels=()=>45,showOverlay=s=>{screen=s},setupLevel=()=>{},hideOverlay=()=>{},clearInputs=()=>{},canvas={focus(){}};
     ${code} useBossSkip();return [screen,bossSkipsRemaining,bossStagesSkipped];`)();
   assert.deepEqual(result,['won',0,1]);
@@ -161,4 +161,12 @@ test('skipping the final boss still wins and counts the skip',()=>{
 test('boss victory text does not claim every boss was defeated after a skip',()=>{
   assert.ok(html.includes("bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped"));
   assert.ok(html.includes("bossStagesSkipped = 0;"));
+});
+
+test('skipping a boss stage loses the coins picked up on that stage',()=>{
+  const code=part('function advanceModeLevel(){','[[bossFireButton');
+  const result=Function(`let gameMode='boss',state='playing',bossSkipsRemaining=2,bossStagesSkipped=0,levelIndex=10,screen='',totalCoins=25,pendingLevelReward=7,coinsThisLevel=3,nextLevel=-1;
+    const currentModeTotalLevels=()=>45,showOverlay=s=>{screen=s},setupLevel=n=>{nextLevel=n},hideOverlay=()=>{},clearInputs=()=>{},canvas={focus(){}};
+    ${code} useBossSkip();return [screen,nextLevel,totalCoins,pendingLevelReward,coinsThisLevel,bossSkipsRemaining,bossStagesSkipped];`)();
+  assert.deepEqual(result,['',11,18,0,0,1,1]);
 });
