@@ -149,3 +149,16 @@ test('math quiz timer pauses while the tab is hidden',()=>{
   assert.ok(code.includes('document.hidden'));
   assert.ok(code.includes('quiz.deadline+=Date.now()-quiz.hiddenAt'));
 });
+
+test('skipping the final boss still wins and counts the skip',()=>{
+  const code=part('function advanceModeLevel(){','[[bossFireButton');
+  const result=Function(`let gameMode='boss',state='playing',bossSkipsRemaining=1,bossStagesSkipped=0,levelIndex=44,screen='';
+    const currentModeTotalLevels=()=>45,showOverlay=s=>{screen=s},setupLevel=()=>{},hideOverlay=()=>{},clearInputs=()=>{},canvas={focus(){}};
+    ${code} useBossSkip();return [screen,bossSkipsRemaining,bossStagesSkipped];`)();
+  assert.deepEqual(result,['won',0,1]);
+});
+
+test('boss victory text does not claim every boss was defeated after a skip',()=>{
+  assert.ok(html.includes("bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped"));
+  assert.ok(html.includes("bossStagesSkipped = 0;"));
+});

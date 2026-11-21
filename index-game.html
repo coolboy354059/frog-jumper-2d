@@ -466,6 +466,7 @@
   let fireProjectiles = [];
   let bossPowerups = {speed:true};
   let bossSkipsRemaining = 3;
+  let bossStagesSkipped = 0;
   let bossSpeedTimer = 0;
   let fireCooldown = 0;
   let previousGamepadFire = false;
@@ -777,6 +778,7 @@
   function startGame(mode='level'){
     gameMode = mode;
     bossSkipsRemaining = 3;
+    bossStagesSkipped = 0;
     if(mode==='infinite'&&new Date().getMonth()===9)awardAchievement('halloween_explorer');
     lives=mode==='infinite'?Infinity:MAX_LIVES;totalCoins=0;
     if (mode === 'infinite') setupInfiniteExplore(); else setupLevel(0);
@@ -1019,7 +1021,7 @@
   }
   function useBossSkip(){
     if(gameMode!=='boss'||state!=='playing'||bossSkipsRemaining<=0)return;
-    bossSkipsRemaining--;advanceModeLevel();
+    bossSkipsRemaining--;bossStagesSkipped++;advanceModeLevel();
   }
   [[bossFireButton,shootFire],[bossSpeedButton,useBossSpeed],[bossSkipButton,useBossSkip]].forEach(([button,action])=>{
     button.addEventListener('click',event=>{
@@ -1119,7 +1121,7 @@
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
       rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`:(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${totalCoins} coins. Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
