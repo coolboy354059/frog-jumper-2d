@@ -377,3 +377,12 @@ test('worker rate-limits room joins per IP',async()=>{
   assert.equal(lastStatus,429,'one IP hammering join should be rate-limited');
   assert.equal((await room.fetch(req('/join',{name:'Frog',mode:'level',ip:'5.6.7.8'}))).status,200,'a different IP can still join');
 });
+
+test('main menu links to the Frog Jumper podcast episode',()=>{
+  const code=part("if(kind==='menu'){","content.buttons.forEach");
+  assert.ok(code.includes("podcastLink.textContent='🎧 Listen to the Frog Jumper Podcast'"),'menu should show the podcast link label');
+  assert.ok(code.includes("podcastLink.href='https://muse.ai/podcasts/media/1505287765993747/4c9d8fe9-6e29-4117-bc54-151fcc0443bd/ep-f1d9446f-59dd-4331-a4e9-90703504de50.mp3'"),'podcast link should point to the published episode audio');
+  assert.ok(code.includes("podcastLink.target='_blank'"),'podcast link should open in a new tab');
+  assert.ok(code.includes("podcastLink.rel='noopener'"),'podcast link should use noopener');
+  assert.ok(code.includes('append(racingLink,podcastLink,adLink)'),'podcast link should be appended to the menu button row');
+});

@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-22 — Add a main-menu link to listen to the Frog Jumper podcast episode. -->
 <!-- CHANGE LOG: 2026-11-21 — Add Astronaut, Pirate, Wizard, and Superhero frog skins to the shop and player renderer with embedded PNG sprite data. -->
 <!-- CHANGE LOG: 2026-11-15 — Preserve held movement keys, poll the title-screen controller, and share Infinite Explore terrain by room. -->
 <!-- CHANGE LOG: 2026-11-13 — Add Poppy and US Flag PNG frog skins to the shop and player renderer. -->
@@ -1171,11 +1172,17 @@
       racingLink.className='action ghost';
       racingLink.href='https://coolboy354059.github.io/frog-racing/';
       racingLink.textContent='Play Frog Racing';
+      const podcastLink=document.createElement('a');
+      podcastLink.className='action ghost';
+      podcastLink.href='https://muse.ai/podcasts/media/1505287765993747/4c9d8fe9-6e29-4117-bc54-151fcc0443bd/ep-f1d9446f-59dd-4331-a4e9-90703504de50.mp3';
+      podcastLink.target='_blank';
+      podcastLink.rel='noopener';
+      podcastLink.textContent='🎧 Listen to the Frog Jumper Podcast';
       const adLink=document.createElement('a');
       adLink.className='action ghost';
       adLink.href='assets/frog-jumper-ad.mp4';
       adLink.textContent='Watch Frog Jumper Ad';
-      overlay.querySelector('.button-row').append(racingLink,adLink);
+      overlay.querySelector('.button-row').append(racingLink,podcastLink,adLink);
     }
     content.buttons.forEach((b,i)=>overlay.querySelector(`[data-action="${i}"]`).addEventListener('click',b[2]));
     activateOverlayDialog(overlay.querySelector('[data-action="0"]'));
