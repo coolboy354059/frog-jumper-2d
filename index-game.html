@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-23 — Add a BLACK FRIDAY 45% OFF banner at the top of the shop. -->
 <!-- CHANGE LOG: 2026-11-23 — Add Cloudflare visit counting and crash logging so visits are counted and game crashes are reported. -->
 <!-- CHANGE LOG: 2026-11-22 — Add Open Graph and Twitter card share meta tags so shared links show a frog picture and title. -->
 <!-- CHANGE LOG: 2026-11-22 — Black Friday sale: 45% off all shop skin and hat coin prices. -->
@@ -81,6 +82,7 @@
   .below{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:11px 2px 0;color:#c4ddd5;font-size:12px}.key{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-weight:900;color:#f5fff9}
   .shop-card{max-height:90%;overflow:auto}
   .wallet-line{font-size:18px!important;margin:8px 0 14px!important;color:#ffe28a!important}
+  .sale-banner{margin:8px auto 2px;padding:7px 16px;border-radius:999px;background:linear-gradient(180deg,#ffd65c,#ff9d3c);color:#3a1c00;font-weight:1000;letter-spacing:.06em;font-size:15px;display:inline-block}
   .shop-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:10px}
   .shop-item{min-width:0;padding:10px 7px;border:1px solid #ffffff22;border-radius:12px;background:#071d2766;display:flex;flex-direction:column;align-items:center;gap:7px}
   .shop-emoji{font-size:30px;line-height:1.2}
@@ -946,7 +948,7 @@
       {id:'astronaut',kind:'skin',name:'Astronaut Frog',price:220,emoji:'🚀',description:'A space frog in a rocket suit'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:275,emoji:'📺',description:'A tiny television for your frog'}
     ];
-    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
+    overlay.innerHTML=`<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🛍️</div><h2>FROGGY SHOP</h2><p class="sale-banner">BLACK FRIDAY 45% OFF</p><p class="wallet-line">🪙 <strong>${walletCoins.toLocaleString()}</strong> coins</p><div class="shop-grid">${items.map(item=>{
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
       const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
       const label=equipped?'UNEQUIP':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;

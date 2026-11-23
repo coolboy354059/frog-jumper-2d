@@ -459,3 +459,9 @@ test('worker /crash and /crashes routes work end to end',async()=>{
   const health=await __worker.fetch(new Request('https://worker.test/health',{headers:origin}),env);
   assert.equal((await health.json()).ok,true,'existing health route still works');
 });
+
+test('shop shows the Black Friday sale banner',()=>{
+  const code=part('function showShop(','overlay.querySelectorAll');
+  assert.ok(code.includes('<p class="sale-banner">BLACK FRIDAY 45% OFF</p>'),'shop should show the BLACK FRIDAY 45% OFF banner at the top');
+  assert.ok(html.includes('.sale-banner{'),'sale banner should have matching shop styling');
+});
