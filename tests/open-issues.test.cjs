@@ -392,3 +392,70 @@ test('main menu links to the Frog Jumper podcast episode',()=>{
   assert.ok(code.includes("podcastLink.rel='noopener'"),'podcast link should use noopener');
   assert.ok(code.includes('append(racingLink,podcastLink,adLink)'),'podcast link should be appended to the menu button row');
 });
+
+test('visit counting beacon is in both pages',()=>{
+  const index=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
+  const snippet=`<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"54a03ac0838849f48eea90b7916fb29a"}'></script>`;
+  assert.ok(index.includes(snippet),'index.html should include the Cloudflare visit counting beacon');
+  assert.ok(html.includes(snippet),'index-game.html should include the Cloudflare visit counting beacon');
+});
+
+test('crash reporter sends game errors to the worker',()=>{
+  assert.ok(html.includes("https://frog-jumper-multiplayer-runner.teodorc2000.workers.dev/crash"),'reporter should post crashes to the worker /crash route');
+  assert.ok(html.includes("addEventListener('error'"),'reporter should listen for page errors');
+  assert.ok(html.includes("addEventListener('unhandledrejection'"),'reporter should listen for unhandled promise rejections');
+});
+
+test('worker stores and lists crash reports',async()=>{
+  const deps=worker.slice(0,worker.indexOf('export default'));
+  const roomClass=worker.slice(worker.indexOf('export class FrogRoom')).replace('export class FrogRoom','class FrogRoom');
+  const FrogRoom=Function(deps+roomClass+';return FrogRoom')();
+  const store=new Map();
+  const ctx={
+    storage:{
+      async get(k){return store.get(k);},
+      async put(k,v){ if(typeof k==='object'){for(const [key,value] of Object.entries(k))store.set(key,value);} else store.set(k,v); },
+      async delete(k){store.delete(k);},
+      async list({prefix}){const out=new Map();for(const [k,v] of store)if(k.startsWith(prefix))out.set(k,v);return out;},
+      async setAlarm(){}
+    },
+    blockConcurrencyWhile(fn){return fn();},
+    getWebSockets(){return [];}
+  };
+  const room=new FrogRoom(ctx,{});
+  const post=(path,body)=>room.fetch({url:'https://room.internal'+path,method:'POST',json:async()=>body,headers:{get:()=>null}});
+  const get=path=>room.fetch({url:'https://room.internal'+path,method:'GET',json:async()=>null,headers:{get:()=>null}});
+  assert.deepEqual((await (await get('/crashes')).json()).crashes,[],'crash list starts empty');
+  assert.equal((await post('/crash',{message:'Boom',source:'index-game.html',line:12,col:3,stack:'Error: Boom',page:'index-game'})).status,201);
+  const listed=await (await get('/crashes')).json();
+  assert.equal(listed.crashes.length,1);
+  assert.equal(listed.crashes[0].message,'Boom');
+  assert.equal(listed.crashes[0].line,12);
+  assert.equal(listed.crashes[0].page,'index-game');
+  assert.equal((await post('/crash',null)).status,400,'a crash report without a JSON object is rejected');
+});
+
+test('worker /crash and /crashes routes work end to end',async()=>{
+  const deps=worker.slice(0,worker.indexOf('export default'));
+  const roomClass=worker.slice(worker.indexOf('export class FrogRoom')).replace('export class FrogRoom','class FrogRoom');
+  const def=worker.slice(worker.indexOf('export default'),worker.indexOf('export class FrogRoom')).replace('export default','const __worker =');
+  const {FrogRoom,__worker}=Function(deps+roomClass+def+';return {FrogRoom,__worker}')();
+  const rooms=new Map();
+  const env={ALLOWED_ORIGINS:'https://coolboy354059.github.io',ROOMS:{idFromName:n=>n,get(id){
+    if(!rooms.has(id)){
+      const store=new Map();
+      const ctx={storage:{async get(k){return store.get(k);},async put(k,v){if(typeof k==='object'){for(const [key,value] of Object.entries(k))store.set(key,value);}else store.set(k,v);},async delete(k){store.delete(k);},async list({prefix}){const out=new Map();for(const [k,v] of store)if(k.startsWith(prefix))out.set(k,v);return out;},async setAlarm(){}},blockConcurrencyWhile(fn){return fn();},getWebSockets(){return [];}};
+      rooms.set(id,new FrogRoom(ctx,env));
+    }
+    const room=rooms.get(id);
+    return {fetch:(u,init)=>room.fetch(new Request(u,init))};
+  }}};
+  const origin={origin:'https://coolboy354059.github.io'};
+  const post=await __worker.fetch(new Request('https://worker.test/crash',{method:'POST',headers:{...origin,'content-type':'application/json'},body:JSON.stringify({message:'Kaboom',page:'index-game'})}),env);
+  assert.equal(post.status,201);
+  const list=await __worker.fetch(new Request('https://worker.test/crashes',{headers:origin}),env);
+  assert.equal(list.status,200);
+  assert.equal((await list.json()).crashes[0].message,'Kaboom');
+  const health=await __worker.fetch(new Request('https://worker.test/health',{headers:origin}),env);
+  assert.equal((await health.json()).ok,true,'existing health route still works');
+});

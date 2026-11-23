@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-23 — Add Cloudflare visit counting and crash logging so visits are counted and game crashes are reported. -->
 <!-- CHANGE LOG: 2026-11-22 — Add Open Graph and Twitter card share meta tags so shared links show a frog picture and title. -->
 <!-- CHANGE LOG: 2026-11-22 — Black Friday sale: 45% off all shop skin and hat coin prices. -->
 <!-- CHANGE LOG: 2026-11-22 — Add a main-menu link to listen to the Frog Jumper podcast episode. -->
@@ -124,6 +125,33 @@
   button:focus-visible{outline:3px solid #fff;outline-offset:3px;box-shadow:0 0 0 6px #102b36}
   .bottom-bar.is-hidden:focus-within{opacity:1;transform:none;pointer-events:auto}
 </style>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token":"54a03ac0838849f48eea90b7916fb29a"}'></script>
+<script>
+/* Crash reporter: sends game error details (no personal info) to the multiplayer worker. */
+(() => {
+  try {
+    const CRASH_URL = 'https://frog-jumper-multiplayer-runner.teodorc2000.workers.dev/crash';
+    let sent = 0;
+    const report = (message, source, line, col, stack) => {
+      try {
+        if (sent >= 3) return;
+        sent++;
+        const body = JSON.stringify({
+          message: String(message || 'Unknown error').slice(0, 300),
+          source: String(source || '').slice(0, 200),
+          line: Number(line) || 0,
+          col: Number(col) || 0,
+          stack: String(stack || '').slice(0, 1000),
+          page: 'index-game'
+        });
+        fetch(CRASH_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: true }).catch(() => {});
+      } catch (_) {}
+    };
+    window.addEventListener('error', e => { report(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack); });
+    window.addEventListener('unhandledrejection', e => { const r = e.reason; report(r && (r.message || String(r)), '', 0, 0, r && r.stack); });
+  } catch (_) {}
+})();
+</script>
 <!-- CHANGE LOG: 2026-10-31 — Fix 7: Keep the robot still during its recovery stun and prevent it from jumping until full speed returns, avoiding repeated failed jumps on later levels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 8: Show the on-screen movement controls on touchscreen devices even when their viewport is wider than 620 pixels. -->
 <!-- CHANGE LOG: 2026-10-31 — Fix 9: Honor reduced-motion preferences for decorative canvas effects while keeping moving-platform gameplay intact. -->

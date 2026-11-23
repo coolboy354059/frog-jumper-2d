@@ -13,6 +13,24 @@ const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
 const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag","rainbow","popcorn","flowerpot","dinosaur","bee","king","baggy","kiera","teo","buff","steve","astronaut","pirate","wizard","superhero"]);
 const ALLOWED_HATS = new Set(["none","black","tv"]);
+const CRASH_LOG_NAME = "__crashlog__";
+const MAX_CRASHES = 100;
+const MAX_CRASH_MESSAGE = 300;
+const MAX_CRASH_SOURCE = 200;
+const MAX_CRASH_STACK = 1000;
+const CRASH_RATE_WINDOW_MS = 60_000;
+const CRASH_RATE_MAX = 20;
+function cleanCrash(body) {
+  const line = Number(body.line), col = Number(body.col);
+  return {
+    message: String(body.message || "Unknown error").slice(0, MAX_CRASH_MESSAGE),
+    source: String(body.source || "").slice(0, MAX_CRASH_SOURCE),
+    line: Number.isFinite(line) ? Math.max(0, Math.floor(line)) : 0,
+    col: Number.isFinite(col) ? Math.max(0, Math.floor(col)) : 0,
+    stack: String(body.stack || "").slice(0, MAX_CRASH_STACK),
+    page: body.page === "index" ? "index" : "index-game",
+  };
+}
 function cleanSkin(value) { return ALLOWED_SKINS.has(value) ? value : "red"; }
 function cleanHat(value) { return ALLOWED_HATS.has(value) ? value : "none"; }
 
@@ -61,6 +79,26 @@ export default {
     if (!allowedOrigin(request, env)) return json({ error: "This game origin is not allowed." }, 403, headers);
     if (url.pathname === "/health" && request.method === "GET") {
       return json({ ok: true, service: "frog-jumper-multiplayer", maxPlayers: MAX_PLAYERS }, 200, headers);
+    }
+
+    if (url.pathname === "/crash" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object describing the crash." }, 400, headers);
+      const log = env.ROOMS.get(env.ROOMS.idFromName(CRASH_LOG_NAME));
+      const response = await log.fetch("https://room.internal/crash", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(cleanCrash(body)),
+      });
+      const result = await response.json().catch(() => ({}));
+      return json(result, response.status, headers);
+    }
+
+    if (url.pathname === "/crashes" && request.method === "GET") {
+      const log = env.ROOMS.get(env.ROOMS.idFromName(CRASH_LOG_NAME));
+      const response = await log.fetch("https://room.internal/crashes");
+      const result = await response.json().catch(() => ({ crashes: [] }));
+      return json(result, response.status, headers);
     }
 
     if (url.pathname === "/api/rooms" && request.method === "POST") {
@@ -146,6 +184,26 @@ export class FrogRoom {
       await this.ctx.storage.put({ created: true, mode: body.mode });
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ ok: true, mode: body.mode });
+    }
+
+    // Crash log lives in its own singleton instance of this class, so it is
+    // handled before the room-created check below.
+    if (url.pathname === "/crash" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object describing the crash." }, 400);
+      const crashes = (await this.ctx.storage.get("crashes")) || [];
+      const now = Date.now();
+      if (crashes.filter(c => now - c.atMs < CRASH_RATE_WINDOW_MS).length >= CRASH_RATE_MAX) {
+        return json({ error: "Too many crash reports. Try again later." }, 429);
+      }
+      crashes.push({ at: new Date(now).toISOString(), atMs: now, ...cleanCrash(body) });
+      await this.ctx.storage.put("crashes", crashes.slice(-MAX_CRASHES));
+      return json({ ok: true }, 201);
+    }
+
+    if (url.pathname === "/crashes" && request.method === "GET") {
+      const crashes = (await this.ctx.storage.get("crashes")) || [];
+      return json({ crashes: [...crashes].reverse() });
     }
 
     if (!this.roomCreated) return json({ error: "Room not found. Check the code or create a new room." }, 404);
