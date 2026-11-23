@@ -60,7 +60,7 @@ test('game and worker allow the same skins',()=>{
   assert.ok(a&&b);assert.deepEqual(Function('return '+a[1])().sort(),Function('return '+b[1])().sort());
 });
 test('new embedded PNG skins are in the shop with valid sprite data',()=>{
-  for(const [id,price] of [['pirate',250],['superhero',300],['wizard',350],['astronaut',400]]){
+  for(const [id,price] of [['pirate',140],['superhero',165],['wizard',195],['astronaut',220]]){
     assert.ok(html.includes(`{id:'${id}',kind:'skin'`),`${id} missing from shop items`);
     assert.ok(html.includes(`id:'${id}',kind:'skin',name:`)&&html.includes(`price:${price}`),`${id} price changed`);
     const m=html.match(new RegExp(`${id}:\\{image:new Image\\(\\),src:'data:image/png;base64,([A-Za-z0-9+/=]+)'\\}`));
@@ -70,6 +70,12 @@ test('new embedded PNG skins are in the shop with valid sprite data',()=>{
     assert.ok(html.includes(`'${id}'`),`${id} missing from skin ids`);
   }
   assert.ok(html.includes('EMBEDDED_SKIN_IMAGES[equippedSkin]'));
+});
+test('Black Friday sale prices are 45% off every shop item',()=>{
+  const expected={black:35,ocean:85,jupiter:330,gold:165,ninja:360,car:440,dinosaur:165,bee:165,king:825,baggy:330,kiera:165,teo:165,buff:220,steve:165,rainbow:165,popcorn:165,flowerpot:165,spiky:145,longneck:175,glider:195,fishbone:160,bigeyes:165,mouse:145,bear:180,longbeak:165,bunny:195,boxbot:230,kitty:185,chick:165,alien:250,poppy:0,usflag:275,pirate:140,superhero:165,wizard:195,astronaut:220,tv:275};
+  const found={};
+  for(const m of html.matchAll(/\{id:'([a-z]+)',kind:'(?:skin|hat)',name:'[^']*',price:(\d+),emoji:/g))found[m[1]]=Number(m[2]);
+  assert.deepEqual(found,expected);
 });
 test('clicking boss tools returns focus to the game for keyboard controls',()=>{
   const code=part('[[bossFireButton,shootFire]','function activateOverlayDialog');
