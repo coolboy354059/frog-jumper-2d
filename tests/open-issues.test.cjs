@@ -41,7 +41,7 @@ test('restarting discards the full reward value',()=>{
 test('completion waits for the pickup-time reward to save',async()=>{
   const code=part('async function completeLevel(','function update(dt)');
   let resolve;const pending=new Promise(r=>resolve=r);let banked=0,screen='';
-  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Set();
+  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Map(),player={},coins=[{platformId:1,taken:true}];
     const bankWalletCoins=bank,clearInputs=()=>{},currentModeTotalLevels=()=>3,showOverlay=s=>{state=s;show(s)};
     ${code} return completeLevel;`)(n=>{banked=n;return pending},s=>screen=s);
   const completion=harness();assert.equal(banked,7);assert.equal(screen,'saving');
@@ -122,7 +122,7 @@ test('controller menu input starts Adventure and polling does not duplicate fram
 });
 test('multiplayer restarts use the same room seed',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,infiniteSaveWarned;
+  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',roomInfiniteProgress=null,infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,boss,fireProjectiles,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
     ${setup}setupInfiniteExplore();const first=infiniteWorld.seed;setupInfiniteExplore();return [first,infiniteWorld.seed];`)();
   assert.deepEqual(result,[parseInt('ABC123',36)>>>0,parseInt('ABC123',36)>>>0]);
@@ -220,13 +220,13 @@ test('controller D-pad and A button can select other menu modes',()=>{
 });
 
 test('infinite explore keeps unpaid coins and retries instead of losing them',async()=>{
-  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  const code=part('function bankInfiniteCoins(','async function bankWalletCoins');
   let attempts=0,paid=0;const alerts=[];
   const bank=async amount=>{attempts++;if(attempts===1)return false;paid+=amount;return true;};
-  const harness=Function('bank','alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
+  const harness=Function('bank','alerts',`const state='playing',rewards={pending:5,saving:false,warned:false},infiniteWorld={rewards};
     const window={alert:msg=>alerts.push(msg)};
     const bankWalletCoins=bank;
-    ${code} return {bankInfiniteCoins,get pending(){return pendingInfiniteReward;}};`)(bank,alerts);
+    ${code} return {bankInfiniteCoins:()=>bankInfiniteCoins(rewards),get pending(){return rewards.pending;}};`)(bank,alerts);
   harness.bankInfiniteCoins();
   await new Promise(r=>setTimeout(r,0));
   assert.equal(harness.pending,5,'failed save should keep the coins pending');
@@ -265,9 +265,9 @@ test('boss stages do not use Adventure lava or theme decorations',()=>{
 
 test('a fresh Infinite Explore run forgets unpaid coins from the last run',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,pendingInfiniteReward=9,infiniteSaveWarned=true;
+  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld={rewards:{pending:9,warned:true}},elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,boss,fireProjectiles,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
-    ${setup}setupInfiniteExplore(123);return pendingInfiniteReward;`)();
+    ${setup}setupInfiniteExplore(123);return infiniteWorld.rewards.pending;`)();
   assert.equal(result,0);
 });
 
@@ -324,7 +324,7 @@ test('robot jump strength matches the frog and it cannot stay stuck',()=>{
 });
 
 test('robot does not win a tie at the portal',()=>{
-  const code=part('function updateRobot(dt){','function bankInfiniteCoins()');
+  const code=part('function updateRobot(dt){','function bankInfiniteCoins(');
   const run=Function('playerX',`let state='playing',levelIndex=0,screen='';
     const H=600,W=960;
     const platforms=[{id:0,x:0,y:515,w:250,prevY:515},{id:1,x:1700,y:500,w:400,prevY:500}];
@@ -343,19 +343,20 @@ test('restarting a finished level does not respawn its coins',()=>{
     const COINS_PER_LEVEL=5,PLAYER_H=36;
     const fake={platforms:[[0,515,250],[300,460,120],[500,400,120],[700,450,120],[900,380,120],[1100,430,120],[1300,370,120],[1500,430,120],[1700,500,400]],movers:[],enemies:[],bossLevel:false};
     const currentModeLevels=()=>[fake],makePlayer=(x,y)=>({x,y,w:36,h:36,onGround:false,standingOn:null}),updateHUD=()=>{};
-    const bankedCoinLevels=new Set(banked?['level:0']:[]);
+    const bankedCoinLevels=new Map([['level:0',new Set(banked)]]);
     ${code} setupLevel(0);return coins.map(c=>c.taken);`);
-  assert.deepEqual(run(false),[false,false,false,false,false],'fresh level coins are collectible');
-  assert.deepEqual(run(true),[true,true,true,true,true],'banked level coins stay collected after restart');
+  assert.deepEqual(run([]),[false,false,false,false,false],'fresh level coins are collectible');
+  assert.deepEqual(run([1,2,3,4,5]),[true,true,true,true,true],'banked level coins stay collected after restart');
+  assert.deepEqual(run([2]),[false,true,false,false,false],'other pickups stay available after a partial clear');
 });
 
 test('infinite explore save warning shows at most once per run',async()=>{
-  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  const code=part('function bankInfiniteCoins(','async function bankWalletCoins');
   const alerts=[];
-  const harness=Function('alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
+  const harness=Function('alerts',`const state='playing',rewards={pending:5,saving:false,warned:false},infiniteWorld={rewards};
     const window={alert:msg=>alerts.push(msg)};
     const bankWalletCoins=async()=>false;
-    ${code} return bankInfiniteCoins;`)(alerts);
+    ${code} return ()=>bankInfiniteCoins(rewards);`)(alerts);
   for(let i=0;i<3;i++){harness();await new Promise(r=>setTimeout(r,0));}
   assert.equal(alerts.length,1,'repeated save failures should warn only once');
 });

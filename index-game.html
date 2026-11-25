@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Scope coin saves to the run that earned them and track banked pickups individually. -->
 <!-- CHANGE LOG: 2026-11-25 — Fix touch, keyboard and controller activation and return focus to gameplay after using tools. -->
 <!-- CHANGE LOG: 2026-11-25 — Require two distinct Math Mode answers, preserve quiz time across tab switches, and show the final answer. -->
 <!-- CHANGE LOG: 2026-11-23 — Add a BLACK FRIDAY 45% OFF banner at the top of the shop. -->
@@ -249,6 +250,7 @@
   let multiplayerMode = 'level';
   let multiplayerLastSent = 0;
   let multiplayerConnected = false;
+  let roomInfiniteProgress = null;
   const stage = document.getElementById('stage');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
@@ -540,12 +542,9 @@
   let totalCoins = 0;
   let coinsThisLevel = 0;
   let pendingLevelReward = 0;
-  let pendingInfiniteReward = 0;
-  let infiniteBankInFlight = false;
-  let infiniteSaveWarned = false;
   // Levels whose coins were already banked this run, so restarting a finished
   // level cannot respawn its coins for a second payout.
-  let bankedCoinLevels = new Set();
+  const bankedCoinLevels = new Map();
   let achievementStorageAvailable = true;
   let achievementData = loadAchievementData();
   let achievementNotice = '';
@@ -692,7 +691,8 @@
     return p;
   }
   function addInfiniteCoin(p, phase) {
-    coins.push({x:p.x+p.w*.5,y:p.y-47,baseY:p.y-47,platformId:null,platformRef:p,taken:false,phase});
+    const taken=infiniteWorld.rewards.claimed?.has(p.id)??false;
+    coins.push({x:p.x+p.w*.5,y:p.y-47,baseY:p.y-47,platformId:null,platformRef:p,taken,phase});
   }
   function addInfiniteEnemy(p, direction, phase) {
     const enemyWidth = 30;
@@ -785,23 +785,27 @@
   }
   function setupInfiniteExplore(seed) {
     // All six room-code characters fit exactly in a base-36 integer.
-    if(seed===undefined && multiplayerConnected && multiplayerRoomCode)
-      seed=parseInt(multiplayerRoomCode,36)>>>0;
+    const sharedSeed=seed===undefined&&multiplayerConnected&&multiplayerRoomCode;
+    if(sharedSeed)seed=parseInt(multiplayerRoomCode,36)>>>0;
+    const rewards=sharedSeed
+      ? (roomInfiniteProgress??={pending:0,saving:false,warned:false,claimed:new Set()})
+      : {pending:0,saving:false,warned:false,claimed:null};
     infiniteWorld = {
       seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
-      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0
+      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0,rewards
     };
     elapsed=0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
-    levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;
+    levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;boss=null;fireProjectiles=[];
     const start={id:0,x:0,baseY:515,y:515,w:260,h:20,prevY:515,moving:null};
     platforms.push(start);
     infiniteWorld.lastPlatform=start;
     player=makePlayer(54,start.y-PLAYER_H);
     player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
-    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;pendingInfiniteReward=0;infiniteSaveWarned=false;
+    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;
     maintainInfiniteWorld();
     updateHUD();
+    if(rewards.pending>0)bankInfiniteCoins(rewards);
   }
 
   function setupLevel(index) {
@@ -815,12 +819,11 @@
       if(p) p.moving={amp:m.amp,speed:m.speed,phase:m.phase};
     }
     coins = [];
-    // A level already finished this run keeps its coins collected, so pressing
-    // R on the Level Complete screen cannot farm the same coins again.
-    const coinsAlreadyBanked=bankedCoinLevels.has(gameMode+':'+index);
+    // Replays keep banked pickups collected and leave the other coins available.
+    const coinsAlreadyBanked=bankedCoinLevels.get(gameMode+':'+index);
     for (let i=1;i<=COINS_PER_LEVEL;i++) {
       const p = platforms[i];
-      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:coinsAlreadyBanked,phase:i*1.7});
+      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:coinsAlreadyBanked?.has(p.id)??false,phase:i*1.7});
     }
     enemies=[];
     for (const idx of level.enemies) {
@@ -858,7 +861,7 @@
   }
   function restartCurrentLevel(){
     if (gameMode === 'infinite') {
-      // A restarted run gets a fresh seed so immediately banked pickups cannot be farmed again.
+      // Solo restarts generate new terrain. Room restarts keep the shared terrain and claimed pickups.
       lives=Infinity;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
@@ -1204,7 +1207,7 @@
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
-      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel(options.mathFeedback)]]},
+      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Try again or finish the level without adding these coins to your wallet.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel(options.mathFeedback)],['CONTINUE WITHOUT SAVING','secondary',()=>{totalCoins=Math.max(0,totalCoins-pendingLevelReward);pendingLevelReward=0;finishLevel(options.mathFeedback);}],['MAIN MENU','ghost',returnToMenu]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.${pendingLevelReward>0?` You picked up ${pendingLevelReward} more on this level, but they were not saved because the level was not finished.`:''} Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
@@ -1285,6 +1288,7 @@
   }
   function cancelMultiplayerAttempt(){
     multiplayerAttemptId++;
+    roomInfiniteProgress=null;
     if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
     const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
@@ -1454,14 +1458,17 @@
     }
   }
 
-  function bankInfiniteCoins(){
-    if(infiniteBankInFlight||pendingInfiniteReward<=0)return;
-    infiniteBankInFlight=true;
-    const amount=pendingInfiniteReward;
+  function bankInfiniteCoins(rewards){
+    if(rewards.saving||rewards.pending<=0)return;
+    rewards.saving=true;
+    const amount=rewards.pending;
     bankWalletCoins(amount).then(saved=>{
-      infiniteBankInFlight=false;
-      if(saved){pendingInfiniteReward=Math.max(0,pendingInfiniteReward-amount);if(pendingInfiniteReward>0)bankInfiniteCoins();}
-      else if(!infiniteSaveWarned){infiniteSaveWarned=true;window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');}
+      rewards.saving=false;
+      if(saved){rewards.pending=Math.max(0,rewards.pending-amount);bankInfiniteCoins(rewards);}
+      else if(rewards===infiniteWorld?.rewards&&['playing','paused'].includes(state)&&!rewards.warned){
+        rewards.warned=true;
+        window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');
+      }
     });
   }
 
@@ -1513,16 +1520,20 @@
   }
 
   async function completeLevel(mathFeedback=''){
-    if(gameMode==='boss' && boss&&boss.alive)return;
+    if(state==='saving'||(gameMode==='boss'&&boss?.alive))return;
     clearInputs();
     if(gameMode!=='infinite'&&pendingLevelReward>0){
+      const finishingPlayer=player;
       showOverlay('saving');
       const saved=await bankWalletCoins(pendingLevelReward);
-      if(state!=='saving')return;
+      if(state!=='saving'||finishingPlayer!==player)return;
       if(!saved){showOverlay('rewardSaveFailed',{mathFeedback});return;}
-      bankedCoinLevels.add(gameMode+':'+levelIndex);
+      bankedCoinLevels.set(gameMode+':'+levelIndex,new Set(coins.filter(coin=>coin.taken).map(coin=>coin.platformId)));
       pendingLevelReward=0;
     }
+    finishLevel(mathFeedback);
+  }
+  function finishLevel(mathFeedback){
     showOverlay(levelIndex===currentModeTotalLevels()-1?'won':'levelComplete',{mathFeedback});
   }
   function update(dt){
@@ -1588,7 +1599,12 @@
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         if(gameMode!=='infinite')pendingLevelReward=Math.min(Number.MAX_SAFE_INTEGER,pendingLevelReward+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite'){pendingInfiniteReward=Math.min(Number.MAX_SAFE_INTEGER,pendingInfiniteReward+coinReward);bankInfiniteCoins();}
+        if(gameMode==='infinite'){
+          const rewards=infiniteWorld.rewards;
+          rewards.claimed?.add(c.platformRef.id);
+          rewards.pending=Math.min(Number.MAX_SAFE_INTEGER,rewards.pending+coinReward);
+          bankInfiniteCoins(rewards);
+        }
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }

@@ -155,3 +155,76 @@ test('controller A starts play without also jumping', () => {
     return [state,afterStart,jumps];`);
   assert.deepEqual(run(),['playing',0,1]);
 });
+
+test('an older level save cannot complete a newer run', async () => {
+  const completion=part('async function completeLevel(', 'function update(dt)');
+  const run=Function(`
+    let state='playing',gameMode='level',levelIndex=0,pendingLevelReward=1,player={};
+    const deposits=[],bankedCoinLevels=new Map(),coins=[{platformId:2,taken:true}];
+    const clearInputs=()=>{},currentModeTotalLevels=()=>105,showOverlay=value=>{state=value;};
+    const bankWalletCoins=amount=>new Promise(resolve=>deposits.push({amount,resolve}));
+    ${completion}
+    return {
+      completeLevel,deposits,
+      newRun(){player={};state='playing';pendingLevelReward=5;},
+      status(){return [state,pendingLevelReward,bankedCoinLevels.size];}
+    };`)();
+  const first=run.completeLevel();
+  run.newRun();
+  const second=run.completeLevel();
+  assert.deepEqual(run.deposits.map(deposit=>deposit.amount),[1,5]);
+  run.deposits[0].resolve(true);
+  await first;
+  assert.deepEqual(run.status(),['saving',5,0]);
+  run.deposits[1].resolve(false);
+  await second;
+  assert.deepEqual(run.status(),['rewardSaveFailed',5,0]);
+});
+
+test('Infinite Explore saves pickups from both runs without warning on the menu', async () => {
+  const banking=part('function bankInfiniteCoins(', 'async function bankWalletCoins');
+  const run=Function(`
+    let state='playing',infiniteWorld;
+    const deposits=[],alerts=[];
+    const window={alert:value=>alerts.push(value)};
+    const bankWalletCoins=amount=>new Promise(resolve=>deposits.push({amount,resolve}));
+    ${banking}
+    return {
+      deposits,alerts,
+      pickup(){const rewards={pending:1,saving:false,warned:false};infiniteWorld={rewards};bankInfiniteCoins(rewards);return rewards;},
+      leave(){state='menu';infiniteWorld=null;}
+    };`)();
+  const previous=run.pickup();
+  const current=run.pickup();
+  assert.deepEqual(run.deposits.map(deposit=>deposit.amount),[1,1]);
+  run.deposits[0].resolve(true);
+  await Promise.resolve();
+  assert.equal(previous.pending,0);
+  assert.equal(current.pending,1);
+  run.deposits[1].resolve(true);
+  await Promise.resolve();
+  assert.equal(current.pending,0);
+  run.pickup();
+  run.leave();
+  run.deposits[2].resolve(false);
+  await Promise.resolve();
+  assert.deepEqual(run.alerts,[]);
+});
+
+test('room restarts preserve claimed pickups and clear actors from other modes', () => {
+  const setup=part('function setupInfiniteExplore(seed)', 'function setupLevel(index)');
+  const spawnCoin=part('function addInfiniteCoin(', 'function addInfiniteEnemy(');
+  const run=Function(`
+    let multiplayerConnected=true,multiplayerRoomCode='ABC234',roomInfiniteProgress=null,infiniteWorld,elapsed,ticks,
+      platforms,coins,enemies,particles,levelIndex,level,robot,boss={alive:true},fireProjectiles=[{}],player,checkpoint,
+      cameraX,coinsThisLevel,pendingLevelReward;
+    const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),updateHUD=()=>{};
+    const maintainInfiniteWorld=()=>addInfiniteCoin({id:2,x:500,y:510,w:160},0);
+    ${spawnCoin}${setup}
+    setupInfiniteExplore();
+    const first=coins[0].taken;
+    infiniteWorld.rewards.claimed.add(2);
+    setupInfiniteExplore();
+    return [first,coins[0].taken,boss,fireProjectiles.length];`);
+  assert.deepEqual(run(),[false,true,null,0]);
+});

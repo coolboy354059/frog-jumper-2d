@@ -17,6 +17,6 @@ test('controller can start a game from the title screen after an idle frame',()=
  next(1);pressed=true;next(17);assert.ok(started);
 });
 test('room members and reconnecting players use the same terrain seed',()=>{
- function seed(room,now){const c={multiplayerConnected:!!room,multiplayerRoomCode:room,Date:{now:()=>now},Math:Object.assign(Object.create(Math),{random:()=>0}),WORLD_TEMPLATES:[{}],makePlayer:()=>({}),PLAYER_H:1,maintainInfiniteWorld(){},updateHUD(){}};vm.runInNewContext(section('  function setupInfiniteExplore','  function setupLevel')+';setupInfiniteExplore()',c);return c.infiniteWorld.seed;}
+ function seed(room,now){const c={multiplayerConnected:!!room,multiplayerRoomCode:room,roomInfiniteProgress:null,Date:{now:()=>now},Math:Object.assign(Object.create(Math),{random:()=>0}),WORLD_TEMPLATES:[{}],makePlayer:()=>({}),PLAYER_H:1,maintainInfiniteWorld(){},updateHUD(){}};vm.runInNewContext(section('  function setupInfiniteExplore','  function setupLevel')+';setupInfiniteExplore()',c);return c.infiniteWorld.seed;}
  assert.equal(seed('ABC234',1),seed('ABC234',2));assert.notEqual(seed('ABC234',1),seed('ABC235',1));assert.notEqual(seed('',1),seed('',2));
 });
