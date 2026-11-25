@@ -2,6 +2,8 @@
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const http = require('node:http');
@@ -55,6 +57,16 @@ after(async () => {
 async function stubExternal(target) {
   await target.route('https://static.cloudflareinsights.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
   await target.route('https://frog-jumper-multiplayer-runner.teodorc2000.workers.dev/crash', route => route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true}' }));
+}
+
+async function exposeGameForTest(context, members) {
+  const html=fs.readFileSync(path.join(__dirname,'..','index-game.html'),'utf8');
+  const start=/(  setupLevel\(0\);\r?\n  showOverlay\('menu'\);\r?\n  render\(\);)/;
+  assert.match(html,start);
+  await context.route('**/index-game.html',route=>route.fulfill({
+    contentType:'text/html',
+    body:html.replace(start,'  window.testGame={'+members+'};\n$1')
+  }));
 }
 
 async function freshPage() {
@@ -359,7 +371,7 @@ test('invalid and unsafe wallet values are safely handled', async () => {
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   await assertVisibleText(page,'FROGGY SHOP');
-  assert.match(await page.locator('.wallet-line').innerText(), /0 coins/);
+  assert.equal(await page.locator('.wallet-line strong').innerText(), '0');
   assert.deepEqual(errors, []);
   await page.close();
 });
@@ -396,7 +408,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','35'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','33'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
@@ -549,8 +561,13 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
 
 
 test('achievement progress is merged when two tabs collect coins at the same time', async () => {
-  const context=await browser.newContext({viewport:{width:1280,height:800}});
+  const context=await browser.newContext({viewport:{width:1280,height:800},serviceWorkers:'block'});
   await stubExternal(context);
+  await exposeGameForTest(context,`collectFirstCoin:()=>{
+    const coin=coins[0];
+    player.x=coin.x-player.w/2;player.y=coin.y-player.h/2;
+    update(FIXED_DT);
+  }`);
   const pageA=await context.newPage();
   const pageB=await context.newPage();
   const errors=[];
@@ -567,19 +584,11 @@ test('achievement progress is merged when two tabs collect coins at the same tim
   await pageA.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
   await pageB.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
 
-  async function collectFirstCoin(page){
-    await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(650);
-    await page.keyboard.up('ArrowRight');
-    await page.keyboard.down('Space');
-    await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(450);
-    await page.keyboard.up('ArrowRight');
-    await page.waitForTimeout(260);
-    await page.keyboard.up('Space');
-  }
-  await Promise.all([collectFirstCoin(pageA),collectFirstCoin(pageB)]);
-  await pageA.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
+  await Promise.all([pageA,pageB].map(page=>page.evaluate(()=>window.testGame.collectFirstCoin())));
+  await pageA.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000}).catch(async error=>{
+    const save=await pageA.evaluate(()=>localStorage.getItem('frogJumperAchievements'));
+    assert.fail(error.message+' '+JSON.stringify({errors,save}));
+  });
   await pageB.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
   const saved=await pageA.evaluate(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}'));
   assert.equal(saved.coinsCollected,2,'both tabs should retain their separate coin pickup progress');
@@ -701,12 +710,10 @@ test('browser without a 2D canvas context gets a helpful fallback instead of cra
 
 test('all game artwork files are served successfully', async () => {
   const {page}=await freshPage();
-  for (const asset of [
-    '/assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png',
-    '/assets/black-hat.png',
-    '/assets/tv-hat.png',
-    '/assets/wacky-beak.png'
-  ]) {
+  const files=fs.readdirSync(path.join(__dirname,'..','assets')).filter(file=>file.endsWith('.png'));
+  assert.ok(files.length>=7);
+  for (const file of files) {
+    const asset='/assets/'+encodeURIComponent(file);
     const response=await page.request.get(baseUrl+asset);
     assert.equal(response.status(),200,asset+' must load');
     assert.ok((await response.body()).length > 0,asset+' must not be empty');
@@ -778,7 +785,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await stubExternal(context);
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','200'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','198'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -787,9 +794,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('35 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line strong')?.textContent==='33');
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 35-coin balance');
+    'the second tab should see the remaining 33-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -801,7 +808,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 200 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 198 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
@@ -880,6 +887,7 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
   test('menu, shop, and boss buttons have comfortable tap targets at '+viewport.width,async()=>{
     const page=await browser.newPage({viewport});
     try {
+      await stubExternal(page);
       await page.goto(baseUrl,{waitUntil:'load'});
       const checkTargets=async(selector)=>{
         const sizes=await page.locator(selector).evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>({text:b.textContent.trim(),width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})));
@@ -908,4 +916,322 @@ test('bottom bar stays visible while a keyboard button has focus',async()=>{
     assert.equal(await page.locator('#bar-exit').evaluate(b=>b.matches(':focus-visible')),true);
     assert.equal(await page.locator('#bar-exit').evaluate(b=>getComputedStyle(b).outlineStyle),'solid');
   } finally { await page.close(); }
+});
+
+test('desktop and touch tablet controls fit below an undistorted centered canvas',async()=>{
+  for(const options of [{width:1366,height:768},{width:800,height:1200},{width:1024,height:1366,hasTouch:true}]){
+    const {width,height,hasTouch}=options;
+    const context=await browser.newContext({viewport:{width,height},hasTouch});
+    try{
+      await stubExternal(context);
+      const page=await context.newPage();
+      await page.goto(baseUrl);
+      await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+      const stage=await page.locator('#stage').boundingBox();
+      const canvas=await page.locator('#game').boundingBox();
+      const toolbar=await page.locator('#bottom-bar').boundingBox();
+      assert.ok(Math.abs(canvas.width/canvas.height-1.6)<0.01);
+      assert.ok(Math.abs(stage.height-canvas.height)<1);
+      assert.ok(toolbar.y+toolbar.height<=height);
+      assert.ok(Math.abs(stage.y-(height-toolbar.y-toolbar.height))<2);
+      assert.ok(await page.locator(hasTouch?'#jump-control':'#bar-fullscreen').isVisible());
+    }finally{await context.close();}
+  }
+});
+
+test('Boss Fight room code fits below wrapped tools on phones and small desktop windows',async()=>{
+  for (const [width,height] of [[390,844],[667,375],[844,390],[800,600],[320,568]]) {
+    const context=await browser.newContext({viewport:{width,height},hasTouch:true});
+    try{
+      await stubExternal(context);
+      await context.addInitScript(()=>{
+        window.WebSocket=class extends EventTarget{
+          static OPEN=1;
+          constructor(){super();this.readyState=0;setTimeout(()=>{this.readyState=1;this.dispatchEvent(new Event('open'));},10);}
+          send(){}
+        };
+      });
+      await context.route('**/api/rooms/ABC234/join',route=>route.fulfill({json:{token:'fixture'}}));
+      const page=await context.newPage();
+      await page.goto(baseUrl);
+      await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+      await page.locator('#mp-mode').selectOption('boss');
+      await page.locator('#mp-code').fill('ABC234');
+      await page.locator('#mp-join').click();
+      const room=page.locator('#room-hud');
+      await room.waitFor({state:'visible'});
+      assert.match(await room.textContent(),/ABC234/);
+      assert.equal(await room.evaluate(el=>getComputedStyle(el).userSelect),'text');
+      const label=await room.boundingBox();
+      const tools=await page.locator('#boss-tools').boundingBox();
+      assert.ok(label.y>=tools.y+tools.height,`${width}×${height}: room label should clear all tool rows`);
+    }finally{await context.close();}
+  }
+});
+
+test('queued duplicate Buy clicks equip once and a delayed purchase cannot reopen the shop',async()=>{
+  const {page}=await freshPage();
+  try{
+    await page.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','100'));
+    await page.reload({waitUntil:'load'});
+    await page.evaluate(()=>{
+      window.holdShopLock=()=>new Promise(ready=>{
+        navigator.locks.request('frog-jumper-shop-economy',()=>new Promise(release=>{
+          window.releaseShopLock=release;
+          ready();
+        }));
+      });
+    });
+    await page.getByRole('button',{name:'COIN SHOP'}).click();
+    await page.evaluate(async()=>{
+      await window.holdShopLock();
+      const buy=document.querySelector('[data-shop-item=black]');
+      buy.click();buy.click();
+      window.releaseShopLock();
+    });
+    await page.waitForFunction(()=>document.querySelector('[data-shop-item=black]').textContent==='UNEQUIP');
+    assert.equal(await page.locator('.wallet-line strong').innerText(),'67');
+    await page.evaluate(async()=>{
+      await window.holdShopLock();
+      document.querySelector('[data-shop-item=poppy]').click();
+      document.querySelector('#shop-back').click();
+      window.releaseShopLock();
+    });
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperShop'))?.equippedSkin==='poppy');
+    await assertVisibleText(page,'FROG JUMPER');
+  }finally{await page.close();}
+});
+
+test('using a shop item leaves the changed action focused and visible',async()=>{
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  try{
+    await stubExternal(context);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'COIN SHOP'}).click();
+    const poppy=page.locator('[data-shop-item=poppy]');
+    await poppy.click();
+    await page.waitForFunction(()=>document.querySelector('[data-shop-item=poppy]').textContent==='UNEQUIP');
+    assert.equal(await poppy.evaluate(button=>button===document.activeElement),true);
+    assert.match(await poppy.getAttribute('aria-label'),/Poppy Skin/);
+    const item=await poppy.boundingBox();
+    const card=await page.locator('.shop-card').boundingBox();
+    assert.ok(item.y>=card.y&&item.y+item.height<=card.y+card.height);
+  }finally{await context.close();}
+});
+
+test('wallet and achievements retain concurrent progress without Web Locks',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      Object.defineProperty(navigator,'locks',{value:undefined,configurable:true});
+    });
+    await exposeGameForTest(context,'bankWalletCoins,recordCoinAchievement');
+    const pages=[await context.newPage(),await context.newPage()];
+    await Promise.all(pages.map(page=>page.goto(baseUrl)));
+    await Promise.all(pages.map(page=>page.evaluate(async()=>{
+      const deposits=[];
+      for(let i=0;i<24;i++){
+        deposits.push(window.testGame.bankWalletCoins(1));
+        window.testGame.recordCoinAchievement();
+      }
+      if(!(await Promise.all(deposits)).every(Boolean))throw new Error('A deposit failed');
+    })));
+    await pages[0].waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements'))?.coinsCollected===48
+      &&localStorage.getItem('frogJumperWalletCoins')==='48',null,{timeout:5000}).catch(async error=>{
+      const saves=await Promise.all(pages.map(page=>page.evaluate(()=>({
+        achievements:localStorage.getItem('frogJumperAchievements'),wallet:localStorage.getItem('frogJumperWalletCoins')
+      }))));
+      assert.fail(error.message+' '+JSON.stringify(saves));
+    });
+    assert.equal(await pages[0].evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'48');
+  }finally{await context.close();}
+});
+
+test('a stalled room request times out, restores the form, and keeps a pasted room code intact',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      const request=window.fetch.bind(window);
+      window.fetch=(input,options)=>{
+        if(!String(input).includes('/api/rooms/ABC234/join'))return request(input,options);
+        return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>{
+          window.roomRequestAborted=true;
+          reject(options.signal.reason);
+        },{once:true}));
+      };
+    });
+    const page=await context.newPage();
+    await page.clock.install();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+    assert.equal(await page.locator('#mp-code').getAttribute('placeholder'),'ABC234');
+    await page.locator('#mp-code').fill(' ABC234 ');
+    assert.equal(await page.locator('#mp-code').inputValue(),'ABC234');
+    await page.locator('#mp-join').click();
+    for(const id of ['#mp-name','#mp-mode','#mp-code','#mp-create','#mp-join']){
+      assert.equal(await page.locator(id).isDisabled(),true);
+    }
+    await page.clock.fastForward(12001);
+    assert.match(await page.locator('#mp-status').textContent(),/timed out/i);
+    assert.equal(await page.evaluate(()=>window.roomRequestAborted),true);
+    assert.equal(await page.locator('#mp-join').isEnabled(),true);
+    assert.equal(await page.locator('#mp-mode').isEnabled(),true);
+    assert.equal(await page.locator('#room-hud').isVisible(),false);
+  }finally{await context.close();}
+});
+
+test('controller A edits and confirms the multiplayer mode without leaving the selector',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await exposeGameForTest(context,'pollGamepad');
+    await context.addInitScript(()=>{
+      const buttons=Array.from({length:16},()=>({pressed:false}));
+      navigator.getGamepads=()=>[{connected:true,axes:[0,0],buttons}];
+      window.pressPad=index=>{
+        buttons[index].pressed=true;window.testGame.pollGamepad();
+        buttons[index].pressed=false;window.testGame.pollGamepad();
+      };
+    });
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+    const press=index=>page.evaluate(button=>window.pressPad(button),index);
+    await press(13);
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'mp-mode');
+    await press(0);
+    assert.equal(await page.locator('#mp-mode-controller-hint').isVisible(),true);
+    for(const expected of ['race','boss','infinite','level','race']){
+      await press(13);
+      assert.equal(await page.locator('#mp-mode').inputValue(),expected);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'mp-mode');
+    }
+    await press(0);
+    assert.equal(await page.locator('#mp-mode-controller-hint').isVisible(),false);
+    await press(13);
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'mp-code');
+    assert.equal(await page.locator('#mp-mode').inputValue(),'race');
+  }finally{await context.close();}
+});
+
+test('holding Enter answers only one Math Mode question',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await exposeGameForTest(context,'beginMathQuiz');
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'MATH MODE'}).click();
+    await page.getByRole('button',{name:'Addition'}).click();
+    await page.evaluate(()=>window.testGame.beginMathQuiz());
+    const overlay=page.locator('#overlay');
+    assert.match(await overlay.innerText(),/Question 1 of 2/);
+    await page.keyboard.down('Enter');
+    assert.match(await overlay.innerText(),/Question 2 of 2/);
+    await page.keyboard.down('Enter');
+    assert.match(await overlay.innerText(),/Question 2 of 2/);
+    await page.keyboard.up('Enter');
+    await page.keyboard.press('Enter');
+    assert.match(await overlay.innerText(),/LEVEL 1 COMPLETE|TRY THE PORTAL AGAIN/);
+  }finally{await context.close();}
+});
+
+test('a focused touch Jump button works with Enter and click while secondary joystick input is ignored',async()=>{
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true,serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await exposeGameForTest(context,'readPlayer:()=>({x:player.x,jumped:player.jumpBuffer>0||player.y<479,right:input.right}),restartCurrentLevel');
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+    const stick=await page.locator('#move-stick').boundingBox();
+    await page.mouse.move(stick.x+stick.width-6,stick.y+stick.height/2);
+    await page.mouse.down({button:'right'});
+    assert.deepEqual(await page.evaluate(()=>window.testGame.readPlayer()),{x:54,jumped:false,right:false});
+    await page.mouse.up({button:'right'});
+    const jump=page.locator('#jump-control');
+    await jump.focus();
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(()=>window.testGame.readPlayer().jumped);
+    await page.evaluate(()=>window.testGame.restartCurrentLevel());
+    await jump.evaluate(button=>button.click());
+    await page.waitForFunction(()=>window.testGame.readPlayer().jumped);
+  }finally{await context.close();}
+});
+
+test('opening the game offline serves an equipped cosmetic that was never loaded during play',async()=>{
+  const context=await browser.newContext();
+  try{
+    await stubExternal(context);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
+    await page.evaluate(()=>localStorage.setItem('frogJumperShop',JSON.stringify({
+      ownedSkins:['red','poppy'],ownedHats:[],equippedSkin:'poppy',equippedHat:'none'
+    })));
+    await context.setOffline(true);
+    const cosmetic=page.waitForResponse(response=>response.url().endsWith('/assets/poppy-skin.png')&&response.fromServiceWorker());
+    await page.goto(baseUrl,{waitUntil:'domcontentloaded'});
+    await assertVisibleText(page,'FROG JUMPER');
+    const response=await cosmetic;
+    assert.equal(response.status(),200);
+    assert.equal((await response.body()).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  }finally{await context.close();}
+});
+
+test('clearing the wallet in another tab resets displayed and newly deposited coins',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await exposeGameForTest(context,'bankWalletCoins');
+    const a=await context.newPage();
+    await a.goto(baseUrl);
+    await a.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','80'));
+    const b=await context.newPage();
+    await b.goto(baseUrl);
+    await b.getByRole('button',{name:'COIN SHOP'}).click();
+    assert.equal(await b.locator('.wallet-line strong').innerText(),'80');
+    await a.evaluate(()=>localStorage.removeItem('frogJumperWalletCoins'));
+    await b.waitForFunction(()=>document.querySelector('.wallet-line strong').textContent==='0');
+    assert.equal(await b.evaluate(()=>window.testGame.bankWalletCoins(1)),true);
+    assert.equal(await b.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'1');
+  }finally{await context.close();}
+});
+
+test('a failed portal save lets the player continue without crediting unsaved coins',async()=>{
+  const context=await browser.newContext({hasTouch:true,viewport:{width:390,height:844},serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      const write=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(key,value){
+        if(key==='frogJumperWalletCoins')throw new Error('Wallet writes are blocked');
+        return write.call(this,key,value);
+      };
+    });
+    await exposeGameForTest(context,`reachPortal:()=>{
+      const coin=coins[0];
+      player.x=coin.x-player.w/2;player.y=coin.y-player.h/2;
+      update(FIXED_DT);
+      const end=platforms.at(-1);
+      player.x=end.x+end.w*.68-player.w/2;player.y=end.y-player.h;
+      return completeLevel();
+    },coins:()=>totalCoins`);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+    await page.evaluate(()=>window.testGame.reachPortal());
+    await assertVisibleText(page,'COINS NOT SAVED YET');
+    await page.getByRole('button',{name:'TRY SAVING AGAIN'}).click();
+    await assertVisibleText(page,'COINS NOT SAVED YET');
+    await page.getByRole('button',{name:'CONTINUE WITHOUT SAVING'}).click();
+    await assertVisibleText(page,'LEVEL 1 COMPLETE!');
+    assert.equal(await page.evaluate(()=>window.testGame.coins()),0);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),null);
+    await page.getByRole('button',{name:'NEXT LEVEL'}).click();
+    await assertHidden(page,'#overlay');
+  }finally{await context.close();}
 });

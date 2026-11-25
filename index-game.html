@@ -1,3 +1,13 @@
+<!-- CHANGE LOG: 2026-11-25 — Keep fallback progress records separate from native browser locks. -->
+<!-- CHANGE LOG: 2026-11-25 — Support multiple controllers, the multiplayer mode picker, and Boss Fight power-ups on a controller. -->
+<!-- CHANGE LOG: 2026-11-25 — Recover interrupted room joins and synchronize moving platforms, cosmetics, and final positions. -->
+<!-- CHANGE LOG: 2026-11-25 — Keep saved progress consistent between tabs and announce achievement unlocks accessibly. -->
+<!-- CHANGE LOG: 2026-11-25 — Recover purchases safely after storage errors, preserve shop focus, and apply the advertised sale prices. -->
+<!-- CHANGE LOG: 2026-11-25 — Fit the play area and controls to the viewport and keep room information and dialog focus accessible. -->
+<!-- CHANGE LOG: 2026-11-25 — Keep checkpoints safe, make platform landings and races consistent, and fix low-frame-rate play and rendering. -->
+<!-- CHANGE LOG: 2026-11-25 — Scope coin saves to the run that earned them and track banked pickups individually. -->
+<!-- CHANGE LOG: 2026-11-25 — Fix touch, keyboard and controller activation and return focus to gameplay after using tools. -->
+<!-- CHANGE LOG: 2026-11-25 — Require two distinct Math Mode answers, preserve quiz time across tab switches, and show the final answer. -->
 <!-- CHANGE LOG: 2026-11-23 — Add a BLACK FRIDAY 45% OFF banner at the top of the shop. -->
 <!-- CHANGE LOG: 2026-11-23 — Add Cloudflare visit counting and crash logging so visits are counted and game crashes are reported. -->
 <!-- CHANGE LOG: 2026-11-22 — Add Open Graph and Twitter card share meta tags so shared links show a frog picture and title. -->
@@ -62,15 +72,17 @@
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
-  .app{width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
+  .app{--frame:12px;--padding:10px;--bar-height:76px;--app-top:max(var(--padding),env(safe-area-inset-top));--app-bottom:max(var(--padding),env(safe-area-inset-bottom));--stage-height:calc(100dvh - 2 * var(--frame) - var(--app-top) - var(--app-bottom) - var(--bar-height) - 10px);width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:var(--app-top) max(var(--padding),env(safe-area-inset-right)) var(--app-bottom) max(var(--padding),env(safe-area-inset-left));border:var(--frame) solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
   body{padding:0}
   header{display:none}
   .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
-  .cabinet{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;display:flex;flex:1;min-height:0;flex-direction:column}
+  .cabinet{display:flex;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:center}
   .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b2d2c6;margin-bottom:4px;font-weight:800}.stat strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.progress-outer{margin-top:7px;width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#d9ff7d,#7ae38f);border-radius:999px;box-shadow:0 0 16px rgba(201,255,103,.5)}.best-run{margin-top:4px;font-size:11px;color:#a9c8bb}
-  .stage{position:relative;width:100%;flex:1;min-height:240px;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}.stage canvas{display:block;width:100%;height:100%;min-height:240px;aspect-ratio:16/10;object-fit:fill;background:#88dfff}
+  .stage,.bottom-bar{width:min(100%,calc(max(140px,var(--stage-height)) * 1.6))}
+  .stage{position:relative;flex:none;aspect-ratio:16/10;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}
+  .stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%;background:#88dfff}
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
   @media(max-height:520px){.overlay{align-items:center;overflow-y:auto}.overlay-card{margin:auto}}
   .overlay-card{max-width:440px;width:min(90%,420px);margin:auto;padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
@@ -91,7 +103,7 @@
   .shop-item .action{font-size:9px;padding:9px 7px;width:100%;letter-spacing:.02em}
   .shop-item .action:disabled{opacity:.5;cursor:not-allowed}
   @media(max-width:520px){.shop-grid{grid-template-columns:1fr}.shop-item{display:grid;grid-template-columns:40px 1fr;align-items:center;text-align:left}.shop-emoji{grid-row:span 2}.shop-item small{min-height:0}.shop-item .action{grid-column:2}}
-  .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
+  .bottom-bar{flex:0 0 var(--bar-height);margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
   .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
   .bar-fullscreen,.bar-exit{height:48px;flex:0 0 48px;border:0;border-radius:5px;background:transparent;color:#ed171f;cursor:pointer;display:grid;place-items:center;padding:0}
   .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px}
@@ -103,20 +115,19 @@
   .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
   .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
   .control.pause{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(180deg,#e7f2f7,#afc7d1);color:#163746;font-size:19px}
-  .boss-tools{position:absolute;top:10px;right:10px;z-index:4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:calc(100% - 20px)}
+  .stage-hud{position:absolute;top:10px;inset-inline:10px;z-index:4;display:grid;justify-items:end;gap:6px;pointer-events:none}
+  .boss-tools{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;pointer-events:auto}
   .boss-tools[hidden]{display:none}
+  .room-hud{border:1px solid #d5ff7d;border-radius:9px;background:#102b36ef;color:#f4ffd9;padding:6px 10px;font:700 12px system-ui;pointer-events:auto;user-select:text}
+  .room-hud[hidden]{display:none}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .boss-tool{border:1px solid #ffffff70;border-radius:999px;padding:9px 12px;background:#243b62;color:#fff;font-size:11px;font-weight:900;letter-spacing:.03em;box-shadow:0 4px 14px #0005;cursor:pointer}
   .boss-tool.fire{background:linear-gradient(180deg,#ffd079,#ef6841);color:#54200b}
   .boss-tool:disabled{opacity:.45;cursor:not-allowed}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
-  @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.cabinet{justify-content:center}.stage{width:100%;max-width:calc((100dvh - 190px)*1.6);align-self:center}.bottom-bar{width:100%;height:82px;min-height:82px;padding:7px;justify-content:center}.controls{flex:0 1 auto;justify-content:center;gap:clamp(28px,12vw,72px)}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
-  @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
-  html.touch-device .controls{display:flex}
-  html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}
-  html.touch-device .stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}
-  html.touch-device .stage canvas{min-height:0}
-  @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
-  @media(orientation:landscape) and (max-height:520px){html.touch-device .stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}html.touch-device .bottom-bar{flex:0 0 82px}}
+  @media(max-width:620px){.app{--padding:7px;--frame:8px;--bar-height:82px;border-radius:14px}.bottom-bar{padding:7px;gap:8px;justify-content:center}.controls{justify-content:center;gap:clamp(6px,4vw,28px)}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
+  html.touch-device .controls{display:flex;justify-content:center}
+  @media (pointer:coarse),(pointer:none){html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 
@@ -214,12 +225,15 @@
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
       <canvas id="game" width="960" height="600" tabindex="0" role="img" aria-label="Frog Jumper platform game. Use arrow keys to move and space to jump."></canvas>
-      <div class="boss-tools" id="boss-tools" hidden aria-label="Boss Fight tools">
-        <button type="button" class="boss-tool fire" id="boss-fire" title="Fire (F or controller X)">🔥 FIRE</button>
-        <button type="button" class="boss-tool" id="boss-speed" title="Go Faster power-up">⚡ GO FASTER</button>
-        <button type="button" class="boss-tool" id="boss-skip" title="Skip This Level power-up">⏭ SKIP LEVEL</button>
+      <div class="stage-hud">
+        <div class="boss-tools" id="boss-tools" hidden aria-label="Boss Fight tools">
+          <button type="button" class="boss-tool fire" id="boss-fire" title="Fire (F or controller X)">🔥 FIRE</button>
+          <button type="button" class="boss-tool" id="boss-speed" title="Go Faster power-up">⚡ GO FASTER</button>
+          <button type="button" class="boss-tool" id="boss-skip" title="Skip This Level power-up">⏭ SKIP LEVEL</button>
+        </div>
+        <div class="room-hud" id="room-hud" hidden></div>
       </div>
-      <div class="overlay" id="overlay"></div>
+      <div class="overlay" id="overlay" tabindex="-1"></div>
     </div>
     <div class="bottom-bar" id="bottom-bar">
       <button type="button" class="bar-fullscreen" id="bar-fullscreen" aria-label="Toggle fullscreen"><span class="bar-square" aria-hidden="true"></span></button>
@@ -230,6 +244,7 @@
         <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
       </div>
     </div>
+    <div class="sr-only" id="achievement-announcement" role="status"></div>
   </main>
 </div>
 <script>
@@ -242,12 +257,16 @@
   let multiplayerRoomCode = '';
   let multiplayerAttemptId = 0;
   let multiplayerRequestController = null;
+  let multiplayerRequestTimer = 0;
   let multiplayerPlayerId = '';
   let multiplayerPlayers = new Map();
-  let multiplayerMode = 'level';
-  let multiplayerLastSent = 0;
+  let multiplayerLastSent = -Infinity;
+  let multiplayerLastPosition = '';
+  let multiplayerClock = null;
   let multiplayerConnected = false;
+  let roomInfiniteProgress = null;
   const stage = document.getElementById('stage');
+  const roomHud = document.getElementById('room-hud');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     overlay.hidden = false;
@@ -257,14 +276,22 @@
   }
   const W = canvas.width, H = canvas.height;
 
-  overlay.addEventListener('keydown',e=>{
-    if(e.key!=='Tab'||overlay.hidden)return;
-    const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])'))
+  function overlayControls(){
+    return Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])'))
       .filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
+  }
+  document.addEventListener('focusin',e=>{
+    if(!overlay.hidden&&overlay.hasAttribute('aria-modal')&&!overlay.contains(e.target)){
+      (overlayControls()[0]||overlay).focus({preventScroll:true});
+    }
+  });
+  document.addEventListener('keydown',function trapOverlayFocus(e){
+    if(e.key!=='Tab'||overlay.hidden||!overlay.hasAttribute('aria-modal'))return;
+    const focusable=overlayControls();
     if(!focusable.length){e.preventDefault();return;}
     const first=focusable[0],last=focusable[focusable.length-1];
-    if(e.shiftKey&&(document.activeElement===first||!overlay.contains(document.activeElement))){e.preventDefault();last.focus();}
-    else if(!e.shiftKey&&(document.activeElement===last||!overlay.contains(document.activeElement))){e.preventDefault();first.focus();}
+    if(e.shiftKey&&(document.activeElement===first||!focusable.includes(document.activeElement))){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&(document.activeElement===last||!focusable.includes(document.activeElement))){e.preventDefault();first.focus();}
   });
   // Cosmetic PNGs load only when their matching item is equipped.
   const jupiterSkinImage = new Image();
@@ -298,9 +325,10 @@
   // Build transparent PNG name sprites once, without external artwork.
   const nameSkinImages = {};
   function getNameSkinImage(name) {
-    if (nameSkinImages[name]) return nameSkinImages[name];
+    if (Object.hasOwn(nameSkinImages,name)) return nameSkinImages[name];
     const c=document.createElement('canvas');c.width=320;c.height=120;
     const g=c.getContext('2d');const label=name==='kiera'?'KIERA':'TEO';
+    if(!g){nameSkinImages[name]=null;return null;}
     g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
     g.font='900 '+(name==='kiera'?70:96)+'px system-ui, sans-serif';
     g.lineWidth=14;g.strokeStyle=name==='kiera'?'#8b2674':'#a21d28';g.strokeText(label,160,60,290);
@@ -319,7 +347,7 @@
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
-    const syncMotionPreference = () => { reduceMotion = motionPreference.matches; };
+    const syncMotionPreference = () => { reduceMotion = motionPreference.matches; if(reduceMotion)particles=[]; };
     if (motionPreference.addEventListener) motionPreference.addEventListener('change', syncMotionPreference);
     else if (motionPreference.addListener) motionPreference.addListener(syncMotionPreference);
   }
@@ -528,6 +556,8 @@
   let bossSpeedTimer = 0;
   let fireCooldown = 0;
   let previousGamepadFire = false;
+  let previousGamepadPowerups = 0;
+  let editingRoomModeWithController = false;
   let levelIndex = 0;
   let level = LEVELS[0];
   let platforms = [];
@@ -538,14 +568,12 @@
   let totalCoins = 0;
   let coinsThisLevel = 0;
   let pendingLevelReward = 0;
-  let pendingInfiniteReward = 0;
-  let infiniteBankInFlight = false;
-  let infiniteSaveWarned = false;
   // Levels whose coins were already banked this run, so restarting a finished
   // level cannot respawn its coins for a second payout.
-  let bankedCoinLevels = new Set();
-  let achievementStorageAvailable = true;
+  const bankedCoinLevels = new Map();
   let achievementData = loadAchievementData();
+  const pendingAchievementChanges=[];
+  let progressDatabase;
   let achievementNotice = '';
   let achievementNoticeTime = 0;
   const ACHIEVEMENTS = [
@@ -559,17 +587,19 @@
   let shopData = loadShopData();
   let equippedSkin = shopData.equippedSkin;
   let equippedHat = shopData.equippedHat;
+  const pendingShopActions = new Set();
   let lives = 25;
   let ticks = 0;
   let elapsed = 0;
   let lastTime = 0;
   let accumulator = 0;
   let rafId = 0;
+  let lastRenderedState;
   let checkpoint = {x:40,y:479};
   let infiniteWorld = null;
   let particles = [];
   const input = {left:false,right:false,jumpBuffer:0};
-  const heldMovementKeys = new Set();
+  const heldMovementKeys = new Map();
   const keyboardInput = {left:false,right:false};
   const joystickInput = {left:false,right:false};
   const gamepadInput = {left:false,right:false};
@@ -577,59 +607,86 @@
   let previousGamepadMenu=false;
   let previousGamepadNavNext=false;
   let previousGamepadNavPrev=false;
-  let gamepadConnected=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
   function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:TOTAL_LEVELS;}
   function currentModeLevels(){return gameMode==='boss'?BOSS_LEVELS:LEVELS;}
   function currentModeTotalCoins(){return currentModeTotalLevels()*COINS_PER_LEVEL;}
 
-  function loadAchievementData(){
+  function withProgressLock(name,operation){
+    if(typeof navigator.locks?.request==='function')return navigator.locks.request(name,()=>operation());
+    if(!window.indexedDB)return Promise.resolve(operation());
+    // Keep the authoritative counters in the transaction on browsers without
+    // Web Locks. Their localStorage views can lag behind a write from another tab.
+    progressDatabase??=new Promise((resolve,reject)=>{
+      const request=window.indexedDB.open('frog-jumper-progress',1);
+      request.onupgradeneeded=()=>request.result.createObjectStore('locks');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+      request.onblocked=()=>reject(new Error('Progress database is busy'));
+    });
+    return progressDatabase.then(database=>new Promise((resolve,reject)=>{
+      const transaction=database.transaction('locks','readwrite');
+      const records=transaction.objectStore('locks');
+      const request=records.get(name);
+      let result;
+      request.onsuccess=()=>{
+        const record={value:request.result,write:value=>records.put(value,name),clear:()=>records.delete(name)};
+        try{result=operation(record);}catch(error){transaction.abort();reject(error);}
+      };
+      transaction.oncomplete=()=>resolve(result);
+      transaction.onabort=()=>reject(transaction.error);
+    }),()=>operation());
+  }
+
+  function loadAchievementData(strict=false,savedValue){
     const defaults={earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]};
+    let raw;
+    try{raw=savedValue??window.localStorage.getItem('frogJumperAchievements');}catch(_){return strict?null:defaults;}
     try{
-      const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
+      const saved=JSON.parse(raw||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      const visitedPlatforms=Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[];
       return {
         earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
-        platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
-        visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
+        platformsLanded:Math.max(visitedPlatforms.length,Number.isSafeInteger(saved.platformsLanded)?saved.platformsLanded:0),
+        visitedPlatforms
       };
-    }catch(_){achievementStorageAvailable=false;return defaults;}
+    }catch(_){return defaults;}
   }
-  function saveAchievementData(){
-    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){achievementStorageAvailable=false;}
+  function saveAchievementData(record){
+    const serialized=JSON.stringify(achievementData);
+    try{window.localStorage.setItem('frogJumperAchievements',serialized);}catch(_){if(!record)return false;}
+    record?.write(serialized);
+    return true;
   }
   function updateAchievementData(mutator){
-    const persistUpdate=()=>{
-      // Always merge into the latest saved snapshot while holding the shared lock.
-      // This prevents a second tab from saving an older in-memory copy over new progress.
-      const latest=achievementStorageAvailable?loadAchievementData():achievementData;
-      const data=achievementStorageAvailable?latest:achievementData;
-      const previouslyEarned=new Set(data.earned);
-      const changed=mutator(data);
-      achievementData=data;
-      if(!changed)return;
-      saveAchievementData();
-      const newlyUnlocked=ACHIEVEMENTS.find(item=>!previouslyEarned.has(item.id)&&data.earned.includes(item.id));
-      if(newlyUnlocked){
-        achievementNotice=newlyUnlocked.emoji+' '+newlyUnlocked.name+' unlocked!';
-        achievementNoticeTime=3.2;
+    pendingAchievementChanges.push({mutator,shown:false});
+    const persistUpdate=(allowSave,record)=>{
+      const latest=allowSave?loadAchievementData(!record,record?.value):null;
+      const data=latest||achievementData;
+      const previouslyEarned=new Set(achievementData.earned);
+      let changed=false;
+      for(const change of pendingAchievementChanges){
+        if(latest||!change.shown)changed=change.mutator(data)||changed;
+        change.shown=true;
       }
-      if(state==='achievements')showAchievements();
-    };
-    if(navigator.locks&&typeof navigator.locks.request==='function'){
-      navigator.locks.request('frog-jumper-achievements',persistUpdate).catch(()=>{
-        achievementNotice='Achievement progress could not be saved. Please try again.';
+      achievementData=data;
+      if(latest&&(!changed||saveAchievementData(record)))pendingAchievementChanges.length=0;
+      const newlyUnlocked=ACHIEVEMENTS.filter(item=>!previouslyEarned.has(item.id)&&data.earned.includes(item.id));
+      if(newlyUnlocked.length){
+        const name=newlyUnlocked.map(item=>item.name+' unlocked!').join(' ');
+        achievementNotice=newlyUnlocked[0].emoji+' '+name;
         achievementNoticeTime=3.2;
-      });
-    }else{
-      // Keep single-tab play functional in browsers without Web Locks.
-      persistUpdate();
-    }
+        document.getElementById('achievement-announcement').textContent=name;
+      }
+      if(state==='achievements')syncAchievementScreen();
+    };
+    withProgressLock('frog-jumper-achievements',record=>persistUpdate(true,record)).catch(()=>persistUpdate(false));
   }
   function awardAchievement(id){
-    if(!ACHIEVEMENTS.some(item=>item.id===id))return;
+    if(achievementData.earned.includes(id)||!ACHIEVEMENTS.some(item=>item.id===id))return;
     updateAchievementData(data=>{
       if(data.earned.includes(id))return false;
       data.earned.push(id);
@@ -648,25 +705,43 @@
     const platformKey=infiniteWorld
       ? 'infinite:'+infiniteWorld.seed+':'+platform.id
       : (gameMode==='boss'?'boss:':'level:')+levelIndex+':'+platform.id;
+    const awardsDue=data=>(data.platformsLanded>=10&&!data.earned.includes('platform_hopper'))||(data.platformsLanded>=100&&!data.earned.includes('platform_master'));
+    if(!awardsDue(achievementData)&&(achievementData.visitedPlatforms.includes(platformKey)||achievementData.visitedPlatforms.length>=100))return;
     updateAchievementData(data=>{
-      if(data.visitedPlatforms.includes(platformKey)||data.visitedPlatforms.length>=100)return false;
-      data.visitedPlatforms.push(platformKey);
-      data.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,data.platformsLanded+1);
+      const newPlatform=!data.visitedPlatforms.includes(platformKey)&&data.visitedPlatforms.length<100;
+      if(newPlatform){
+        data.visitedPlatforms.push(platformKey);
+        data.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,data.platformsLanded+1);
+      }
+      const newAwards=awardsDue(data);
       if(data.platformsLanded>=10&&!data.earned.includes('platform_hopper'))data.earned.push('platform_hopper');
       if(data.platformsLanded>=100&&!data.earned.includes('platform_master'))data.earned.push('platform_master');
-      return true;
+      return newPlatform||newAwards;
     });
   }
   function showAchievements(){
-    const earned=achievementData.earned;
     state='achievements';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
-    const cards=ACHIEVEMENTS.map(a=>{
-      const unlocked=earned.includes(a.id);
-      return '<div class="shop-item"><div class="shop-emoji">'+(unlocked?a.emoji:'🔒')+'</div><strong>'+a.name+'</strong><small>'+(unlocked?a.description:'Not unlocked yet')+'</small><small>'+(unlocked?'UNLOCKED':'LOCKED')+'</small></div>';
-    }).join('');
-    overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>'+earned.length+' of '+ACHIEVEMENTS.length+' unlocked</p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
+    const cards=ACHIEVEMENTS.map(a=>'<div class="shop-item" data-achievement="'+a.id+'"><div class="shop-emoji" aria-hidden="true"></div><strong>'+a.name+'</strong><small></small><small></small></div>').join('');
+    overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p data-achievement-summary></p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
+    syncAchievementScreen();
     document.getElementById('achievements-back').addEventListener('click',()=>showOverlay('menu'));
     activateOverlayDialog(document.getElementById('achievements-back'));
+  }
+  function syncAchievementScreen(){
+    const earned=achievementData.earned;
+    const summary=overlay.querySelector('[data-achievement-summary]');
+    const text=earned.length+' of '+ACHIEVEMENTS.length+' unlocked';
+    if(summary.textContent!==text)summary.textContent=text;
+    for(const item of ACHIEVEMENTS){
+      const card=overlay.querySelector('[data-achievement="'+item.id+'"]');
+      const unlocked=earned.includes(item.id);
+      const [description,status]=card.querySelectorAll('small');
+      const label=unlocked?'UNLOCKED':'LOCKED';
+      if(status.textContent===label)continue;
+      card.querySelector('.shop-emoji').textContent=unlocked?item.emoji:'🔒';
+      description.textContent=unlocked?item.description:'Not unlocked yet';
+      status.textContent=label;
+    }
   }
   function makePlayer(x, y) {
     return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
@@ -683,14 +758,19 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+  function platformTime(){
+    return multiplayerClock===null?elapsed:Math.max(0,(performance.now()+multiplayerClock)/1000);
+  }
   function addInfinitePlatform(x, y, width, moving = null) {
-    const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y,w:width,h:20,prevY:y,moving};
+    const startY=moving?y+Math.sin(platformTime()*moving.speed+moving.phase)*moving.amp:y;
+    const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y:startY,w:width,h:20,prevY:startY,moving};
     platforms.push(p);
     infiniteWorld.lastPlatform = p;
     return p;
   }
   function addInfiniteCoin(p, phase) {
-    coins.push({x:p.x+p.w*.5,y:p.y-47,baseY:p.y-47,platformId:null,platformRef:p,taken:false,phase});
+    const taken=infiniteWorld.rewards.claimed?.has(p.id)??false;
+    coins.push({x:p.x+p.w*.5,y:p.y-47,baseY:p.y-47,platformId:null,platformRef:p,taken,phase});
   }
   function addInfiniteEnemy(p, direction, phase) {
     const enemyWidth = 30;
@@ -765,13 +845,16 @@
     if (pruneBefore > 0) {
       const safePlatform = checkpoint.platformRef || null;
       infiniteWorld.minX=Math.max(infiniteWorld.minX||0,pruneBefore);
-      platforms = platforms.filter(p =>
-        p.x+p.w >= pruneBefore || p === safePlatform || p === player.standingOn
-      );
-      const livePlatforms = new Set(platforms);
-      coins = coins.filter(c => c.x >= pruneBefore-80 && (!c.platformRef || livePlatforms.has(c.platformRef)));
-      enemies = enemies.filter(e => e.x+e.w >= pruneBefore-80 && livePlatforms.has(e.platformRef));
-      infiniteWorld.zones = infiniteWorld.zones.filter(z => z.endX >= pruneBefore-160);
+      const keepPlatform=p=>p.x+p.w>=pruneBefore||p===safePlatform||p===player.standingOn;
+      if(platforms.some(p=>!keepPlatform(p))){
+        platforms=platforms.filter(keepPlatform);
+        const livePlatforms=new Set(platforms);
+        coins=coins.filter(c=>!c.platformRef||livePlatforms.has(c.platformRef));
+        enemies=enemies.filter(e=>livePlatforms.has(e.platformRef));
+      }
+      if(coins.some(c=>c.x<pruneBefore-80))coins=coins.filter(c=>c.x>=pruneBefore-80);
+      if(enemies.some(e=>e.x+e.w<pruneBefore-80))enemies=enemies.filter(e=>e.x+e.w>=pruneBefore-80);
+      if(infiniteWorld.zones[0]?.endX<pruneBefore-160)infiniteWorld.zones=infiniteWorld.zones.filter(z=>z.endX>=pruneBefore-160);
     }
 
     const zone = infiniteWorld.zones.find(z=>player.x>=z.startX && player.x<z.endX) ||
@@ -783,23 +866,27 @@
   }
   function setupInfiniteExplore(seed) {
     // All six room-code characters fit exactly in a base-36 integer.
-    if(seed===undefined && multiplayerConnected && multiplayerRoomCode)
-      seed=parseInt(multiplayerRoomCode,36)>>>0;
+    const sharedSeed=seed===undefined&&multiplayerConnected&&multiplayerRoomCode;
+    if(sharedSeed)seed=parseInt(multiplayerRoomCode,36)>>>0;
+    const rewards=sharedSeed
+      ? (roomInfiniteProgress??={pending:0,saving:false,warned:false,claimed:new Set()})
+      : {pending:0,saving:false,warned:false,claimed:null};
     infiniteWorld = {
       seed:(seed===undefined ? ((Date.now() ^ Math.floor(Math.random()*0xFFFFFFFF))>>>0) : seed>>>0),
-      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0
+      chunkIndex:0,nextPlatformId:1,lastPlatform:null,zones:[],minX:0,rewards
     };
     elapsed=0;ticks=0;platforms=[];coins=[];enemies=[];particles=[];
-    levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;
+    levelIndex=0;level=WORLD_TEMPLATES[0];robot=null;boss=null;fireProjectiles=[];
     const start={id:0,x:0,baseY:515,y:515,w:260,h:20,prevY:515,moving:null};
     platforms.push(start);
     infiniteWorld.lastPlatform=start;
     player=makePlayer(54,start.y-PLAYER_H);
     player.onGround=true;player.standingOn=start;
     checkpoint={x:54,y:start.y-PLAYER_H,platformRef:start};
-    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;pendingInfiniteReward=0;infiniteSaveWarned=false;
+    cameraX=0;coinsThisLevel=0;pendingLevelReward=0;
     maintainInfiniteWorld();
     updateHUD();
+    if(rewards.pending>0)bankInfiniteCoins(rewards);
   }
 
   function setupLevel(index) {
@@ -808,17 +895,17 @@
     level = currentModeLevels()[levelIndex];
     elapsed = 0; ticks = 0;
     platforms = level.platforms.map((p,i)=>({id:i,x:p[0],baseY:p[1],y:p[1],w:p[2],h:20,prevY:p[1],moving:null}));
+    const time=platformTime();
     for (const m of level.movers) {
       const p = platforms[m.index];
-      if(p) p.moving={amp:m.amp,speed:m.speed,phase:m.phase};
+      if(p){p.moving={amp:m.amp,speed:m.speed,phase:m.phase};p.y=p.prevY=p.baseY+Math.sin(time*m.speed+m.phase)*m.amp;}
     }
     coins = [];
-    // A level already finished this run keeps its coins collected, so pressing
-    // R on the Level Complete screen cannot farm the same coins again.
-    const coinsAlreadyBanked=bankedCoinLevels.has(gameMode+':'+index);
+    // Replays keep banked pickups collected and leave the other coins available.
+    const coinsAlreadyBanked=bankedCoinLevels.get(gameMode+':'+index);
     for (let i=1;i<=COINS_PER_LEVEL;i++) {
       const p = platforms[i];
-      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:coinsAlreadyBanked,phase:i*1.7});
+      if(p) coins.push({x:p.x+p.w*0.5,y:p.y-47,baseY:p.y-47,platformId:p.id,taken:coinsAlreadyBanked?.has(p.id)??false,phase:i*1.7});
     }
     enemies=[];
     for (const idx of level.enemies) {
@@ -832,6 +919,7 @@
     boss = null;
     fireProjectiles = [];
     bossSpeedTimer = 0;
+    if(achievementNotice==='GO FASTER!')achievementNoticeTime=0;
     fireCooldown = 0;
     bossPowerups = {speed:true};
     if(gameMode==='boss' && level.bossLevel){
@@ -839,7 +927,7 @@
       const health=3+Math.floor((levelIndex+1)/10);
       boss={x:finalPlatform.x+65,y:finalPlatform.y-68,w:94,h:68,minX:finalPlatform.x+16,maxX:finalPlatform.x+finalPlatform.w-110,vx:145+level.difficulty*12,health,maxHealth:health,alive:true,phase:(levelIndex+1)*.73};
     }
-    checkpoint={x:54,y:platforms[0].y-PLAYER_H};
+    checkpoint={x:54,y:platforms[0].y-PLAYER_H,platformRef:platforms[0]};
     cameraX=0;
     coinsThisLevel=0;pendingLevelReward=0;
     updateHUD();
@@ -856,7 +944,7 @@
   }
   function restartCurrentLevel(){
     if (gameMode === 'infinite') {
-      // A restarted run gets a fresh seed so immediately banked pickups cannot be farmed again.
+      // Solo restarts generate new terrain. Room restarts keep the shared terrain and claimed pickups.
       lives=Infinity;totalCoins=0;setupInfiniteExplore();state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});
       return;
     }
@@ -866,14 +954,14 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearMathQuiz();leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();cancelJump();}
 
-  function readStoredNumber(key, fallback = 0) {
+  function readStoredNumber(key, fallback = 0, missing = 0) {
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw === null || raw.trim() === '') return fallback;
+      if (raw === null || raw.trim() === '') return missing;
       const parsed = Number(raw);
-      return Number.isSafeInteger(parsed) ? Math.max(0, parsed) : fallback;
+      return Number.isSafeInteger(parsed) && parsed>=0 ? parsed : missing;
     } catch (_) {
       return fallback;
     }
@@ -888,33 +976,48 @@
       return false;
     }
   }
-  function loadShopData(){
+  function loadShopData({strict=false,settle=false}={}){
     const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
+    let raw;
+    try{raw=window.localStorage.getItem('frogJumperShop');}catch(_){return strict?null:defaults;}
     try{
-      const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
+      let saved=JSON.parse(raw||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      // An interrupted purchase uses its original ownership until the debit is present.
+      const pending=saved.pendingPurchase;
+      if(pending&&Number.isSafeInteger(pending.balance)&&pending.balance>=0&&pending.next&&typeof pending.next==='object'){
+        const balance=readStoredNumber('frogJumperWalletCoins',null,-1);
+        if(balance===null&&strict)return null;
+        if(balance===pending.balance)saved=pending.next;
+      }
       const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>FROG_SKIN_IDS.has(v))])]:defaults.ownedSkins;
       const ownedHats=Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:defaults.ownedHats;
-      return {
+      const result={
         ownedSkins,
         ownedHats,
         equippedSkin:FROG_SKIN_IDS.has(saved.equippedSkin)&&ownedSkins.includes(saved.equippedSkin)?saved.equippedSkin:'red',
         equippedHat:['black','tv'].includes(saved.equippedHat)&&ownedHats.includes(saved.equippedHat)?saved.equippedHat:'none'
       };
+      if(pending&&settle&&!saveShopData(result))return null;
+      return result;
     }catch(_){return defaults;}
   }
-  function saveShopData(){
-    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));return true;}catch(_){return false;}
+  function saveShopData(data){
+    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(data));return true;}catch(_){return false;}
   }
   function saveWallet(){return writeStoredNumber('frogJumperWalletCoins',walletCoins);}
   function showShop(focusItemId=null){
+    const previousCard=state==='shop'?overlay.querySelector('.shop-card'):null;
+    const previousScroll=previousCard?.scrollTop??0;
+    const backFocused=document.activeElement?.id==='shop-back';
+    const canPurchase=typeof navigator.locks?.request==='function';
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
-      {id:'black',kind:'hat',name:'Black Hat',price:35,emoji:'🎩',description:'A classic black hat for Froggy'},
-      {id:'ocean',kind:'skin',name:'Ocean Blue',price:85,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
+      {id:'black',kind:'hat',name:'Black Hat',price:33,emoji:'🎩',description:'A classic black hat for Froggy'},
+      {id:'ocean',kind:'skin',name:'Ocean Blue',price:83,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:330,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
       {id:'gold',kind:'skin',name:'Golden Froggy',price:165,emoji:'✨',description:'A shiny sunshine-yellow frog'},
-      {id:'ninja',kind:'skin',name:'Ninja Frog',price:360,emoji:'🥷',description:'Dark stealth colors with a red headband'},
+      {id:'ninja',kind:'skin',name:'Ninja Frog',price:358,emoji:'🥷',description:'Dark stealth colors with a red headband'},
       {id:'car',kind:'skin',name:'Froggy Race Car',price:440,emoji:'🏎️',description:'A little red race car skin with 5× coin rewards'},
       {id:'dinosaur',kind:'skin',name:'Dinosaur Frog',price:165,emoji:'🦕',description:'A long neck dinosaur inspired by a drawing'},
       {id:'bee',kind:'skin',name:'Bee Frog',price:165,emoji:'🐝',description:'A buzzing frog with wings and stripes'},
@@ -927,24 +1030,24 @@
       {id:'rainbow',kind:'skin',name:'Rainbow Frog',price:165,emoji:'🌈',description:'A cheerful rainbow inspired by a class drawing'},
       {id:'popcorn',kind:'skin',name:'Popcorn Frog',price:165,emoji:'🍿',description:'A striped popcorn box with fluffy popcorn'},
       {id:'flowerpot',kind:'skin',name:'Flowerpot Frog',price:165,emoji:'🌼',description:'A heart decorated flowerpot with three flowers'},
-      {id:'spiky',kind:'skin',name:'Red Quill',price:145,emoji:'🦔',description:'A warm orange frog with a row of bright back spikes'},
-      {id:'longneck',kind:'skin',name:'Longneck Pal',price:175,emoji:'🦒',description:'A tall, friendly creature with a long neck'},
-      {id:'glider',kind:'skin',name:'Sky Glider',price:195,emoji:'🪽',description:'A blue frog with wide gliding fins'},
+      {id:'spiky',kind:'skin',name:'Red Quill',price:143,emoji:'🦔',description:'A warm orange frog with a row of bright back spikes'},
+      {id:'longneck',kind:'skin',name:'Longneck Pal',price:176,emoji:'🦒',description:'A tall, friendly creature with a long neck'},
+      {id:'glider',kind:'skin',name:'Sky Glider',price:193,emoji:'🪽',description:'A blue frog with wide gliding fins'},
       {id:'fishbone',kind:'skin',name:'Fishbone',price:160,emoji:'🐟',description:'A sea-blue frog with a silly skeleton pattern'},
       {id:'bigeyes',kind:'skin',name:'Big-Eye Buddy',price:165,emoji:'👀',description:'A purple-blue frog with extra-big eyes'},
-      {id:'mouse',kind:'skin',name:'Little Mouse',price:145,emoji:'🐭',description:'A soft gray frog with round pink ears'},
-      {id:'bear',kind:'skin',name:'Bear Buddy',price:180,emoji:'🐻',description:'A cozy brown bear-like frog'},
+      {id:'mouse',kind:'skin',name:'Little Mouse',price:143,emoji:'🐭',description:'A soft gray frog with round pink ears'},
+      {id:'bear',kind:'skin',name:'Bear Buddy',price:182,emoji:'🐻',description:'A cozy brown bear-like frog'},
       {id:'longbeak',kind:'skin',name:'Wacky Beak',price:165,emoji:'🐤',description:'A golden frog with a funny long beak'},
-      {id:'bunny',kind:'skin',name:'Bunny Hop',price:195,emoji:'🐰',description:'A fluffy pink bunny frog with tall ears'},
-      {id:'boxbot',kind:'skin',name:'Box Buddy',price:230,emoji:'🤖',description:'A square-headed little robot frog'},
-      {id:'kitty',kind:'skin',name:'Whiskers',price:185,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
+      {id:'bunny',kind:'skin',name:'Bunny Hop',price:193,emoji:'🐰',description:'A fluffy pink bunny frog with tall ears'},
+      {id:'boxbot',kind:'skin',name:'Box Buddy',price:231,emoji:'🤖',description:'A square-headed little robot frog'},
+      {id:'kitty',kind:'skin',name:'Whiskers',price:187,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
       {id:'chick',kind:'skin',name:'Tiny Chick',price:165,emoji:'🐥',description:'A sunny yellow chick frog with a tiny beak'},
-      {id:'alien',kind:'skin',name:'Little Alien',price:250,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
+      {id:'alien',kind:'skin',name:'Little Alien',price:248,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
       {id:'poppy',kind:'skin',name:'Poppy Skin',price:0,emoji:'⭐',description:'A pop-art frog with a POP burst and star'},
       {id:'usflag',kind:'skin',name:'US Flag Skin',price:275,emoji:'🇺🇸',description:'A patriotic frog carrying the waving US flag'},
-      {id:'pirate',kind:'skin',name:'Pirate Frog',price:140,emoji:'🏴‍☠️',description:'A pirate frog with a hat and eye patch'},
+      {id:'pirate',kind:'skin',name:'Pirate Frog',price:138,emoji:'🏴‍☠️',description:'A pirate frog with a hat and eye patch'},
       {id:'superhero',kind:'skin',name:'Superhero Frog',price:165,emoji:'🦸',description:'A brave frog with a cape and mask'},
-      {id:'wizard',kind:'skin',name:'Wizard Frog',price:195,emoji:'🧙',description:'A magic frog with a starry wizard hat'},
+      {id:'wizard',kind:'skin',name:'Wizard Frog',price:193,emoji:'🧙',description:'A magic frog with a starry wizard hat'},
       {id:'astronaut',kind:'skin',name:'Astronaut Frog',price:220,emoji:'🚀',description:'A space frog in a rocket suit'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:275,emoji:'📺',description:'A tiny television for your frog'}
     ];
@@ -952,86 +1055,86 @@
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
       const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
       const label=equipped?'UNEQUIP':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
-      const disabled=!equipped&&!owned&&walletCoins<item.price;
-      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
+      const disabled=!canPurchase||(!equipped&&!owned&&walletCoins<item.price);
+      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" aria-label="${label} ${item.name}" data-shop-item="${item.id}" data-shop-action="${equipped?'unequip':owned?'equip':'buy'}" ${disabled?'disabled':''}>${label}</button></div>`;
     }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
-    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
-      const id=button.dataset.shopItem;
-      const applyShopAction=()=>{
-        const item=items.find(entry=>entry.id===id);if(!item)return;
-        // Re-read both shared records inside the cross-tab lock; never spend a stale balance
-        // or save an ownership snapshot that predates another tab's purchase.
-        walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
-        shopData=loadShopData();
-        equippedSkin=shopData.equippedSkin;
-        equippedHat=shopData.equippedHat;
-        const oldShop=JSON.stringify(shopData), oldWallet=walletCoins;
-        const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-        const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
-        if(currentlyEquipped){
-          if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
-        }else{
-          if(!owned){
-            if(walletCoins<item.price){showShop(id);return;}
-            walletCoins-=item.price;
-            if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);
-          }
-          if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
-        }
-        shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;
-        if(!saveShopData()){
-          walletCoins=oldWallet;shopData=JSON.parse(oldShop);
-          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
-          window.alert('Could not save the shop change. Your coins were not spent.');
-          showShop(id);return;
-        }
-        if(walletCoins!==oldWallet&&!saveWallet()){
-          // Save ownership first so a failed debit cannot take coins without an item.
-          shopData=JSON.parse(oldShop);walletCoins=oldWallet;
-          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
-          saveShopData();
-          window.alert('Could not save the purchase. Your coins were not spent.');
-          showShop(id);return;
-        }
-        sendMultiplayerCosmetics();showShop(id);
-      };
-      // Web Locks serializes purchases made by different same-origin tabs.
-      // The fresh read above also keeps older tabs in sync before every action.
-      if(navigator.locks&&typeof navigator.locks.request==='function'){
-        // Never fall back to an unlocked write: two tabs could spend the same balance.
-        navigator.locks.request('frog-jumper-shop-economy',()=>{
-          applyShopAction();
-        }).catch(()=>{
-          window.alert('Frog Jumper could not safely complete that shop action. Please try again.');
-        });
-      }else{
-        // Fail closed when cross-tab locking is unavailable instead of risking lost purchases.
-        window.alert('This browser does not support safe shop purchases across multiple tabs. Please use a browser with Web Locks support to buy items.');
-      }
+    const card=overlay.querySelector('.shop-card');
+    if(!canPurchase){
+      const notice=document.createElement('p');
+      notice.textContent='Shop changes are unavailable in this browser.';
+      card.querySelector('.button-row').before(notice);
+    }
+    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',async()=>{
+      const item=items.find(entry=>entry.id===button.dataset.shopItem);
+      if(!item||pendingShopActions.has(item.id)||!canPurchase)return;
+      pendingShopActions.add(item.id);
+      let saved=false;
+      try {
+        saved=await navigator.locks.request('frog-jumper-shop-economy',()=>applyShopAction(item,button.dataset.shopAction));
+      }catch(_){}
+      finally{pendingShopActions.delete(item.id);}
+      syncShopFromStorage();
+      if(state!=='shop')return;
+      if(!saved)window.alert('Could not save the shop change. Your coins were not spent.');
+      showShop(overlay.contains(card)?item.id:document.activeElement?.dataset?.shopItem);
     }));
-    document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
-    const focusTarget=focusItemId?overlay.querySelector('[data-shop-item="'+focusItemId+'"]'):overlay.querySelector('[data-shop-item]:not(:disabled)');
-    activateOverlayDialog(focusTarget||document.getElementById('shop-back'));
+    const back=document.getElementById('shop-back');
+    back.addEventListener('click',()=>showOverlay('menu'));
+    const focusTarget=focusItemId
+      ? overlay.querySelector('[data-shop-item="'+focusItemId+'"]:not(:disabled)')||back
+      : backFocused?back:overlay.querySelector('[data-shop-item]:not(:disabled)')||back;
+    card.scrollTop=previousScroll;
+    activateOverlayDialog(focusTarget);
+    focusTarget.scrollIntoView({block:'nearest'});
+  }
+
+  function applyShopAction(item,action){
+    const balance=readStoredNumber('frogJumperWalletCoins',null);
+    const previous=loadShopData({strict:true,settle:true});
+    if(balance===null||!previous)return false;
+    const [ownedKey,equippedKey,defaultItem]=item.kind==='hat'
+      ? ['ownedHats','equippedHat','none']
+      : ['ownedSkins','equippedSkin','red'];
+    const owned=previous[ownedKey].includes(item.id);
+    const equipped=previous[equippedKey]===item.id;
+    if(action==='unequip')return !equipped||saveShopData({...previous,[equippedKey]:defaultItem});
+    if(equipped||(action==='equip'&&!owned))return true;
+    const next={...previous,[equippedKey]:item.id};
+    if(owned)return saveShopData(next);
+    if(balance<item.price)return true;
+    next[ownedKey]=[...previous[ownedKey],item.id];
+    if(item.price===0)return saveShopData(next);
+    const remaining=balance-item.price;
+    if(!saveShopData({...previous,pendingPurchase:{balance:remaining,next}}))return false;
+    const debited=writeStoredNumber('frogJumperWalletCoins',remaining);
+    saveShopData(debited?next:previous);
+    return debited;
   }
 
   function syncShopFromStorage(){
     const previousSkin=equippedSkin, previousHat=equippedHat;
     walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
-    shopData=loadShopData();
+    shopData=loadShopData({strict:true})||shopData;
     equippedSkin=shopData.equippedSkin;
     equippedHat=shopData.equippedHat;
     if(previousSkin!==equippedSkin||previousHat!==equippedHat)sendMultiplayerCosmetics();
   }
   window.addEventListener('storage',event=>{
     if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
+    if(event.newValue===null&&event.key!=='frogJumperShop'&&!navigator.locks?.request){
+      withProgressLock('frog-jumper-shop-economy',record=>{
+        if(record?.value!==undefined&&readStoredNumber('frogJumperWalletCoins',null,-1)===-1&&
+          (event.key===null||record.value===Number(event.oldValue)))record.clear();
+      }).catch(()=>{});
+    }
     const focusedItemId=document.activeElement?.dataset?.shopItem||null;
     syncShopFromStorage();
     if(state==='shop')showShop(focusedItemId);
   });
   window.addEventListener('storage',event=>{
     if(event.key==='frogJumperAchievements'||event.key===null){
-      if(achievementStorageAvailable)achievementData=loadAchievementData();
-      if(state==='achievements')showAchievements();
+      if(!pendingAchievementChanges.length)achievementData=loadAchievementData(true)||achievementData;
+      if(state==='achievements')syncAchievementScreen();
     }
     if(event.key==='frogJumperBestCoins'||event.key===null){
       const bestLabel=document.getElementById('best-label');
@@ -1044,13 +1147,19 @@
     return readStoredNumber('frogJumperBestCoins', 0);
   }
   function updateBestCoins(){
-    let best = getBestCoins();
-    if(totalCoins > best){
-      best = totalCoins;
-      writeStoredNumber('frogJumperBestCoins', best);
-    }
+    const best=getBestCoins();
+    const score=totalCoins;
     const bestLabel = document.getElementById('best-label');
-    if(bestLabel) bestLabel.textContent = best;
+    if(bestLabel)bestLabel.textContent=Math.max(score,best);
+    if(score<=best)return;
+    withProgressLock('frog-jumper-best-coins',record=>{
+      const previous=record?.value??readStoredNumber('frogJumperBestCoins',null);
+      if((previous!==null||record)&&score>(previous??0)){
+        writeStoredNumber('frogJumperBestCoins',score);
+        record?.write(score);
+      }
+      if(bestLabel)bestLabel.textContent=Math.max(totalCoins,score,previous??0);
+    }).catch(()=>{});
   }
   function updateHUD(){
     updateBestCoins();
@@ -1075,8 +1184,10 @@
     bossTools.hidden=!(gameMode==='boss'&&state==='playing');
     bossSpeedButton.disabled=!bossPowerups.speed;
     bossSkipButton.disabled=bossSkipsRemaining<=0;
-    bossSkipButton.textContent=`⏭ SKIP LEVEL (${bossSkipsRemaining})`;
-    bossSpeedButton.textContent=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
+    const skipLabel=`⏭ SKIP LEVEL (${bossSkipsRemaining})`;
+    const speedLabel=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
+    if(bossSkipButton.textContent!==skipLabel)bossSkipButton.textContent=skipLabel;
+    if(bossSpeedButton.textContent!==speedLabel)bossSpeedButton.textContent=speedLabel;
   }
   function shootFire(){
     if(gameMode!=='boss'||state!=='playing'||!player||fireCooldown>0)return;
@@ -1099,9 +1210,9 @@
     bossSkipsRemaining--;bossStagesSkipped++;advanceModeLevel();
   }
   [[bossFireButton,shootFire],[bossSpeedButton,useBossSpeed],[bossSkipButton,useBossSkip]].forEach(([button,action])=>{
-    button.addEventListener('click',event=>{
+    button.addEventListener('click',()=>{
       action();
-      if(event.detail>0&&state==='playing')canvas.focus({preventScroll:true});
+      if(state==='playing')canvas.focus({preventScroll:true});
     });
   });
 
@@ -1110,10 +1221,12 @@
     overlay.setAttribute('aria-modal','true');
     const heading=overlay.querySelector('h2');
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
-    if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
+    canvas.inert=true;
+    jumpBtn.inert=true;
+    (focusTarget&&!focusTarget.disabled?focusTarget:overlay).focus({preventScroll:true});
   }
   function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))){rafId=requestAnimationFrame(frame);}}
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');canvas.inert=false;jumpBtn.inert=false;syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   const mathOperations=['Addition','Subtraction','Multiplication','Division'];
   let mathOperation='Addition', mathQuiz=null;
 
@@ -1140,30 +1253,38 @@
   function finishMathQuiz(quiz){
     if(quiz!==mathQuiz)return;
     clearMathQuiz();
-    if(quiz.correct>0)completeLevel();
+    if(quiz.index===quiz.questions.length&&quiz.correct>0)completeLevel(quiz.feedback);
     else showOverlay('mathRetry',{text:quiz.feedback+' Try two new questions at this portal.'});
+  }
+  function syncMathQuizVisibility(quiz,now){
+    if(document.hidden){quiz.hiddenAt??=now;return false;}
+    if(quiz.hiddenAt!==null){quiz.deadline+=now-quiz.hiddenAt;quiz.hiddenAt=null;}
+    return true;
   }
   function beginMathQuiz(){
     clearInputs();clearMathQuiz();
     const first=makeMathQuestion(mathOperation);
     let second=makeMathQuestion(mathOperation);
     while(second.prompt===first.prompt)second=makeMathQuestion(mathOperation);
-    const quiz={questions:[first,second],index:0,correct:0,deadline:Date.now()+40000,feedback:'',timer:null,hiddenAt:null};
+    const quiz={questions:[first,second],index:0,correct:0,deadline:performance.now()+40000,feedback:'',timer:null,hiddenAt:null};
     mathQuiz=quiz;
     function tick(){
       if(quiz!==mathQuiz)return;
-      if(document.hidden){if(!quiz.hiddenAt)quiz.hiddenAt=Date.now();return;}
-      if(quiz.hiddenAt){quiz.deadline+=Date.now()-quiz.hiddenAt;quiz.hiddenAt=null;}
-      const seconds=Math.ceil((quiz.deadline-Date.now())/1000);
+      const now=performance.now();
+      if(!syncMathQuizVisibility(quiz,now))return;
+      const seconds=Math.ceil((quiz.deadline-now)/1000);
       if(seconds<=0){quiz.feedback='Time is up.';finishMathQuiz(quiz);return;}
       const label=overlay.querySelector('[data-math-clock]');
-      if(label)label.textContent=seconds+' seconds left';
+      const text=seconds+' seconds left';
+      if(label&&label.textContent!==text)label.textContent=text;
     }
     function ask(){
       const index=quiz.index,q=quiz.questions[index];
       const choose=value=>{
         if(quiz!==mathQuiz||quiz.index!==index)return;
-        if(Date.now()>=quiz.deadline){tick();return;}
+        const now=performance.now();
+        if(!syncMathQuizVisibility(quiz,now))return;
+        if(now>=quiz.deadline){tick();return;}
         const correct=value===q.answer;
         if(correct)quiz.correct++;
         quiz.feedback=(correct?'Correct! ':'Answer: ')+q.prompt+' = '+q.answer+'.';
@@ -1190,18 +1311,23 @@
       mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
       mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
       mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. In menus, D-pad or Left Stick chooses a button and A picks it. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the joystick to move and tap the green button to jump. On computers, use ← → or A / D to move, SPACE/W/↑ to jump, P or Esc to pause, and R to restart. Press F to fire in Boss Fight. On an Xbox controller, move with the left stick or D-pad, jump with A, and pause or resume with Menu. In menus, move the focus with the stick or D-pad and choose with A. In Boss Fight, press X to fire, Y for Go Faster once per stage, and B to skip up to three stages per run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
-      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
+      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Try again or finish the level without adding these coins to your wallet.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel(options.mathFeedback)],['CONTINUE WITHOUT SAVING','secondary',()=>{totalCoins=Math.max(0,totalCoins-pendingLevelReward);pendingLevelReward=0;finishLevel(options.mathFeedback);}],['MAIN MENU','ghost',returnToMenu]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared ${currentModeTotalLevels()-bossStagesSkipped} of ${currentModeTotalLevels()} Boss Fight levels. You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'}.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.${pendingLevelReward>0?` You picked up ${pendingLevelReward} more on this level, but they were not saved because the level was not finished.`:''} Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    if(options.mathFeedback&&(kind==='levelComplete'||kind==='won')){
+      const feedback=document.createElement('p');
+      feedback.textContent=options.mathFeedback;
+      overlay.querySelector('.button-row').before(feedback);
+    }
     if(kind==='mathQuestion'){
       const clockLabel=document.createElement('p');
       clockLabel.dataset.mathClock='';
@@ -1231,6 +1357,14 @@
   function multiplayerModeLabel(mode){
     return ({level:'Level Adventure',race:'Robot Race',boss:'Boss Fight',infinite:'Infinite Explore'})[mode]||'Level Adventure';
   }
+  function normalizeRoomCode(value){
+    return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+  }
+  function setControllerModeEditing(editing){
+    editingRoomModeWithController=editing;
+    const hint=document.getElementById('mp-mode-controller-hint');
+    if(hint)hint.hidden=!editing;
+  }
   function showMultiplayerScreen(prefill={}){
     cancelMultiplayerAttempt();
     state='multiplayer';syncPauseControl();syncBossTools();window.clearTimeout(bottomBarTimer);
@@ -1239,67 +1373,95 @@
     const nameInput=overlay.querySelector('#mp-name');
     const modeInput=overlay.querySelector('#mp-mode');
     const codeInput=overlay.querySelector('#mp-code');
+    const modeHint=document.createElement('p');
+    modeHint.id='mp-mode-controller-hint';
+    modeHint.setAttribute('role','status');
+    modeHint.textContent='Use the stick or D-pad to change modes. Press A to confirm.';
+    modeInput.after(modeHint);
+    setControllerModeEditing(false);
+    modeInput.addEventListener('blur',()=>setControllerModeEditing(false));
     if(typeof prefill.name==='string')nameInput.value=prefill.name.slice(0,16)||'Frog';
     if(['level','race','boss','infinite'].includes(prefill.mode))modeInput.value=prefill.mode;
-    const retryCode=String(prefill.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-    if(retryCode)codeInput.value=retryCode;
+    codeInput.removeAttribute('maxlength');
+    codeInput.placeholder='ABC234';
+    codeInput.value=normalizeRoomCode(prefill.code);
+    codeInput.addEventListener('input',()=>{codeInput.value=normalizeRoomCode(codeInput.value);});
     const status=overlay.querySelector('#mp-status');
     const createButton=overlay.querySelector('#mp-create');
     const joinButton=overlay.querySelector('#mp-join');
-    const setBusy=(busy)=>{createButton.disabled=busy;joinButton.disabled=busy;};
+    const setBusy=busy=>{for(const control of [nameInput,modeInput,codeInput,createButton,joinButton])control.disabled=busy;};
+    const fail=message=>{cancelMultiplayerAttempt();status.textContent=message;setBusy(false);};
+    const beginAttempt=()=>{
+      cancelMultiplayerAttempt();
+      setBusy(true);
+      multiplayerRequestController=new AbortController();
+      multiplayerRequestTimer=window.setTimeout(()=>fail('The connection timed out. Try again.'),12000);
+      return multiplayerAttemptId;
+    };
     createButton.addEventListener('click',async()=>{
       const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;
-      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;const controller=new AbortController();multiplayerRequestController=controller;
-      setBusy(true);status.textContent='Creating your room...';
+      const attemptId=beginAttempt();const controller=multiplayerRequestController;
+      status.textContent='Creating your room...';
       try{
         const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
         const result=await response.json();if(attemptId!==multiplayerAttemptId)return;if(!response.ok)throw new Error(result.error||'Could not create the room.');
-        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId,()=>setBusy(false));
-      }catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not create the room.';setBusy(false);}
+        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId,fail);
+      }catch(error){if(attemptId===multiplayerAttemptId)fail(error.message||'Could not create the room.');}
     });
     joinButton.addEventListener('click',async()=>{
-      const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;const code=codeInput.value.trim().toUpperCase();
+      const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;const code=normalizeRoomCode(codeInput.value);
       if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){status.textContent='Enter a valid 6-character room code.';return;}
-      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;
-      setBusy(true);status.textContent='Joining room '+code+'...';
-      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId,()=>setBusy(false));}
-      catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not join the room.';setBusy(false);}
+      const attemptId=beginAttempt();
+      status.textContent='Joining room '+code+'...';
+      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId,fail);}
+      catch(error){if(attemptId===multiplayerAttemptId)fail(error.message||'Could not join the room.');}
     });
     overlay.querySelector('#mp-back').addEventListener('click',()=>{cancelMultiplayerAttempt();showOverlay('menu');});
     activateOverlayDialog(nameInput);
   }
   function cancelMultiplayerAttempt(){
     multiplayerAttemptId++;
+    roomInfiniteProgress=null;
+    multiplayerClock=null;
+    multiplayerLastSent=-Infinity;
+    multiplayerLastPosition='';
+    window.clearTimeout(multiplayerRequestTimer);multiplayerRequestTimer=0;
     if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
     const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
+    drawMultiplayerHud();
     if(socket){try{socket.close(1000,'Left the room');}catch(_){}}
   }
   async function connectToMultiplayerRoom(code,name,mode,statusElement,attemptId=multiplayerAttemptId,onConnectionFailure){
     if(attemptId!==multiplayerAttemptId)return;
     const controller=multiplayerRequestController||new AbortController();
     multiplayerRequestController=controller;
-    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin:equippedSkin,hat:equippedHat}),signal:controller.signal});
+    const skin=equippedSkin,hat=equippedHat;
+    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin,hat}),signal:controller.signal});
     const ticket=await response.json();
     if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
     if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
-    multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
     let connectionOpened=false;
-    let connectionFailureHandled=false;
     socket.addEventListener('open',()=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       connectionOpened=true;
+      multiplayerRoomCode=code;
       multiplayerConnected=true;
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
       multiplayerRequestController=null;
+      window.clearTimeout(multiplayerRequestTimer);multiplayerRequestTimer=0;
       startGame(mode);
+      if(skin!==equippedSkin||hat!==equippedHat)sendMultiplayerCosmetics();
     });
     socket.addEventListener('message',event=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
       let message;try{message=JSON.parse(event.data);}catch(_){return;}
       if(message.type==='welcome'){
+        if(Number.isFinite(message.roomElapsedMs)&&message.roomElapsedMs>=0){
+          multiplayerClock=message.roomElapsedMs-performance.now();
+        }
         multiplayerPlayerId=message.playerId;
         multiplayerPlayers=new Map((message.players||[]).filter(p=>p.id!==multiplayerPlayerId).map(p=>[p.id,p]));
       }else if(message.type==='player-joined'||message.type==='player-updated'||message.type==='player-moved'){
@@ -1307,19 +1469,14 @@
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
     const handleConnectionFailure=()=>{
-      if(connectionOpened||connectionFailureHandled||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
-      connectionFailureHandled=true;
-      multiplayerConnected=false;
-      multiplayerPlayers.clear();
-      if(statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
-      if(typeof onConnectionFailure==='function')onConnectionFailure();
+      if(connectionOpened||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
+      onConnectionFailure('Connection failed. Check the room code and try again.');
     };
     socket.addEventListener('close',()=>{
       if(!connectionOpened)handleConnectionFailure();
       if(multiplayerSocket===socket){
-        multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();
+        cancelMultiplayerAttempt();
         if(connectionOpened&&!['menu','multiplayer','shop','achievements','multiplayerDisconnected'].includes(state)){
-          multiplayerRoomCode='';multiplayerPlayerId='';
           showOverlay('multiplayerDisconnected',{name,mode,code});
         }
       }
@@ -1330,6 +1487,16 @@
   function sendMultiplayerCosmetics(){
     if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN)return;
     try{multiplayerSocket.send(JSON.stringify({type:'cosmetics',skin:equippedSkin,hat:equippedHat}));}catch(_){}
+  }
+  function sendMultiplayerPosition(now){
+    if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN||!player||now-multiplayerLastSent<85)return;
+    const message=JSON.stringify({type:'move',x:Math.round(player.x*10)/10,y:Math.round(player.y*10)/10,face:player.face,levelIndex});
+    if(message===multiplayerLastPosition)return;
+    try{
+      multiplayerSocket.send(message);
+      multiplayerLastSent=now;
+      multiplayerLastPosition=message;
+    }catch(_){}
   }
   function drawRemotePlayers(){
     if(!multiplayerConnected||!player)return;
@@ -1353,27 +1520,26 @@
     }
   }
   function drawMultiplayerHud(){
-    if(!multiplayerRoomCode)return;
+    roomHud.hidden=!multiplayerConnected;
+    if(!multiplayerConnected)return;
     const count=multiplayerPlayers.size+(multiplayerConnected?1:0);
     const label='ROOM '+multiplayerRoomCode+'  '+count+'/10';
-    ctx.save();ctx.font='bold 13px system-ui';ctx.textAlign='right';
-    const width=ctx.measureText(label).width+22;
-    // Boss Fight tools sit at the top-right too, so drop the room label below them.
-    const top=(gameMode==='boss'&&state==='playing')?54:12;
-    roundedRect(W-width-12,top,width,30,9,'#102b36eF','#d5ff7d');
-    ctx.fillStyle='#f4ffd9';ctx.fillText(label,W-23,top+20);ctx.restore();
+    if(roomHud.textContent!==label)roomHud.textContent=label;
   }
-  function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
+  function requestJump(pointer=null){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;player.jumpRequestPointer=pointer;}
   function hurt(){
     if(player.invulnerable>0)return;
-    if(Number.isFinite(lives))lives--;
+    if(Number.isFinite(lives)){
+      lives--;
+      if(reduceMotion){achievementNotice='−1 LIFE';achievementNoticeTime=1.4;}
+    }
     updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
+    player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=!!checkpoint.platformRef;player.standingOn=checkpoint.platformRef||null;player.invulnerable=1.65;player.coyote=0;
     cameraX=gameMode==='infinite'?Math.max(0,player.x-W*.34):Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
-  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
+  function makeBurst(x,y,color,count){let a=[];if(reduceMotion)return a;for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
   function updateRobot(dt){
     if(!robot || state!=='playing') return;
     robot.stumble=Math.max(0,robot.stumble-dt);
@@ -1402,17 +1568,11 @@
     robot.vy=Math.min(900,robot.vy+1580*dt);
     robot.x+=robot.vx*dt;
     robot.y+=robot.vy*dt;
-    robot.onGround=false;robot.standingOn=null;
-    if(robot.vy>=0){
-      for(const p of platforms){
-        const overlapsX=robot.x+robot.w-4>p.x && robot.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && prevBottom<=oldTop+12 && robot.y+robot.h>=p.y && robot.y+robot.h<=p.y+24){
-          robot.y=p.y-robot.h;robot.vy=0;robot.onGround=true;robot.standingOn=p;
-        }
-      }
+    resolvePlatformLanding(robot,prevBottom,current);
+    if(robot.onGround&&robot.standingOn.id>=robot.targetIndex){
+      robot.targetIndex=robot.standingOn.id+1;
+      robot.falls=0;
     }
-    if(robot.onGround && robot.standingOn) robot.targetIndex=Math.max(robot.targetIndex,robot.standingOn.id+1);
     if(robot.y>H+110){
       robot.falls++;
       // targetIndex points to the next platform, so the last safe landing
@@ -1428,42 +1588,59 @@
       robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
       robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
     }
-    const end=level.platforms[level.platforms.length-1];
-    const portalX=end[0]+end[2]*.68, portalY=end[1]-75;
-    const overlap=robot.x+robot.w>portalX-24 && robot.x<portalX+24 && robot.y+robot.h>portalY && robot.y<portalY+88;
-    if(overlap){
-      // The robot moves before the player's portal check each step, so if the
-      // frog is at the portal too, the tie goes to the player instead.
-      const playerAtPortal=player&&Math.abs(player.x+player.w/2-portalX)<42&&player.y+player.h/2>portalY-8&&player.y+player.h/2<portalY+88;
-      if(!playerAtPortal){showOverlay('robotWon');clearInputs();}
-    }
+    const end=platforms[platforms.length-1];
+    if(overlapsPortal(robot,end)&&(!player||!overlapsPortal(player,end))){showOverlay('robotWon');clearInputs();}
   }
 
-  function bankInfiniteCoins(){
-    if(infiniteBankInFlight||pendingInfiniteReward<=0)return;
-    infiniteBankInFlight=true;
-    const amount=pendingInfiniteReward;
+  function resolvePlatformLanding(actor,previousBottom,support){
+    actor.standingOn=null;actor.onGround=false;
+    if(actor.vy<0)return;
+    let landing=null;
+    for(const p of platforms){
+      const oldTop=p===support?p.y:p.prevY;
+      const overlapsX=actor.x+actor.w-4>p.x&&actor.x+4<p.x+p.w;
+      if(overlapsX&&previousBottom<=oldTop+.001&&actor.y+actor.h>=p.y&&(!landing||p.y<landing.y))landing=p;
+    }
+    if(!landing)return;
+    actor.y=landing.y-actor.h;actor.vy=0;actor.onGround=true;actor.standingOn=landing;
+  }
+
+  function overlapsPortal(actor,platform){
+    const portalX=platform.x+platform.w*.68,portalY=platform.y-75;
+    return Math.abs(actor.x+actor.w/2-portalX)<42&&actor.y+actor.h>portalY&&actor.y<portalY+88;
+  }
+
+  function bankInfiniteCoins(rewards){
+    if(rewards.saving||rewards.pending<=0)return;
+    rewards.saving=true;
+    const amount=rewards.pending;
     bankWalletCoins(amount).then(saved=>{
-      infiniteBankInFlight=false;
-      if(saved){pendingInfiniteReward=Math.max(0,pendingInfiniteReward-amount);if(pendingInfiniteReward>0)bankInfiniteCoins();}
-      else if(!infiniteSaveWarned){infiniteSaveWarned=true;window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');}
+      rewards.saving=false;
+      if(saved){rewards.pending=Math.max(0,rewards.pending-amount);bankInfiniteCoins(rewards);}
+      else if(rewards===infiniteWorld?.rewards&&['playing','paused'].includes(state)&&!rewards.warned){
+        rewards.warned=true;
+        window.alert('Frog Jumper could not save those coins yet. Keep playing and it will try again on your next coin.');
+      }
     });
   }
 
   async function bankWalletCoins(amount){
     if(!Number.isSafeInteger(amount)||amount<=0)return true;
-    const deposit=()=>{
+    const deposit=record=>{
+      const storedWallet=record?.value??readStoredNumber('frogJumperWalletCoins',null);
+      if(!record&&(storedWallet===null||!loadShopData({strict:true,settle:true})))return false;
       const previousWallet=walletCoins;
-      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
-      if(!saveWallet()){walletCoins=previousWallet;return false;}
+      const newBalance=Math.min(Number.MAX_SAFE_INTEGER,(storedWallet??0)+amount);
+      walletCoins=newBalance;
+      if(!saveWallet()&&!record){walletCoins=previousWallet;return false;}
+      record?.write(newBalance);
       syncShopFromStorage();
+      if(record)walletCoins=newBalance;
       updateHUD();
       return true;
     };
-    // Save coins anyway in browsers without Web Locks so finishing a level cannot get stuck.
-    if(!navigator.locks||typeof navigator.locks.request!=='function')return deposit();
     try{
-      return await navigator.locks.request('frog-jumper-shop-economy',deposit);
+      return await withProgressLock('frog-jumper-shop-economy',deposit);
     }catch(_){return false;}
   }
 
@@ -1485,7 +1662,7 @@
         if(boss.health<=0){boss.alive=false;particles.push(...makeBurst(boss.x+boss.w/2,boss.y+boss.h/2,'#c9a0ff',34));achievementNotice='BOSS DEFEATED!';achievementNoticeTime=2.2;}
       }
     }
-    fireProjectiles=fireProjectiles.filter(function(shot){return shot.life>0&&shot.x>-30&&shot.x<W+cameraX+80;});
+    fireProjectiles=fireProjectiles.filter(shot=>shot.life>0);
     if(boss&&boss.alive){
       boss.x+=boss.vx*dt;
       if(boss.x<boss.minX){boss.x=boss.minX;boss.vx=Math.abs(boss.vx);}
@@ -1497,18 +1674,25 @@
     syncBossTools();
   }
 
-  async function completeLevel(){
-    if(gameMode==='boss' && boss&&boss.alive)return;
+  async function completeLevel(mathFeedback=''){
+    if(state==='saving'||(gameMode==='boss'&&boss?.alive))return;
     clearInputs();
     if(gameMode!=='infinite'&&pendingLevelReward>0){
+      const finishingPlayer=player;
       showOverlay('saving');
       const saved=await bankWalletCoins(pendingLevelReward);
-      if(state!=='saving')return;
-      if(!saved){showOverlay('rewardSaveFailed');return;}
-      bankedCoinLevels.add(gameMode+':'+levelIndex);
+      if(state!=='saving'||finishingPlayer!==player)return;
+      if(!saved){showOverlay('rewardSaveFailed',{mathFeedback});return;}
+      bankedCoinLevels.set(gameMode+':'+levelIndex,new Set(coins.filter(coin=>coin.taken).map(coin=>coin.platformId)));
       pendingLevelReward=0;
     }
-    if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
+    finishLevel(mathFeedback);
+  }
+  function finishLevel(mathFeedback){
+    showOverlay(levelIndex===currentModeTotalLevels()-1?'won':'levelComplete',{mathFeedback});
+  }
+  function checkpointOverlapsBossPatrol(x,y){
+    return boss?.alive&&x+player.w-5>boss.minX&&x+5<boss.maxX+boss.w&&y+player.h>boss.y+5&&y+5<boss.y+boss.h;
   }
   function update(dt){
     if(state!=='playing')return;
@@ -1518,9 +1702,10 @@
     player.blink+=dt*12;
 
     // Move lift platforms first and carry the frog when it is standing on one.
+    const movingTime=platformTime();
     for(const p of platforms){
       p.prevY=p.y;
-      if(p.moving){p.y=p.baseY+Math.sin(elapsed*p.moving.speed+p.moving.phase)*p.moving.amp;}
+      if(p.moving){p.y=p.baseY+Math.sin(movingTime*p.moving.speed+p.moving.phase)*p.moving.amp;}
       if(player.standingOn===p && player.onGround) player.y+=p.y-p.prevY;
       if(robot && robot.standingOn===p && robot.onGround) robot.y+=p.y-p.prevY;
     }
@@ -1541,17 +1726,7 @@
     player.vy=Math.min(900,player.vy+1580*dt);
     player.y+=player.vy*dt;
     player.wasOnGround=player.onGround;
-    player.onGround=false;
-    player.standingOn=null;
-    if(player.vy>=0){
-      for(const p of platforms){
-        const overlapsX=player.x+player.w-4>p.x && player.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && previousBottom<=oldTop+12 && player.y+player.h>=p.y && player.y+player.h<=p.y+24){
-          player.y=p.y-player.h;player.vy=0;player.onGround=true;player.standingOn=p;
-        }
-      }
-    }
+    resolvePlatformLanding(player,previousBottom,player.standingOn);
     if(player.onGround&&!player.wasOnGround)recordPlatformLanding(player.standingOn);
     if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
     if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
@@ -1573,7 +1748,12 @@
         totalCoins=Math.min(Number.MAX_SAFE_INTEGER,totalCoins+coinReward);
         if(gameMode!=='infinite')pendingLevelReward=Math.min(Number.MAX_SAFE_INTEGER,pendingLevelReward+coinReward);
         // Infinite Explore has no level-complete portal, so its pickups are banked immediately.
-        if(gameMode==='infinite'){pendingInfiniteReward=Math.min(Number.MAX_SAFE_INTEGER,pendingInfiniteReward+coinReward);bankInfiniteCoins();}
+        if(gameMode==='infinite'){
+          const rewards=infiniteWorld.rewards;
+          rewards.claimed?.add(c.platformRef.id);
+          rewards.pending=Math.min(Number.MAX_SAFE_INTEGER,rewards.pending+coinReward);
+          bankInfiniteCoins(rewards);
+        }
         particles.push(...makeBurst(c.x,c.y,level.accent,12));updateHUD();
       }
     }
@@ -1602,7 +1782,8 @@
       const safeX=gameMode==='infinite'
         ? player.standingOn.x+(player.standingOn.w-player.w)*.5
         : Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7));
-      checkpoint={x:safeX,y:player.standingOn.y-player.h,platformRef:player.standingOn};
+      const safeY=player.standingOn.y-player.h;
+      if(!checkpointOverlapsBossPatrol(safeX,safeY))checkpoint={x:safeX,y:safeY,platformRef:player.standingOn};
     }
 
     for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
@@ -1620,18 +1801,9 @@
       maintainInfiniteWorld();
     }else{
       const endPlatform=platforms[platforms.length-1];
-      const portalX=endPlatform.x+endPlatform.w*.68;
-      const portalY=endPlatform.y-75;
-      // The original fixed-level portal remains unchanged in Adventure and Race.
-      const playerCenterX=player.x+player.w/2;
-      const playerCenterY=player.y+player.h/2;
-      const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
+      const portalOverlap=overlapsPortal(player,endPlatform);
       const portalReady=gameMode==='level'||gameMode==='math'||gameMode==='race'||gameMode==='boss';
       if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){if(gameMode==='math')beginMathQuiz();else completeLevel();}
-    }
-    if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=85){
-      multiplayerLastSent=Date.now();
-      try{multiplayerSocket.send(JSON.stringify({type:'move',x:player.x,y:player.y,face:player.face,levelIndex}));}catch(_){}
     }
   }
 
@@ -1663,7 +1835,7 @@
     // The bottom tells you what happens if you miss a platform.
     ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
     if(gameMode!=='boss'&&level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
-    else if(gameMode!=='boss'&&level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
+    else if(gameMode!=='boss'&&level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){const x=((i*97-cameraX*.42)%(W+40)+W+40)%(W+40)-20;ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
 
   }
   function drawPlatform(p){
@@ -2055,7 +2227,6 @@
     drawRobot();
     if(player)drawPlayer();
     drawRemotePlayers();
-    drawMultiplayerHud();
     // Keep the gameplay view free of extra text labels, as in the sketch.
     if(state==='paused'){
       ctx.fillStyle='#061c28a8';ctx.fillRect(0,0,W,H);
@@ -2064,94 +2235,114 @@
   function pollGamepad(){
     let pads=[];
     try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(_){pads=[];}
-    const pad=Array.from(pads).find(p=>p&&p.connected);
-    if(!pad){
-      gamepadConnected=false;
+    const connected=Array.from(pads).filter(pad=>pad?.connected);
+    if(!connected.length){
       gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();
-      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;previousGamepadNavNext=false;previousGamepadNavPrev=false;return;
+      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;previousGamepadPowerups=0;previousGamepadNavNext=false;previousGamepadNavPrev=false;return;
     }
-    gamepadConnected=true;
-    const axisX=Number.isFinite(pad.axes?.[0])?pad.axes[0]:0;
-    const left=axisX < -0.35 || !!pad.buttons?.[14]?.pressed;
-    const right=axisX > 0.35 || !!pad.buttons?.[15]?.pressed;
+    const pressed=button=>connected.some(pad=>pad.buttons?.[button]?.pressed);
+    const alongAxis=(axis,direction)=>connected.some(pad=>pad.axes?.[axis]*direction>0.35);
+    const left=alongAxis(0,-1)||pressed(14);
+    const right=alongAxis(0,1)||pressed(15);
     gamepadInput.left=left;gamepadInput.right=right;syncHorizontalInput();
-    const jump=!!pad.buttons?.[0]?.pressed;
-    const fire=!!pad.buttons?.[2]?.pressed;
-    const menu=!!pad.buttons?.[9]?.pressed;
+    const jump=pressed(0);
+    const fire=pressed(2);
+    const powerups=(pressed(3)?1:0)|(pressed(1)?2:0);
+    const menu=pressed(9);
     // Controller menu support: D-pad or left stick moves between popup buttons, A picks the focused one.
     const overlayActive=typeof overlay!=='undefined'&&overlay&&!overlay.hidden&&state!=='playing';
     if(overlayActive){
-      const axisY=Number.isFinite(pad.axes?.[1])?pad.axes[1]:0;
-      const navNext=!!pad.buttons?.[13]?.pressed||!!pad.buttons?.[15]?.pressed||axisY>0.35;
-      const navPrev=!!pad.buttons?.[12]?.pressed||!!pad.buttons?.[14]?.pressed||axisY<-0.35;
+      const navNext=pressed(13)||right||alongAxis(1,1);
+      const navPrev=pressed(12)||left||alongAxis(1,-1);
       const step=(navNext&&!previousGamepadNavNext)?1:((navPrev&&!previousGamepadNavPrev)?-1:0);
       if(step){
-        const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
-        if(focusable.length){
-          const current=focusable.indexOf(document.activeElement);
-          const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
-          next.focus({preventScroll:true});
+        const active=document.activeElement;
+        if(state==='multiplayer'&&active?.id==='mp-mode'&&!active.disabled&&editingRoomModeWithController){
+          const count=active.options.length;
+          active.selectedIndex=(active.selectedIndex+count+step)%count;
+        }else{
+          const focusable=overlayControls();
+          if(focusable.length){
+            const current=focusable.indexOf(active);
+            const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
+            next.focus();
+          }
         }
       }
       previousGamepadNavNext=navNext;previousGamepadNavPrev=navPrev;
       if(jump&&!previousGamepadJump){
         const active=document.activeElement;
-        if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
+        if(state==='multiplayer'&&active?.id==='mp-mode'&&!active.disabled)setControllerModeEditing(!editingRoomModeWithController);
+        else if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
       }
     }else{previousGamepadNavNext=false;previousGamepadNavPrev=false;}
-    if(fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
+    if(!overlayActive&&fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
     previousGamepadFire=fire;
-    if(jump&&!previousGamepadJump&&state==='playing')requestJump();
+    if(powerups&&!overlayActive&&state==='playing'&&gameMode==='boss'){
+      const newlyPressed=powerups&~previousGamepadPowerups;
+      if(newlyPressed&1)useBossSpeed();
+      if(newlyPressed&2)useBossSkip();
+    }
+    previousGamepadPowerups=powerups;
+    if(!overlayActive&&jump&&!previousGamepadJump&&state==='playing')requestJump();
     if(menu&&!previousGamepadMenu){
       if(state==='playing'){clearInputs();showOverlay('paused');}
-      else if(state==='paused'){state='playing';hideOverlay();clearInputs();}
+      else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}
       else if(state==='menu')startGame('level');
     }
     previousGamepadJump=jump;previousGamepadMenu=menu;
   }
-  window.addEventListener('gamepadconnected',()=>{previousGamepadJump=false;previousGamepadMenu=false;gamepadConnected=true;ensureFrameLoop();});
-  window.addEventListener('gamepaddisconnected',()=>{gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();previousGamepadJump=false;previousGamepadMenu=false;});
+  window.addEventListener('gamepadconnected',ensureFrameLoop);
+  window.addEventListener('gamepaddisconnected',ensureFrameLoop);
 
   function frame(now){
     rafId=0;
     if(document.hidden||(state!=='playing'&&state!=='paused'&&state!=='menu'&&(typeof overlay==='undefined'||overlay.hidden)))return;
     pollGamepad();
     if(!lastTime)lastTime=now;
-    let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    const delta=Math.min(FIXED_DT*16,Math.max(0,(now-lastTime)/1000));lastTime=now;
     if((state==='playing'||state==='menu')&&achievementNoticeTime>0)achievementNoticeTime=Math.max(0,achievementNoticeTime-delta);
     if(state==='playing'){
       accumulator+=delta;
       let count=0;
-      while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}
-      if(count>=8)accumulator=0;
+      while(accumulator+1e-9>=FIXED_DT&&count<16){update(FIXED_DT);accumulator=Math.max(0,accumulator-FIXED_DT);count++;if(state!=='playing')break;}
     }else{accumulator=0;if(state==='menu')elapsed+=delta;}
-    render();
+    if(multiplayerConnected){sendMultiplayerPosition(now);drawMultiplayerHud();}
+    if(state==='playing'||state==='menu'||state!==lastRenderedState){render();lastRenderedState=state;}
     if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&!document.hidden)ensureFrameLoop();
     else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);
   }
 
   document.addEventListener('keydown',e=>{
     const code=e.code;
+    if(e.defaultPrevented||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+    const key=e.key?.toLowerCase();
+    const jumpFocused=e.target?.id==='jump-control';
+    if((state==='mathQuestion'||jumpFocused)&&code==='Enter'&&e.repeat){e.preventDefault();return;}
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
-    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
+    const useGameControls=!interactiveTarget||jumpFocused;
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){heldMovementKeys.add(code);keyboardInput.left=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){heldMovementKeys.add(code);keyboardInput.right=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
-    if(useGameControls&&code==='KeyF'&&!e.repeat&&gameMode==='boss')shootFire();
-    if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat&&(!interactiveTarget||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
+    if(useGameControls&&(code==='ArrowLeft'||key==='a')){heldMovementKeys.set(code,'left');keyboardInput.left=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='ArrowRight'||key==='d')){heldMovementKeys.set(code,'right');keyboardInput.right=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='Space'||code==='ArrowUp'||key==='w')&&!e.repeat)requestJump();
+    if(useGameControls&&key==='f'&&!e.repeat&&gameMode==='boss')shootFire();
+    if((key==='p'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}}
+    if(key==='r'&&!e.repeat&&(useGameControls||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
       if(state==='gameover'||state==='won')restartRun();
       else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
     }
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
-    if(e.code==='ArrowLeft'||e.code==='KeyA'){heldMovementKeys.delete(e.code);keyboardInput.left=heldMovementKeys.has('KeyA')||heldMovementKeys.has('ArrowLeft');syncHorizontalInput();}
-    if(e.code==='ArrowRight'||e.code==='KeyD'){heldMovementKeys.delete(e.code);keyboardInput.right=heldMovementKeys.has('KeyD')||heldMovementKeys.has('ArrowRight');syncHorizontalInput();}
+    const direction=heldMovementKeys.get(e.code);
+    if(!direction)return;
+    heldMovementKeys.delete(e.code);
+    keyboardInput[direction]=Array.from(heldMovementKeys.values()).includes(direction);
+    syncHorizontalInput();
   });
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{
+    if(mathQuiz)syncMathQuizVisibility(mathQuiz,performance.now());
     if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}
     else if(state==='playing'||state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))ensureFrameLoop();
   });
@@ -2195,7 +2386,7 @@
     }
   }
   moveStick.addEventListener('pointerdown',e=>{
-    if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
+    if(state!=='playing'||e.button!==0||stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
     try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
   });
   moveStick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer){e.preventDefault();moveJoystick(e);}});
@@ -2212,11 +2403,13 @@
   document.addEventListener('keydown',noteActivity,{passive:true});
   document.addEventListener('pointermove',noteActivity,{passive:true});
   document.addEventListener('pointerdown',noteActivity,{passive:true});
-  document.getElementById('bar-fullscreen').addEventListener('click',async()=>{
+  document.getElementById('bar-fullscreen').addEventListener('click',async event=>{
+    const button=event.currentTarget;
     try{
       if(document.fullscreenElement) await document.exitFullscreen();
       else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
     }catch(_){ /* Fullscreen can be blocked by browser or device policy. */ }
+    if(event.detail>0&&state==='playing'&&document.activeElement===button)canvas.focus({preventScroll:true});
   });
   document.getElementById('bar-exit').addEventListener('click',()=>{
     window.clearTimeout(bottomBarTimer);
@@ -2228,8 +2421,8 @@
   const jumpBtn=document.getElementById('jump-control');
   let jumpPointer=null;
   jumpBtn.addEventListener('pointerdown',e=>{
-    if(jumpPointer!==null||state!=='playing')return;
-    e.preventDefault();jumpPointer=e.pointerId;jumpBtn.classList.add('pressed');requestJump();
+    if(e.button!==0||jumpPointer!==null||state!=='playing')return;
+    e.preventDefault();jumpPointer=e.pointerId;jumpBtn.classList.add('pressed');requestJump(jumpPointer);
     try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){}
   });
   const releaseJump=e=>{
@@ -2240,12 +2433,15 @@
   const cancelJump=e=>{
     if(e)e.preventDefault();
     if(jumpPointer===null||(e&&e.pointerId!==jumpPointer))return;
-    if(player&&state==='playing')player.jumpBuffer=0;
-    jumpPointer=null;jumpBtn.classList.remove('pressed');
+    const pointer=jumpPointer;
+    if(player&&player.jumpRequestPointer===pointer)player.jumpBuffer=0;
+    releaseJump();
+    if(jumpBtn.hasPointerCapture(pointer)){try{jumpBtn.releasePointerCapture(pointer);}catch(_){}}
   };
   jumpBtn.addEventListener('pointerup',releaseJump);
   jumpBtn.addEventListener('pointercancel',cancelJump);
   jumpBtn.addEventListener('lostpointercapture',cancelJump);
+  jumpBtn.addEventListener('click',e=>{if(e.detail===0)requestJump();});
   jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
 
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));

@@ -21,9 +21,10 @@ test('failed cosmetic image retries after a delay',()=>{
   now=5000;load(image,'skin.png');assert.equal(count,2);
 });
 test('achievements remain in memory when storage is blocked',()=>{
-  const code=part('function loadAchievementData(){','function recordPlatformLanding(platform)');
-  const result=Function(`let achievementStorageAvailable=true,achievementData,achievementNotice='',achievementNoticeTime=0,state='playing';
+  const code=part('function withProgressLock(','function recordPlatformLanding(platform)');
+  const result=Function(`let achievementData,achievementNotice='',achievementNoticeTime=0,state='playing';
     const navigator={},window={localStorage:{getItem(){throw Error()},setItem(){throw Error()}}};
+    const pendingAchievementChanges=[],document={getElementById:()=>({})};
     const ACHIEVEMENTS=[{id:'first_jump'},{id:'coin_collector'}];${code}
     achievementData=loadAchievementData();awardAchievement('first_jump');
     for(let i=0;i<10;i++)recordCoinAchievement();return achievementData;`)();
@@ -39,9 +40,9 @@ test('restarting discards the full reward value',()=>{
   }
 });
 test('completion waits for the pickup-time reward to save',async()=>{
-  const code=part('async function completeLevel(){','function update(dt)');
+  const code=part('async function completeLevel(','function update(dt)');
   let resolve;const pending=new Promise(r=>resolve=r);let banked=0,screen='';
-  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Set();
+  const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Map(),player={},coins=[{platformId:1,taken:true}];
     const bankWalletCoins=bank,clearInputs=()=>{},currentModeTotalLevels=()=>3,showOverlay=s=>{state=s;show(s)};
     ${code} return completeLevel;`)(n=>{banked=n;return pending},s=>screen=s);
   const completion=harness();assert.equal(banked,7);assert.equal(screen,'saving');
@@ -60,9 +61,10 @@ test('game and worker allow the same skins',()=>{
   assert.ok(a&&b);assert.deepEqual(Function('return '+a[1])().sort(),Function('return '+b[1])().sort());
 });
 test('new embedded PNG skins are in the shop with valid sprite data',()=>{
-  for(const [id,price] of [['pirate',140],['superhero',165],['wizard',195],['astronaut',220]]){
+  for(const [id,price] of [['pirate',138],['superhero',165],['wizard',193],['astronaut',220]]){
     assert.ok(html.includes(`{id:'${id}',kind:'skin'`),`${id} missing from shop items`);
-    assert.ok(html.includes(`id:'${id}',kind:'skin',name:`)&&html.includes(`price:${price}`),`${id} price changed`);
+    const item=html.match(new RegExp("\\{id:'"+id+"',kind:'skin',name:'[^']+',price:(\\d+),"));
+    assert.equal(Number(item?.[1]),price,`${id} price changed`);
     const m=html.match(new RegExp(`${id}:\\{image:new Image\\(\\),src:'data:image/png;base64,([A-Za-z0-9+/=]+)'\\}`));
     assert.ok(m,`${id} embedded sprite missing`);
     const buf=Buffer.from(m[1],'base64');
@@ -72,7 +74,8 @@ test('new embedded PNG skins are in the shop with valid sprite data',()=>{
   assert.ok(html.includes('EMBEDDED_SKIN_IMAGES[equippedSkin]'));
 });
 test('Black Friday sale prices are 45% off every shop item',()=>{
-  const expected={black:35,ocean:85,jupiter:330,gold:165,ninja:360,car:440,dinosaur:165,bee:165,king:825,baggy:330,kiera:165,teo:165,buff:220,steve:165,rainbow:165,popcorn:165,flowerpot:165,spiky:145,longneck:175,glider:195,fishbone:160,bigeyes:165,mouse:145,bear:180,longbeak:165,bunny:195,boxbot:230,kitty:185,chick:165,alien:250,poppy:0,usflag:275,pirate:140,superhero:165,wizard:195,astronaut:220,tv:275};
+  const original={black:60,ocean:150,jupiter:600,gold:300,ninja:650,car:800,dinosaur:300,bee:300,king:1500,baggy:600,kiera:300,teo:300,buff:400,steve:300,rainbow:300,popcorn:300,flowerpot:300,spiky:260,longneck:320,glider:350,fishbone:290,bigeyes:300,mouse:260,bear:330,longbeak:300,bunny:350,boxbot:420,kitty:340,chick:300,alien:450,poppy:0,usflag:500,pirate:250,superhero:300,wizard:350,astronaut:400,tv:500};
+  const expected=Object.fromEntries(Object.entries(original).map(([id,price])=>[id,Math.round(price*55/100)]));
   const found={};
   for(const m of html.matchAll(/\{id:'([a-z]+)',kind:'(?:skin|hat)',name:'[^']*',price:(\d+),emoji:/g))found[m[1]]=Number(m[2]);
   assert.deepEqual(found,expected);
@@ -83,24 +86,36 @@ test('clicking boss tools returns focus to the game for keyboard controls',()=>{
     const [bossFireButton,bossSpeedButton,bossSkipButton]=buttons;
     const shootFire=()=>{},useBossSpeed=()=>{},useBossSkip=()=>{},state='playing',canvas={focus(){calls++}};
     ${code} buttons[0].click({detail:1});buttons[0].click({detail:0});return calls;`)();
-  assert.equal(result,1);
+  assert.equal(result,2);
 });
 
 test('shop write failures never debit coins without ownership',()=>{
-  const code=part('const applyShopAction=()=>{','// Web Locks serializes purchases');
-  for(const failed of ['shop','wallet']){
-    const result=Function('failed',`let walletCoins=60, equippedSkin='red',equippedHat='none',messages=0;
-      let shopData={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
-      let storedWallet=60,storedShop=JSON.stringify(shopData);
-      const id='black',items=[{id:'black',kind:'hat',price:60}];
-      const readStoredNumber=()=>storedWallet,loadShopData=()=>JSON.parse(storedShop);
-      const saveShopData=()=>{if(failed==='shop')return false;storedShop=JSON.stringify(shopData);return true};
-      const saveWallet=()=>{if(failed==='wallet')return false;storedWallet=walletCoins;return true};
-      const window={alert(){messages++}},showShop=()=>{},sendMultiplayerCosmetics=()=>{};
-      ${code} applyShopAction();return {storedWallet,storedShop,messages};`)(failed);
-    assert.equal(result.storedWallet,60);
-    assert.equal(result.messages,1);
-    assert.ok(!JSON.parse(result.storedShop).ownedHats.includes('black'));
+  const code=part('function readStoredNumber','function showShop(')+part('function applyShopAction(','function syncShopFromStorage');
+  for(const failure of ['journal','debit','debit-and-cleanup','finalize','shop-read']){
+    const result=Function('failure',`
+      const FROG_SKIN_IDS=new Set(['red','king']);
+      const walletKey='frogJumperWalletCoins',shopKey='frogJumperShop';
+      const stored=new Map([[walletKey,'60'],[shopKey,JSON.stringify({ownedSkins:['red','king'],equippedSkin:'king'})]]);
+      let shopWrites=0,readonly=failure==='shop-read';
+      const window={localStorage:{
+        getItem(key){if(readonly&&key===shopKey)throw Error('read failed');return stored.get(key)??null;},
+        setItem(key,value){
+          if(key===shopKey)shopWrites++;
+          if((key===walletKey&&failure.startsWith('debit'))||
+            (key===shopKey&&(failure==='journal'||(shopWrites>1&&['debit-and-cleanup','finalize'].includes(failure)))))
+              throw Error('write failed');
+          stored.set(key,value);
+        }
+      }};
+      ${code}
+      const saved=applyShopAction({id:'black',kind:'hat',price:33},'buy');
+      readonly=false;
+      return {wallet:readStoredNumber(walletKey),shop:loadShopData(),saved};`)(failure);
+    const debited=failure==='finalize';
+    assert.equal(result.saved,debited,failure);
+    assert.equal(result.wallet,debited?27:60,failure);
+    assert.equal(result.shop.ownedHats.includes('black'),debited,failure);
+    assert.ok(result.shop.ownedSkins.includes('king'),failure);
   }
 });
 test('game-over text does not compare bonus rewards with a pickup maximum',()=>{
@@ -122,7 +137,7 @@ test('controller menu input starts Adventure and polling does not duplicate fram
 });
 test('multiplayer restarts use the same room seed',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,infiniteSaveWarned;
+  const result=Function(`let multiplayerConnected=true,multiplayerRoomCode='ABC123',roomInfiniteProgress=null,infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,boss,fireProjectiles,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
     ${setup}setupInfiniteExplore();const first=infiniteWorld.seed;setupInfiniteExplore();return [first,infiniteWorld.seed];`)();
   assert.deepEqual(result,[parseInt('ABC123',36)>>>0,parseInt('ABC123',36)>>>0]);
@@ -164,9 +179,15 @@ test('old multiplayer socket messages are ignored',()=>{
 });
 
 test('math quiz timer pauses while the tab is hidden',()=>{
-  const code=part('function beginMathQuiz(){','function showOverlay(kind,options={})');
-  assert.ok(code.includes('document.hidden'));
-  assert.ok(code.includes('quiz.deadline+=Date.now()-quiz.hiddenAt'));
+  const code=part('function syncMathQuizVisibility','function beginMathQuiz(){');
+  const document={hidden:true};
+  const sync=Function('document',code+'return syncMathQuizVisibility;')(document);
+  const quiz={deadline:40000,hiddenAt:null};
+  assert.equal(sync(quiz,1000),false);
+  assert.equal(sync(quiz,2000),false);
+  document.hidden=false;
+  assert.equal(sync(quiz,42000),true);
+  assert.deepEqual(quiz,{deadline:81000,hiddenAt:null});
 });
 
 test('skipping the final boss still wins and counts the skip',()=>{
@@ -178,7 +199,7 @@ test('skipping the final boss still wins and counts the skip',()=>{
 });
 
 test('boss victory text does not claim every boss was defeated after a skip',()=>{
-  assert.ok(html.includes("bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped"));
+  assert.ok(html.includes("bossStagesSkipped>0?`You cleared ${currentModeTotalLevels()-bossStagesSkipped} of ${currentModeTotalLevels()} Boss Fight levels. You skipped"));
   assert.ok(html.includes("bossStagesSkipped = 0;"));
 });
 
@@ -197,7 +218,8 @@ test('controller D-pad and A button can select other menu modes',()=>{
     const gamepadInput={},clicked=[];
     const buttons=['PLAY LEVEL ADVENTURE','MATH MODE','ROBOT RACE'].map(label=>({label,hidden:false,getAttribute:()=>null,focus(){document.activeElement=this;},click(){clicked.push(label);}}));
     const document={hidden:false,activeElement:buttons[0]};
-    const overlay={hidden:false,contains:el=>buttons.includes(el),querySelectorAll:()=>buttons};
+    const overlay={hidden:false,contains:el=>buttons.includes(el)};
+    const overlayControls=()=>buttons;
     let padButtons=Array.from({length:16},()=>({pressed:false}));
     const navigator={getGamepads:()=>[{connected:true,axes:[0,0],buttons:padButtons}]};
     const syncHorizontalInput=()=>{},startGame=mode=>{started=mode;},requestJump=()=>{},shootFire=()=>{},clearInputs=()=>{},showOverlay=()=>{},hideOverlay=()=>{};
@@ -214,13 +236,13 @@ test('controller D-pad and A button can select other menu modes',()=>{
 });
 
 test('infinite explore keeps unpaid coins and retries instead of losing them',async()=>{
-  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  const code=part('function bankInfiniteCoins(','async function bankWalletCoins');
   let attempts=0,paid=0;const alerts=[];
   const bank=async amount=>{attempts++;if(attempts===1)return false;paid+=amount;return true;};
-  const harness=Function('bank','alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
+  const harness=Function('bank','alerts',`const state='playing',rewards={pending:5,saving:false,warned:false},infiniteWorld={rewards};
     const window={alert:msg=>alerts.push(msg)};
     const bankWalletCoins=bank;
-    ${code} return {bankInfiniteCoins,get pending(){return pendingInfiniteReward;}};`)(bank,alerts);
+    ${code} return {bankInfiniteCoins:()=>bankInfiniteCoins(rewards),get pending(){return rewards.pending;}};`)(bank,alerts);
   harness.bankInfiniteCoins();
   await new Promise(r=>setTimeout(r,0));
   assert.equal(harness.pending,5,'failed save should keep the coins pending');
@@ -234,8 +256,8 @@ test('infinite explore keeps unpaid coins and retries instead of losing them',as
 test('coins save anyway in browsers without Web Locks',async()=>{
   const code=part('async function bankWalletCoins(amount){','function updateBossCombat(dt)');
   const run=Function('saveOk',`let walletCoins=10;
-    const navigator={};
-    const readStoredNumber=()=>10,saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
+    const withProgressLock=(_name,operation)=>operation();
+    const readStoredNumber=()=>10,loadShopData=()=>({}),saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
     ${code} return bankWalletCoins(7).then(saved=>[saved,walletCoins]);`);
   assert.deepEqual(await run(true),[true,17],'no-lock save should bank the coins');
   assert.deepEqual(await run(false),[false,10],'failed storage write should restore the wallet');
@@ -259,9 +281,9 @@ test('boss stages do not use Adventure lava or theme decorations',()=>{
 
 test('a fresh Infinite Explore run forgets unpaid coins from the last run',()=>{
   const setup=part('function setupInfiniteExplore(seed) {','function setupLevel(index)');
-  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld,elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward,pendingInfiniteReward=9,infiniteSaveWarned=true;
+  const result=Function(`let multiplayerConnected=false,multiplayerRoomCode='',infiniteWorld={rewards:{pending:9,warned:true}},elapsed,ticks,platforms,coins,enemies,particles,levelIndex,level,robot,boss,fireProjectiles,player,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
     const WORLD_TEMPLATES=[{}],PLAYER_H=36,makePlayer=()=>({}),maintainInfiniteWorld=()=>{},updateHUD=()=>{};
-    ${setup}setupInfiniteExplore(123);return pendingInfiniteReward;`)();
+    ${setup}setupInfiniteExplore(123);return infiniteWorld.rewards.pending;`)();
   assert.equal(result,0);
 });
 
@@ -280,7 +302,7 @@ test('worker checks room capacity before eating a join ticket',()=>{
 test('menu frame loop runs and animates without a controller',()=>{
   const ensure=part('function ensureFrameLoop(){','function hideOverlay()');
   const frame=part('function frame(now){',"document.addEventListener('keydown'");
-  const result=Function(`let rafId=0,lastTime=0,state='menu',elapsed=0,accumulator=0,achievementNoticeTime=0,renders=0;
+  const result=Function(`let rafId=0,lastTime=0,state='menu',elapsed=0,accumulator=0,achievementNoticeTime=0,renders=0,multiplayerConnected=false;
     const document={hidden:false},overlay={hidden:false},FIXED_DT=1/60;
     const pollGamepad=()=>{},update=()=>{},render=()=>{renders++};
     const requestAnimationFrame=()=>1;
@@ -318,7 +340,7 @@ test('robot jump strength matches the frog and it cannot stay stuck',()=>{
 });
 
 test('robot does not win a tie at the portal',()=>{
-  const code=part('function updateRobot(dt){','function bankInfiniteCoins()');
+  const code=part('function updateRobot(dt){','function bankInfiniteCoins(');
   const run=Function('playerX',`let state='playing',levelIndex=0,screen='';
     const H=600,W=960;
     const platforms=[{id:0,x:0,y:515,w:250,prevY:515},{id:1,x:1700,y:500,w:400,prevY:500}];
@@ -334,29 +356,35 @@ test('robot does not win a tie at the portal',()=>{
 test('restarting a finished level does not respawn its coins',()=>{
   const code=part('function setupLevel(index) {','function startGame(');
   const run=Function('banked',`let gameMode='level',infiniteWorld,levelIndex,level,elapsed,ticks,platforms,coins,enemies,particles,player,robot,boss,fireProjectiles,bossSpeedTimer,fireCooldown,bossPowerups,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
+    const achievementNotice='',platformTime=()=>0;
     const COINS_PER_LEVEL=5,PLAYER_H=36;
     const fake={platforms:[[0,515,250],[300,460,120],[500,400,120],[700,450,120],[900,380,120],[1100,430,120],[1300,370,120],[1500,430,120],[1700,500,400]],movers:[],enemies:[],bossLevel:false};
     const currentModeLevels=()=>[fake],makePlayer=(x,y)=>({x,y,w:36,h:36,onGround:false,standingOn:null}),updateHUD=()=>{};
-    const bankedCoinLevels=new Set(banked?['level:0']:[]);
+    const bankedCoinLevels=new Map([['level:0',new Set(banked)]]);
     ${code} setupLevel(0);return coins.map(c=>c.taken);`);
-  assert.deepEqual(run(false),[false,false,false,false,false],'fresh level coins are collectible');
-  assert.deepEqual(run(true),[true,true,true,true,true],'banked level coins stay collected after restart');
+  assert.deepEqual(run([]),[false,false,false,false,false],'fresh level coins are collectible');
+  assert.deepEqual(run([1,2,3,4,5]),[true,true,true,true,true],'banked level coins stay collected after restart');
+  assert.deepEqual(run([2]),[false,true,false,false,false],'other pickups stay available after a partial clear');
 });
 
 test('infinite explore save warning shows at most once per run',async()=>{
-  const code=part('function bankInfiniteCoins(){','async function bankWalletCoins');
+  const code=part('function bankInfiniteCoins(','async function bankWalletCoins');
   const alerts=[];
-  const harness=Function('alerts',`let pendingInfiniteReward=5,infiniteBankInFlight=false,infiniteSaveWarned=false;
+  const harness=Function('alerts',`const state='playing',rewards={pending:5,saving:false,warned:false},infiniteWorld={rewards};
     const window={alert:msg=>alerts.push(msg)};
     const bankWalletCoins=async()=>false;
-    ${code} return bankInfiniteCoins;`)(alerts);
+    ${code} return ()=>bankInfiniteCoins(rewards);`)(alerts);
   for(let i=0;i<3;i++){harness();await new Promise(r=>setTimeout(r,0));}
   assert.equal(alerts.length,1,'repeated save failures should warn only once');
 });
 
-test('boss tools do not cover the multiplayer room label',()=>{
-  const code=part('function drawMultiplayerHud(){','function requestJump()');
-  assert.ok(code.includes("(gameMode==='boss'&&state==='playing')?54:12"),'room label should drop below the boss tools in Boss Fight');
+test('multiplayer room HUD shows connected players and hides on disconnect',()=>{
+  const code=part('function drawMultiplayerHud(){','function requestJump(');
+  const run=Function(`let multiplayerConnected=true;
+    const multiplayerRoomCode='ABC234',multiplayerPlayers=new Map([['other',{}]]),roomHud={};
+    ${code} drawMultiplayerHud();const connected=[roomHud.hidden,roomHud.textContent];
+    multiplayerConnected=false;drawMultiplayerHud();return [connected,roomHud.hidden];`);
+  assert.deepEqual(run(),[[false,'ROOM ABC234  2/10'],true]);
 });
 
 test('worker rate-limits room joins per IP',async()=>{
