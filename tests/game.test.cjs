@@ -880,6 +880,7 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
   test('menu, shop, and boss buttons have comfortable tap targets at '+viewport.width,async()=>{
     const page=await browser.newPage({viewport});
     try {
+      await stubExternal(page);
       await page.goto(baseUrl,{waitUntil:'load'});
       const checkTargets=async(selector)=>{
         const sizes=await page.locator(selector).evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>({text:b.textContent.trim(),width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})));
@@ -908,4 +909,55 @@ test('bottom bar stays visible while a keyboard button has focus',async()=>{
     assert.equal(await page.locator('#bar-exit').evaluate(b=>b.matches(':focus-visible')),true);
     assert.equal(await page.locator('#bar-exit').evaluate(b=>getComputedStyle(b).outlineStyle),'solid');
   } finally { await page.close(); }
+});
+
+test('desktop and touch tablet controls fit below an undistorted centered canvas',async()=>{
+  for(const options of [{width:1366,height:768},{width:800,height:1200},{width:1024,height:1366,hasTouch:true}]){
+    const {width,height,hasTouch}=options;
+    const context=await browser.newContext({viewport:{width,height},hasTouch});
+    try{
+      await stubExternal(context);
+      const page=await context.newPage();
+      await page.goto(baseUrl);
+      await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+      const stage=await page.locator('#stage').boundingBox();
+      const canvas=await page.locator('#game').boundingBox();
+      const toolbar=await page.locator('#bottom-bar').boundingBox();
+      assert.ok(Math.abs(canvas.width/canvas.height-1.6)<0.01);
+      assert.ok(Math.abs(stage.height-canvas.height)<1);
+      assert.ok(toolbar.y+toolbar.height<=height);
+      assert.ok(Math.abs(stage.y-(height-toolbar.y-toolbar.height))<2);
+      assert.ok(await page.locator(hasTouch?'#jump-control':'#bar-fullscreen').isVisible());
+    }finally{await context.close();}
+  }
+});
+
+test('Boss Fight room code fits below wrapped tools on phones and small desktop windows',async()=>{
+  for (const [width,height] of [[390,844],[667,375],[844,390],[800,600],[320,568]]) {
+    const context=await browser.newContext({viewport:{width,height},hasTouch:true});
+    try{
+      await stubExternal(context);
+      await context.addInitScript(()=>{
+        window.WebSocket=class extends EventTarget{
+          static OPEN=1;
+          constructor(){super();this.readyState=0;setTimeout(()=>{this.readyState=1;this.dispatchEvent(new Event('open'));},10);}
+          send(){}
+        };
+      });
+      await context.route('**/api/rooms/ABC234/join',route=>route.fulfill({json:{token:'fixture'}}));
+      const page=await context.newPage();
+      await page.goto(baseUrl);
+      await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+      await page.locator('#mp-mode').selectOption('boss');
+      await page.locator('#mp-code').fill('ABC234');
+      await page.locator('#mp-join').click();
+      const room=page.locator('#room-hud');
+      await room.waitFor({state:'visible'});
+      assert.match(await room.textContent(),/ABC234/);
+      assert.equal(await room.evaluate(el=>getComputedStyle(el).userSelect),'text');
+      const label=await room.boundingBox();
+      const tools=await page.locator('#boss-tools').boundingBox();
+      assert.ok(label.y>=tools.y+tools.height,`${width}×${height}: room label should clear all tool rows`);
+    }finally{await context.close();}
+  }
 });

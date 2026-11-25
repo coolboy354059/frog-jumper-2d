@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Fit the play area and controls to the viewport and keep room information and dialog focus accessible. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep checkpoints safe, make platform landings and races consistent, and fix low-frame-rate play and rendering. -->
 <!-- CHANGE LOG: 2026-11-25 — Scope coin saves to the run that earned them and track banked pickups individually. -->
 <!-- CHANGE LOG: 2026-11-25 — Fix touch, keyboard and controller activation and return focus to gameplay after using tools. -->
@@ -66,15 +67,17 @@
   :root{color-scheme:dark;--ink:#effff8;--muted:#b8d6cc;--panel:#173b45;--panel2:#102b36;--lime:#c9ff67;--gold:#ffd65c;--line:#ffffff22}
   *{box-sizing:border-box}
   body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#245965 0,#102b36 55%,#091c25 100%);color:var(--ink);font-family:ui-rounded,"Trebuchet MS",system-ui,-apple-system,Segoe UI,sans-serif}
-  .app{width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(10px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));border:12px solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
+  .app{--frame:12px;--padding:10px;--bar-height:76px;--app-top:max(var(--padding),env(safe-area-inset-top));--app-bottom:max(var(--padding),env(safe-area-inset-bottom));--stage-height:calc(100dvh - 2 * var(--frame) - var(--app-top) - var(--app-bottom) - var(--bar-height) - 10px);width:min(100%,1200px);min-height:100vh;min-height:100dvh;margin:0 auto;padding:var(--app-top) max(var(--padding),env(safe-area-inset-right)) var(--app-bottom) max(var(--padding),env(safe-area-inset-left));border:var(--frame) solid #ed171f;border-radius:22px;background:#102b36;display:flex;flex-direction:column}
   body{padding:0}
   header{display:none}
   .brand{display:flex;align-items:center;gap:12px;min-width:0}.logo{width:52px;height:52px;flex:0 0 52px;display:grid;place-items:center;border-radius:16px;background:linear-gradient(145deg,#caff7d,#76d670);box-shadow:0 8px 26px rgba(0,0,0,.18),inset 0 2px rgba(255,255,255,.28);font-size:28px}
   h1{font-size:clamp(22px,4.4vw,34px);line-height:1;margin:0;font-weight:1000;letter-spacing:-.045em}.sub{color:var(--muted);font-size:13px;margin-top:5px}
   .version{font-size:11px;font-weight:900;letter-spacing:.12em;color:#d9efbb;border:1px solid #b8dd8955;border-radius:999px;padding:8px 10px;white-space:nowrap}
-  .cabinet{background:transparent;border:0;border-radius:0;padding:0;box-shadow:none;display:flex;flex:1;min-height:0;flex-direction:column}
+  .cabinet{display:flex;flex:1;min-height:0;flex-direction:column;align-items:center;justify-content:center}
   .hud{display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px;margin:0 0 10px}.stat{background:#0c2832a8;border:1px solid #ffffff15;border-radius:12px;padding:9px 12px;min-width:0}.stat label{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:#b2d2c6;margin-bottom:4px;font-weight:800}.stat strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}.progress-outer{margin-top:7px;width:100%;height:8px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden;border:1px solid rgba(255,255,255,.08)}.progress-fill{height:100%;width:0;background:linear-gradient(90deg,#d9ff7d,#7ae38f);border-radius:999px;box-shadow:0 0 16px rgba(201,255,103,.5)}.best-run{margin-top:4px;font-size:11px;color:#a9c8bb}
-  .stage{position:relative;width:100%;flex:1;min-height:240px;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}.stage canvas{display:block;width:100%;height:100%;min-height:240px;aspect-ratio:16/10;object-fit:fill;background:#88dfff}
+  .stage,.bottom-bar{width:min(100%,calc(max(140px,var(--stage-height)) * 1.6))}
+  .stage{position:relative;flex:none;aspect-ratio:16/10;overflow:hidden;border-radius:5px;background:#88dfff;outline:0;isolation:isolate}
+  .stage canvas{position:absolute;inset:0;display:block;width:100%;height:100%;background:#88dfff}
   .overlay{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:18px;background:#071d27bb;backdrop-filter:blur(4px);text-align:center}.overlay[hidden]{display:none}
   @media(max-height:520px){.overlay{align-items:center;overflow-y:auto}.overlay-card{margin:auto}}
   .overlay-card{max-width:440px;width:min(90%,420px);margin:auto;padding:20px 18px;border-radius:18px;border:1px solid rgba(255,255,255,.16);background:linear-gradient(180deg,rgba(24,62,72,.96),rgba(8,22,29,.96));box-shadow:0 30px 70px rgba(0,0,0,.42)}
@@ -95,7 +98,7 @@
   .shop-item .action{font-size:9px;padding:9px 7px;width:100%;letter-spacing:.02em}
   .shop-item .action:disabled{opacity:.5;cursor:not-allowed}
   @media(max-width:520px){.shop-grid{grid-template-columns:1fr}.shop-item{display:grid;grid-template-columns:40px 1fr;align-items:center;text-align:left}.shop-emoji{grid-row:span 2}.shop-item small{min-height:0}.shop-item .action{grid-column:2}}
-  .bottom-bar{height:76px;min-height:76px;margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
+  .bottom-bar{flex:0 0 var(--bar-height);margin-top:10px;padding:8px 10px;display:flex;align-items:center;gap:14px;background:#173b45;border-radius:10px;transition:opacity .25s ease,transform .25s ease}
   .bottom-bar.is-hidden{opacity:0;transform:translateY(12px);pointer-events:none}
   .bar-fullscreen,.bar-exit{height:48px;flex:0 0 48px;border:0;border-radius:5px;background:transparent;color:#ed171f;cursor:pointer;display:grid;place-items:center;padding:0}
   .bar-square{width:38px;height:38px;display:block;border:5px solid #ed171f;border-radius:3px}
@@ -107,20 +110,19 @@
   .stick-knob{position:absolute;left:50%;top:50%;width:30px;height:30px;border-radius:50%;transform:translate(-50%,-50%);background:linear-gradient(145deg,#faffff,#a9c6d0);border:2px solid #ffffffd9;box-shadow:0 3px 8px #0005;pointer-events:none}
   .control{appearance:none;border:2px solid #ffffffc9;background:linear-gradient(180deg,#d9ff7d,#91d94e);color:#203b0b;border-radius:50%;width:64px;height:64px;flex:0 0 64px;font-size:25px;font-weight:1000;box-shadow:inset 0 -5px #0002,0 6px 14px #0004;touch-action:none}
   .control.pause{width:46px;height:46px;flex:0 0 46px;border-radius:14px;background:linear-gradient(180deg,#e7f2f7,#afc7d1);color:#163746;font-size:19px}
-  .boss-tools{position:absolute;top:10px;right:10px;z-index:4;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;max-width:calc(100% - 20px)}
+  .stage-hud{position:absolute;top:10px;inset-inline:10px;z-index:4;display:grid;justify-items:end;gap:6px;pointer-events:none}
+  .boss-tools{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;pointer-events:auto}
   .boss-tools[hidden]{display:none}
+  .room-hud{border:1px solid #d5ff7d;border-radius:9px;background:#102b36ef;color:#f4ffd9;padding:6px 10px;font:700 12px system-ui;pointer-events:auto;user-select:text}
+  .room-hud[hidden]{display:none}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
   .boss-tool{border:1px solid #ffffff70;border-radius:999px;padding:9px 12px;background:#243b62;color:#fff;font-size:11px;font-weight:900;letter-spacing:.03em;box-shadow:0 4px 14px #0005;cursor:pointer}
   .boss-tool.fire{background:linear-gradient(180deg,#ffd079,#ef6841);color:#54200b}
   .boss-tool:disabled{opacity:.45;cursor:not-allowed}
   .control.pressed{transform:scale(.94);filter:brightness(.96)}
-  @media(max-width:620px){.app{padding:max(7px,env(safe-area-inset-top)) max(7px,env(safe-area-inset-right)) max(7px,env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));border-width:8px;border-radius:14px}.cabinet{justify-content:center}.stage{width:100%;max-width:calc((100dvh - 190px)*1.6);align-self:center}.bottom-bar{width:100%;height:82px;min-height:82px;padding:7px;justify-content:center}.controls{flex:0 1 auto;justify-content:center;gap:clamp(28px,12vw,72px)}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
-  @media (any-pointer:coarse){.controls{display:flex}.bar-fullscreen,.bar-exit{display:none}}
-  html.touch-device .controls{display:flex}
-  html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}
-  html.touch-device .stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}
-  html.touch-device .stage canvas{min-height:0}
-  @media(max-width:620px){.stage{flex:0 0 auto;aspect-ratio:16/10;min-height:0}.stage canvas{min-height:0}}
-  @media(orientation:landscape) and (max-height:520px){html.touch-device .stage{width:min(100%,calc((100dvh - 164px)*1.6));align-self:center}html.touch-device .bottom-bar{flex:0 0 82px}}
+  @media(max-width:620px){.app{--padding:7px;--frame:8px;--bar-height:82px;border-radius:14px}.bottom-bar{padding:7px;gap:8px;justify-content:center}.controls{justify-content:center;gap:clamp(6px,4vw,28px)}.bar-fullscreen,.bar-exit{width:38px;height:44px;flex-basis:38px}.bar-square{width:30px;height:30px}}
+  html.touch-device .controls{display:flex;justify-content:center}
+  @media (pointer:coarse),(pointer:none){html.touch-device .bar-fullscreen,html.touch-device .bar-exit{display:none}}
   @media (prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 
 
@@ -218,12 +220,15 @@
   <main class="cabinet" aria-label="Frog Jumper game">
     <div class="stage" id="stage">
       <canvas id="game" width="960" height="600" tabindex="0" role="img" aria-label="Frog Jumper platform game. Use arrow keys to move and space to jump."></canvas>
-      <div class="boss-tools" id="boss-tools" hidden aria-label="Boss Fight tools">
-        <button type="button" class="boss-tool fire" id="boss-fire" title="Fire (F or controller X)">🔥 FIRE</button>
-        <button type="button" class="boss-tool" id="boss-speed" title="Go Faster power-up">⚡ GO FASTER</button>
-        <button type="button" class="boss-tool" id="boss-skip" title="Skip This Level power-up">⏭ SKIP LEVEL</button>
+      <div class="stage-hud">
+        <div class="boss-tools" id="boss-tools" hidden aria-label="Boss Fight tools">
+          <button type="button" class="boss-tool fire" id="boss-fire" title="Fire (F or controller X)">🔥 FIRE</button>
+          <button type="button" class="boss-tool" id="boss-speed" title="Go Faster power-up">⚡ GO FASTER</button>
+          <button type="button" class="boss-tool" id="boss-skip" title="Skip This Level power-up">⏭ SKIP LEVEL</button>
+        </div>
+        <div class="room-hud" id="room-hud" hidden></div>
       </div>
-      <div class="overlay" id="overlay"></div>
+      <div class="overlay" id="overlay" tabindex="-1"></div>
     </div>
     <div class="bottom-bar" id="bottom-bar">
       <button type="button" class="bar-fullscreen" id="bar-fullscreen" aria-label="Toggle fullscreen"><span class="bar-square" aria-hidden="true"></span></button>
@@ -253,6 +258,7 @@
   let multiplayerConnected = false;
   let roomInfiniteProgress = null;
   const stage = document.getElementById('stage');
+  const roomHud = document.getElementById('room-hud');
   const ctx = canvas.getContext('2d');
   if (!ctx) {
     overlay.hidden = false;
@@ -262,14 +268,22 @@
   }
   const W = canvas.width, H = canvas.height;
 
-  overlay.addEventListener('keydown',e=>{
-    if(e.key!=='Tab'||overlay.hidden)return;
-    const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])'))
+  function overlayControls(){
+    return Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])'))
       .filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
+  }
+  document.addEventListener('focusin',e=>{
+    if(!overlay.hidden&&overlay.hasAttribute('aria-modal')&&!overlay.contains(e.target)){
+      (overlayControls()[0]||overlay).focus({preventScroll:true});
+    }
+  });
+  document.addEventListener('keydown',function trapOverlayFocus(e){
+    if(e.key!=='Tab'||overlay.hidden||!overlay.hasAttribute('aria-modal'))return;
+    const focusable=overlayControls();
     if(!focusable.length){e.preventDefault();return;}
     const first=focusable[0],last=focusable[focusable.length-1];
-    if(e.shiftKey&&(document.activeElement===first||!overlay.contains(document.activeElement))){e.preventDefault();last.focus();}
-    else if(!e.shiftKey&&(document.activeElement===last||!overlay.contains(document.activeElement))){e.preventDefault();first.focus();}
+    if(e.shiftKey&&(document.activeElement===first||!focusable.includes(document.activeElement))){e.preventDefault();last.focus();}
+    else if(!e.shiftKey&&(document.activeElement===last||!focusable.includes(document.activeElement))){e.preventDefault();first.focus();}
   });
   // Cosmetic PNGs load only when their matching item is equipped.
   const jupiterSkinImage = new Image();
@@ -568,6 +582,7 @@
   let lastTime = 0;
   let accumulator = 0;
   let rafId = 0;
+  let lastRenderedState;
   let checkpoint = {x:40,y:479};
   let infiniteWorld = null;
   let particles = [];
@@ -1124,10 +1139,12 @@
     overlay.setAttribute('aria-modal','true');
     const heading=overlay.querySelector('h2');
     if(heading){heading.id='overlay-title';overlay.setAttribute('aria-labelledby','overlay-title');}
-    if(focusTarget&&!focusTarget.disabled)focusTarget.focus({preventScroll:true});
+    canvas.inert=true;
+    jumpBtn.inert=true;
+    (focusTarget&&!focusTarget.disabled?focusTarget:overlay).focus({preventScroll:true});
   }
   function ensureFrameLoop(){if(!rafId&&!document.hidden&&(state==='playing'||state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))){rafId=requestAnimationFrame(frame);}}
-  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
+  function hideOverlay(){overlay.hidden=true;overlay.innerHTML='';overlay.removeAttribute('role');overlay.removeAttribute('aria-modal');overlay.removeAttribute('aria-labelledby');canvas.inert=false;jumpBtn.inert=false;syncPauseControl();syncBossTools();if(state==='playing'){showBottomBar();ensureFrameLoop();}}
   const mathOperations=['Addition','Subtraction','Multiplication','Division'];
   let mathOperation='Addition', mathQuiz=null;
 
@@ -1381,15 +1398,11 @@
     }
   }
   function drawMultiplayerHud(){
-    if(!multiplayerRoomCode)return;
+    roomHud.hidden=!multiplayerConnected;
+    if(!multiplayerConnected)return;
     const count=multiplayerPlayers.size+(multiplayerConnected?1:0);
     const label='ROOM '+multiplayerRoomCode+'  '+count+'/10';
-    ctx.save();ctx.font='bold 13px system-ui';ctx.textAlign='right';
-    const width=ctx.measureText(label).width+22;
-    // Boss Fight tools sit at the top-right too, so drop the room label below them.
-    const top=(gameMode==='boss'&&state==='playing')?54:12;
-    roundedRect(W-width-12,top,width,30,9,'#102b36eF','#d5ff7d');
-    ctx.fillStyle='#f4ffd9';ctx.fillText(label,W-23,top+20);ctx.restore();
+    if(roomHud.textContent!==label)roomHud.textContent=label;
   }
   function requestJump(pointer=null){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;player.jumpRequestPointer=pointer;}
   function hurt(){
@@ -2161,7 +2174,7 @@
       let count=0;
       while(accumulator+1e-9>=FIXED_DT&&count<16){update(FIXED_DT);accumulator=Math.max(0,accumulator-FIXED_DT);count++;if(state!=='playing')break;}
     }else{accumulator=0;if(state==='menu')elapsed+=delta;}
-    render();
+    if(state==='playing'||state==='menu'||state!==lastRenderedState){render();lastRenderedState=state;}
     if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&!document.hidden)ensureFrameLoop();
     else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);
   }
@@ -2239,7 +2252,7 @@
     }
   }
   moveStick.addEventListener('pointerdown',e=>{
-    if(e.button!==0||stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
+    if(state!=='playing'||e.button!==0||stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
     try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
   });
   moveStick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer){e.preventDefault();moveJoystick(e);}});

@@ -362,9 +362,13 @@ test('infinite explore save warning shows at most once per run',async()=>{
   assert.equal(alerts.length,1,'repeated save failures should warn only once');
 });
 
-test('boss tools do not cover the multiplayer room label',()=>{
+test('multiplayer room HUD shows connected players and hides on disconnect',()=>{
   const code=part('function drawMultiplayerHud(){','function requestJump(');
-  assert.ok(code.includes("(gameMode==='boss'&&state==='playing')?54:12"),'room label should drop below the boss tools in Boss Fight');
+  const run=Function(`let multiplayerConnected=true;
+    const multiplayerRoomCode='ABC234',multiplayerPlayers=new Map([['other',{}]]),roomHud={};
+    ${code} drawMultiplayerHud();const connected=[roomHud.hidden,roomHud.textContent];
+    multiplayerConnected=false;drawMultiplayerHud();return [connected,roomHud.hidden];`);
+  assert.deepEqual(run(),[[false,'ROOM ABC234  2/10'],true]);
 });
 
 test('worker rate-limits room joins per IP',async()=>{
