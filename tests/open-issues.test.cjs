@@ -39,7 +39,7 @@ test('restarting discards the full reward value',()=>{
   }
 });
 test('completion waits for the pickup-time reward to save',async()=>{
-  const code=part('async function completeLevel(){','function update(dt)');
+  const code=part('async function completeLevel(','function update(dt)');
   let resolve;const pending=new Promise(r=>resolve=r);let banked=0,screen='';
   const harness=Function('bank','show',`let gameMode='level',boss=null,pendingLevelReward=7,levelIndex=0,state='playing',bankedCoinLevels=new Set();
     const bankWalletCoins=bank,clearInputs=()=>{},currentModeTotalLevels=()=>3,showOverlay=s=>{state=s;show(s)};
@@ -164,9 +164,15 @@ test('old multiplayer socket messages are ignored',()=>{
 });
 
 test('math quiz timer pauses while the tab is hidden',()=>{
-  const code=part('function beginMathQuiz(){','function showOverlay(kind,options={})');
-  assert.ok(code.includes('document.hidden'));
-  assert.ok(code.includes('quiz.deadline+=Date.now()-quiz.hiddenAt'));
+  const code=part('function syncMathQuizVisibility','function beginMathQuiz(){');
+  const document={hidden:true};
+  const sync=Function('document',code+'return syncMathQuizVisibility;')(document);
+  const quiz={deadline:40000,hiddenAt:null};
+  assert.equal(sync(quiz,1000),false);
+  assert.equal(sync(quiz,2000),false);
+  document.hidden=false;
+  assert.equal(sync(quiz,42000),true);
+  assert.deepEqual(quiz,{deadline:81000,hiddenAt:null});
 });
 
 test('skipping the final boss still wins and counts the skip',()=>{

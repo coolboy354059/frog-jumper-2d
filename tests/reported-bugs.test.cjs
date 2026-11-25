@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const read = file => fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
 const game = read('index-game.html');
+const part = (start, end) => game.slice(game.indexOf(start), game.indexOf(end, game.indexOf(start)));
 
 test('the shared URL offers the same social preview as the game page', () => {
   const previewTags = html => html.match(/<meta (?:property="og:|name="twitter:)[^>]+>/g);
@@ -41,4 +42,62 @@ test('Playwright reruns replace the status on the same commit', async () => {
   assert.deepEqual(calls.map(call => call.state), ['success', 'failure', 'success']);
   assert.deepEqual([...new Set(calls.map(call => call.context))], ['frog-jumper/playwright']);
   assert.equal(calls[1].description, 'pixel mismatch');
+});
+
+function quizFixture() {
+  const source = part('function clearMathQuiz()', 'function showOverlay(kind,options={})');
+  const visibility = part("document.addEventListener('visibilitychange'", 'const pauseControl=');
+  const run = Function(`
+    let now=0, mathQuiz=null, mathOperation='Addition', state='menu', tick, onVisibility, screen, value='', writes=0;
+    const completions=[];
+    const pending=[{prompt:'1 + 1',answer:2,choices:[2,3]},{prompt:'2 + 2',answer:4,choices:[4,5]}];
+    const document={hidden:false,addEventListener(type,fn){onVisibility=fn;}};
+    const performance={now:()=>now};
+    const window={setInterval(fn){tick=fn;return 1;},clearInterval(){}};
+    const label={get textContent(){return value;},set textContent(text){value=text;writes++;}};
+    const overlay={querySelector:()=>label,hidden:false};
+    const clearInputs=()=>{},ensureFrameLoop=()=>{},makeMathQuestion=()=>pending.shift();
+    const showOverlay=(kind,options)=>{state=kind;screen=options;};
+    const completeLevel=feedback=>completions.push(feedback);
+    ${source}${visibility}
+    beginMathQuiz();
+    return {
+      setTime(ms){now=ms;}, tick(){tick();}, choose(i){screen.buttons[i][2]();},
+      hide(hidden){document.hidden=hidden;onVisibility();},
+      get writes(){return writes;}, get state(){return state;}, completions
+    };
+  `);
+  return run();
+}
+
+test('a correct first answer still needs a second answer before the quiz deadline', () => {
+  const quiz=quizFixture();
+  quiz.choose(0);
+  quiz.setTime(41000);
+  quiz.tick();
+  assert.equal(quiz.state,'mathRetry');
+  assert.deepEqual(quiz.completions,[]);
+});
+
+test('a suspended quiz accepts the first answer after returning and includes final feedback', () => {
+  const quiz=quizFixture();
+  quiz.choose(0);
+  quiz.setTime(1000);
+  quiz.hide(true);
+  quiz.setTime(42000);
+  quiz.hide(false);
+  quiz.choose(1);
+  assert.deepEqual(quiz.completions,['Answer: 2 + 2 = 4.']);
+});
+
+test('a quiz with two wrong answers retries and repeated ticks preserve countdown text', () => {
+  const quiz=quizFixture();
+  assert.equal(quiz.writes,1);
+  quiz.setTime(250);
+  quiz.tick();
+  assert.equal(quiz.writes,1);
+  quiz.choose(1);
+  quiz.choose(1);
+  assert.equal(quiz.state,'mathRetry');
+  assert.deepEqual(quiz.completions,[]);
 });

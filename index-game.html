@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Require two distinct Math Mode answers, preserve quiz time across tab switches, and show the final answer. -->
 <!-- CHANGE LOG: 2026-11-23 — Add a BLACK FRIDAY 45% OFF banner at the top of the shop. -->
 <!-- CHANGE LOG: 2026-11-23 — Add Cloudflare visit counting and crash logging so visits are counted and game crashes are reported. -->
 <!-- CHANGE LOG: 2026-11-22 — Add Open Graph and Twitter card share meta tags so shared links show a frog picture and title. -->
@@ -1140,30 +1141,38 @@
   function finishMathQuiz(quiz){
     if(quiz!==mathQuiz)return;
     clearMathQuiz();
-    if(quiz.correct>0)completeLevel();
+    if(quiz.index===quiz.questions.length&&quiz.correct>0)completeLevel(quiz.feedback);
     else showOverlay('mathRetry',{text:quiz.feedback+' Try two new questions at this portal.'});
+  }
+  function syncMathQuizVisibility(quiz,now){
+    if(document.hidden){quiz.hiddenAt??=now;return false;}
+    if(quiz.hiddenAt!==null){quiz.deadline+=now-quiz.hiddenAt;quiz.hiddenAt=null;}
+    return true;
   }
   function beginMathQuiz(){
     clearInputs();clearMathQuiz();
     const first=makeMathQuestion(mathOperation);
     let second=makeMathQuestion(mathOperation);
     while(second.prompt===first.prompt)second=makeMathQuestion(mathOperation);
-    const quiz={questions:[first,second],index:0,correct:0,deadline:Date.now()+40000,feedback:'',timer:null,hiddenAt:null};
+    const quiz={questions:[first,second],index:0,correct:0,deadline:performance.now()+40000,feedback:'',timer:null,hiddenAt:null};
     mathQuiz=quiz;
     function tick(){
       if(quiz!==mathQuiz)return;
-      if(document.hidden){if(!quiz.hiddenAt)quiz.hiddenAt=Date.now();return;}
-      if(quiz.hiddenAt){quiz.deadline+=Date.now()-quiz.hiddenAt;quiz.hiddenAt=null;}
-      const seconds=Math.ceil((quiz.deadline-Date.now())/1000);
+      const now=performance.now();
+      if(!syncMathQuizVisibility(quiz,now))return;
+      const seconds=Math.ceil((quiz.deadline-now)/1000);
       if(seconds<=0){quiz.feedback='Time is up.';finishMathQuiz(quiz);return;}
       const label=overlay.querySelector('[data-math-clock]');
-      if(label)label.textContent=seconds+' seconds left';
+      const text=seconds+' seconds left';
+      if(label&&label.textContent!==text)label.textContent=text;
     }
     function ask(){
       const index=quiz.index,q=quiz.questions[index];
       const choose=value=>{
         if(quiz!==mathQuiz||quiz.index!==index)return;
-        if(Date.now()>=quiz.deadline){tick();return;}
+        const now=performance.now();
+        if(!syncMathQuizVisibility(quiz,now))return;
+        if(now>=quiz.deadline){tick();return;}
         const correct=value===q.answer;
         if(correct)quiz.correct++;
         quiz.feedback=(correct?'Correct! ':'Answer: ')+q.prompt+' = '+q.answer+'.';
@@ -1194,7 +1203,7 @@
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
-      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel()]]},
+      rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Please try again before leaving this page.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel(options.mathFeedback)]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
       won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.${pendingLevelReward>0?` You picked up ${pendingLevelReward} more on this level, but they were not saved because the level was not finished.`:''} Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
@@ -1202,6 +1211,11 @@
     }[kind];
     if(!content) return;
     overlay.innerHTML=`<div class="overlay-card"><div class="big-frog" aria-hidden="true">${content.emoji}</div><h2>${content.title}</h2><p>${content.text}</p><div class="button-row">${content.buttons.map((b,i)=>`<button type="button" class="action ${b[1]}" data-action="${i}">${b[0]}</button>`).join('')}</div></div>`;
+    if(options.mathFeedback&&(kind==='levelComplete'||kind==='won')){
+      const feedback=document.createElement('p');
+      feedback.textContent=options.mathFeedback;
+      overlay.querySelector('.button-row').before(feedback);
+    }
     if(kind==='mathQuestion'){
       const clockLabel=document.createElement('p');
       clockLabel.dataset.mathClock='';
@@ -1497,18 +1511,18 @@
     syncBossTools();
   }
 
-  async function completeLevel(){
+  async function completeLevel(mathFeedback=''){
     if(gameMode==='boss' && boss&&boss.alive)return;
     clearInputs();
     if(gameMode!=='infinite'&&pendingLevelReward>0){
       showOverlay('saving');
       const saved=await bankWalletCoins(pendingLevelReward);
       if(state!=='saving')return;
-      if(!saved){showOverlay('rewardSaveFailed');return;}
+      if(!saved){showOverlay('rewardSaveFailed',{mathFeedback});return;}
       bankedCoinLevels.add(gameMode+':'+levelIndex);
       pendingLevelReward=0;
     }
-    if(levelIndex===currentModeTotalLevels()-1) showOverlay('won'); else showOverlay('levelComplete');
+    showOverlay(levelIndex===currentModeTotalLevels()-1?'won':'levelComplete',{mathFeedback});
   }
   function update(dt){
     if(state!=='playing')return;
@@ -2132,6 +2146,7 @@
 
   document.addEventListener('keydown',e=>{
     const code=e.code;
+    if(state==='mathQuestion'&&code==='Enter'&&e.repeat){e.preventDefault();return;}
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
     const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
@@ -2152,6 +2167,7 @@
   });
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{
+    if(mathQuiz)syncMathQuizVisibility(mathQuiz,performance.now());
     if(document.hidden){clearInputs();if(state==='playing')showOverlay('paused');}
     else if(state==='playing'||state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))ensureFrameLoop();
   });
