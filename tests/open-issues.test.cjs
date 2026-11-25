@@ -21,9 +21,10 @@ test('failed cosmetic image retries after a delay',()=>{
   now=5000;load(image,'skin.png');assert.equal(count,2);
 });
 test('achievements remain in memory when storage is blocked',()=>{
-  const code=part('function loadAchievementData(){','function recordPlatformLanding(platform)');
-  const result=Function(`let achievementStorageAvailable=true,achievementData,achievementNotice='',achievementNoticeTime=0,state='playing';
+  const code=part('function withProgressLock(','function recordPlatformLanding(platform)');
+  const result=Function(`let achievementData,achievementNotice='',achievementNoticeTime=0,state='playing';
     const navigator={},window={localStorage:{getItem(){throw Error()},setItem(){throw Error()}}};
+    const pendingAchievementChanges=[],document={getElementById:()=>({})};
     const ACHIEVEMENTS=[{id:'first_jump'},{id:'coin_collector'}];${code}
     achievementData=loadAchievementData();awardAchievement('first_jump');
     for(let i=0;i<10;i++)recordCoinAchievement();return achievementData;`)();
@@ -254,7 +255,7 @@ test('infinite explore keeps unpaid coins and retries instead of losing them',as
 test('coins save anyway in browsers without Web Locks',async()=>{
   const code=part('async function bankWalletCoins(amount){','function updateBossCombat(dt)');
   const run=Function('saveOk',`let walletCoins=10;
-    const navigator={};
+    const withProgressLock=(_name,operation)=>operation();
     const readStoredNumber=()=>10,loadShopData=()=>({}),saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
     ${code} return bankWalletCoins(7).then(saved=>[saved,walletCoins]);`);
   assert.deepEqual(await run(true),[true,17],'no-lock save should bank the coins');

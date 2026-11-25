@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Keep saved progress consistent between tabs and announce achievement unlocks accessibly. -->
 <!-- CHANGE LOG: 2026-11-25 — Recover purchases safely after storage errors, preserve shop focus, and apply the advertised sale prices. -->
 <!-- CHANGE LOG: 2026-11-25 — Fit the play area and controls to the viewport and keep room information and dialog focus accessible. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep checkpoints safe, make platform landings and races consistent, and fix low-frame-rate play and rendering. -->
@@ -240,6 +241,7 @@
         <button type="button" class="control jump" id="jump-control" aria-label="Jump">⬆</button>
       </div>
     </div>
+    <div class="sr-only" id="achievement-announcement" role="status"></div>
   </main>
 </div>
 <script>
@@ -562,8 +564,9 @@
   // Levels whose coins were already banked this run, so restarting a finished
   // level cannot respawn its coins for a second payout.
   const bankedCoinLevels = new Map();
-  let achievementStorageAvailable = true;
   let achievementData = loadAchievementData();
+  const pendingAchievementChanges=[];
+  let progressDatabase;
   let achievementNotice = '';
   let achievementNoticeTime = 0;
   const ACHIEVEMENTS = [
@@ -604,52 +607,80 @@
   function currentModeLevels(){return gameMode==='boss'?BOSS_LEVELS:LEVELS;}
   function currentModeTotalCoins(){return currentModeTotalLevels()*COINS_PER_LEVEL;}
 
-  function loadAchievementData(){
+  function withProgressLock(name,operation){
+    if(typeof navigator.locks?.request==='function')return navigator.locks.request(name,operation);
+    if(!window.indexedDB)return Promise.resolve(operation());
+    // Keep the authoritative counters in the transaction on browsers without
+    // Web Locks. Their localStorage views can lag behind a write from another tab.
+    progressDatabase??=new Promise((resolve,reject)=>{
+      const request=window.indexedDB.open('frog-jumper-progress',1);
+      request.onupgradeneeded=()=>request.result.createObjectStore('locks');
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error);
+      request.onblocked=()=>reject(new Error('Progress database is busy'));
+    });
+    return progressDatabase.then(database=>new Promise((resolve,reject)=>{
+      const transaction=database.transaction('locks','readwrite');
+      const records=transaction.objectStore('locks');
+      const request=records.get(name);
+      let result;
+      request.onsuccess=()=>{
+        const record={value:request.result,write:value=>records.put(value,name),clear:()=>records.delete(name)};
+        try{result=operation(record);}catch(error){transaction.abort();reject(error);}
+      };
+      transaction.oncomplete=()=>resolve(result);
+      transaction.onabort=()=>reject(transaction.error);
+    }),()=>operation());
+  }
+
+  function loadAchievementData(strict=false,savedValue){
     const defaults={earned:[],coinsCollected:0,platformsLanded:0,visitedPlatforms:[]};
+    let raw;
+    try{raw=savedValue??window.localStorage.getItem('frogJumperAchievements');}catch(_){return strict?null:defaults;}
     try{
-      const saved=JSON.parse(window.localStorage.getItem('frogJumperAchievements')||'null');
+      const saved=JSON.parse(raw||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      const visitedPlatforms=Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[];
       return {
         earned:Array.isArray(saved.earned)?[...new Set(saved.earned.filter(id=>['first_jump','coin_collector','platform_hopper','platform_master','halloween_explorer'].includes(id)))]:[],
         coinsCollected:Number.isSafeInteger(saved.coinsCollected)&&saved.coinsCollected>=0?saved.coinsCollected:0,
-        platformsLanded:Number.isSafeInteger(saved.platformsLanded)&&saved.platformsLanded>=0?saved.platformsLanded:0,
-        visitedPlatforms:Array.isArray(saved.visitedPlatforms)?[...new Set(saved.visitedPlatforms.filter(id=>typeof id==='string'&&id.length<=120))].slice(0,100):[]
+        platformsLanded:Math.max(visitedPlatforms.length,Number.isSafeInteger(saved.platformsLanded)?saved.platformsLanded:0),
+        visitedPlatforms
       };
-    }catch(_){achievementStorageAvailable=false;return defaults;}
+    }catch(_){return defaults;}
   }
-  function saveAchievementData(){
-    try{window.localStorage.setItem('frogJumperAchievements',JSON.stringify(achievementData));}catch(_){achievementStorageAvailable=false;}
+  function saveAchievementData(record){
+    const serialized=JSON.stringify(achievementData);
+    try{window.localStorage.setItem('frogJumperAchievements',serialized);}catch(_){if(!record)return false;}
+    record?.write(serialized);
+    return true;
   }
   function updateAchievementData(mutator){
-    const persistUpdate=()=>{
-      // Always merge into the latest saved snapshot while holding the shared lock.
-      // This prevents a second tab from saving an older in-memory copy over new progress.
-      const latest=achievementStorageAvailable?loadAchievementData():achievementData;
-      const data=achievementStorageAvailable?latest:achievementData;
-      const previouslyEarned=new Set(data.earned);
-      const changed=mutator(data);
-      achievementData=data;
-      if(!changed)return;
-      saveAchievementData();
-      const newlyUnlocked=ACHIEVEMENTS.find(item=>!previouslyEarned.has(item.id)&&data.earned.includes(item.id));
-      if(newlyUnlocked){
-        achievementNotice=newlyUnlocked.emoji+' '+newlyUnlocked.name+' unlocked!';
-        achievementNoticeTime=3.2;
+    pendingAchievementChanges.push({mutator,shown:false});
+    const persistUpdate=(allowSave,record)=>{
+      const latest=allowSave?loadAchievementData(!record,record?.value):null;
+      const data=latest||achievementData;
+      const previouslyEarned=new Set(achievementData.earned);
+      let changed=false;
+      for(const change of pendingAchievementChanges){
+        if(latest||!change.shown)changed=change.mutator(data)||changed;
+        change.shown=true;
       }
-      if(state==='achievements')showAchievements();
-    };
-    if(navigator.locks&&typeof navigator.locks.request==='function'){
-      navigator.locks.request('frog-jumper-achievements',persistUpdate).catch(()=>{
-        achievementNotice='Achievement progress could not be saved. Please try again.';
+      achievementData=data;
+      if(latest&&(!changed||saveAchievementData(record)))pendingAchievementChanges.length=0;
+      const newlyUnlocked=ACHIEVEMENTS.filter(item=>!previouslyEarned.has(item.id)&&data.earned.includes(item.id));
+      if(newlyUnlocked.length){
+        const name=newlyUnlocked.map(item=>item.name+' unlocked!').join(' ');
+        achievementNotice=newlyUnlocked[0].emoji+' '+name;
         achievementNoticeTime=3.2;
-      });
-    }else{
-      // Keep single-tab play functional in browsers without Web Locks.
-      persistUpdate();
-    }
+        document.getElementById('achievement-announcement').textContent=name;
+      }
+      if(state==='achievements')syncAchievementScreen();
+    };
+    withProgressLock('frog-jumper-achievements',record=>persistUpdate(true,record)).catch(()=>persistUpdate(false));
   }
   function awardAchievement(id){
-    if(!ACHIEVEMENTS.some(item=>item.id===id))return;
+    if(achievementData.earned.includes(id)||!ACHIEVEMENTS.some(item=>item.id===id))return;
     updateAchievementData(data=>{
       if(data.earned.includes(id))return false;
       data.earned.push(id);
@@ -668,25 +699,43 @@
     const platformKey=infiniteWorld
       ? 'infinite:'+infiniteWorld.seed+':'+platform.id
       : (gameMode==='boss'?'boss:':'level:')+levelIndex+':'+platform.id;
+    const awardsDue=data=>(data.platformsLanded>=10&&!data.earned.includes('platform_hopper'))||(data.platformsLanded>=100&&!data.earned.includes('platform_master'));
+    if(!awardsDue(achievementData)&&(achievementData.visitedPlatforms.includes(platformKey)||achievementData.visitedPlatforms.length>=100))return;
     updateAchievementData(data=>{
-      if(data.visitedPlatforms.includes(platformKey)||data.visitedPlatforms.length>=100)return false;
-      data.visitedPlatforms.push(platformKey);
-      data.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,data.platformsLanded+1);
+      const newPlatform=!data.visitedPlatforms.includes(platformKey)&&data.visitedPlatforms.length<100;
+      if(newPlatform){
+        data.visitedPlatforms.push(platformKey);
+        data.platformsLanded=Math.min(Number.MAX_SAFE_INTEGER,data.platformsLanded+1);
+      }
+      const newAwards=awardsDue(data);
       if(data.platformsLanded>=10&&!data.earned.includes('platform_hopper'))data.earned.push('platform_hopper');
       if(data.platformsLanded>=100&&!data.earned.includes('platform_master'))data.earned.push('platform_master');
-      return true;
+      return newPlatform||newAwards;
     });
   }
   function showAchievements(){
-    const earned=achievementData.earned;
     state='achievements';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
-    const cards=ACHIEVEMENTS.map(a=>{
-      const unlocked=earned.includes(a.id);
-      return '<div class="shop-item"><div class="shop-emoji">'+(unlocked?a.emoji:'🔒')+'</div><strong>'+a.name+'</strong><small>'+(unlocked?a.description:'Not unlocked yet')+'</small><small>'+(unlocked?'UNLOCKED':'LOCKED')+'</small></div>';
-    }).join('');
-    overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p>'+earned.length+' of '+ACHIEVEMENTS.length+' unlocked</p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
+    const cards=ACHIEVEMENTS.map(a=>'<div class="shop-item" data-achievement="'+a.id+'"><div class="shop-emoji" aria-hidden="true"></div><strong>'+a.name+'</strong><small></small><small></small></div>').join('');
+    overlay.innerHTML='<div class="overlay-card shop-card"><div class="big-frog" aria-hidden="true">🏆</div><h2>ACHIEVEMENTS</h2><p data-achievement-summary></p><div class="shop-grid">'+cards+'</div><div class="button-row"><button type="button" class="action ghost" id="achievements-back">BACK TO MENU</button></div></div>';
+    syncAchievementScreen();
     document.getElementById('achievements-back').addEventListener('click',()=>showOverlay('menu'));
     activateOverlayDialog(document.getElementById('achievements-back'));
+  }
+  function syncAchievementScreen(){
+    const earned=achievementData.earned;
+    const summary=overlay.querySelector('[data-achievement-summary]');
+    const text=earned.length+' of '+ACHIEVEMENTS.length+' unlocked';
+    if(summary.textContent!==text)summary.textContent=text;
+    for(const item of ACHIEVEMENTS){
+      const card=overlay.querySelector('[data-achievement="'+item.id+'"]');
+      const unlocked=earned.includes(item.id);
+      const [description,status]=card.querySelectorAll('small');
+      const label=unlocked?'UNLOCKED':'LOCKED';
+      if(status.textContent===label)continue;
+      card.querySelector('.shop-emoji').textContent=unlocked?item.emoji:'🔒';
+      description.textContent=unlocked?item.description:'Not unlocked yet';
+      status.textContent=label;
+    }
   }
   function makePlayer(x, y) {
     return {x,y,w:PLAYER_W,h:PLAYER_H,vx:0,vy:0,onGround:false,standingOn:null,face:1,coyote:0,jumpBuffer:0,invulnerable:0,blink:0,wasOnGround:false};
@@ -1062,14 +1111,20 @@
   }
   window.addEventListener('storage',event=>{
     if(event.key!=='frogJumperWalletCoins'&&event.key!=='frogJumperShop'&&event.key!==null)return;
+    if(event.newValue===null&&event.key!=='frogJumperShop'&&!navigator.locks?.request){
+      withProgressLock('frog-jumper-shop-economy',record=>{
+        if(record?.value!==undefined&&readStoredNumber('frogJumperWalletCoins',null,-1)===-1&&
+          (event.key===null||record.value===Number(event.oldValue)))record.clear();
+      }).catch(()=>{});
+    }
     const focusedItemId=document.activeElement?.dataset?.shopItem||null;
     syncShopFromStorage();
     if(state==='shop')showShop(focusedItemId);
   });
   window.addEventListener('storage',event=>{
     if(event.key==='frogJumperAchievements'||event.key===null){
-      if(achievementStorageAvailable)achievementData=loadAchievementData();
-      if(state==='achievements')showAchievements();
+      if(!pendingAchievementChanges.length)achievementData=loadAchievementData(true)||achievementData;
+      if(state==='achievements')syncAchievementScreen();
     }
     if(event.key==='frogJumperBestCoins'||event.key===null){
       const bestLabel=document.getElementById('best-label');
@@ -1082,13 +1137,19 @@
     return readStoredNumber('frogJumperBestCoins', 0);
   }
   function updateBestCoins(){
-    let best = getBestCoins();
-    if(totalCoins > best){
-      best = totalCoins;
-      writeStoredNumber('frogJumperBestCoins', best);
-    }
+    const best=getBestCoins();
+    const score=totalCoins;
     const bestLabel = document.getElementById('best-label');
-    if(bestLabel) bestLabel.textContent = best;
+    if(bestLabel)bestLabel.textContent=Math.max(score,best);
+    if(score<=best)return;
+    withProgressLock('frog-jumper-best-coins',record=>{
+      const previous=record?.value??readStoredNumber('frogJumperBestCoins',null);
+      if((previous!==null||record)&&score>(previous??0)){
+        writeStoredNumber('frogJumperBestCoins',score);
+        record?.write(score);
+      }
+      if(bestLabel)bestLabel.textContent=Math.max(totalCoins,score,previous??0);
+    }).catch(()=>{});
   }
   function updateHUD(){
     updateBestCoins();
@@ -1515,20 +1576,21 @@
 
   async function bankWalletCoins(amount){
     if(!Number.isSafeInteger(amount)||amount<=0)return true;
-    const deposit=()=>{
-      const storedWallet=readStoredNumber('frogJumperWalletCoins',null);
-      if(storedWallet===null||!loadShopData({strict:true,settle:true}))return false;
+    const deposit=record=>{
+      const storedWallet=record?.value??readStoredNumber('frogJumperWalletCoins',null);
+      if(!record&&(storedWallet===null||!loadShopData({strict:true,settle:true})))return false;
       const previousWallet=walletCoins;
-      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,storedWallet+amount);
-      if(!saveWallet()){walletCoins=previousWallet;return false;}
+      const newBalance=Math.min(Number.MAX_SAFE_INTEGER,(storedWallet??0)+amount);
+      walletCoins=newBalance;
+      if(!saveWallet()&&!record){walletCoins=previousWallet;return false;}
+      record?.write(newBalance);
       syncShopFromStorage();
+      if(record)walletCoins=newBalance;
       updateHUD();
       return true;
     };
-    // Save coins anyway in browsers without Web Locks so finishing a level cannot get stuck.
-    if(!navigator.locks||typeof navigator.locks.request!=='function')return deposit();
     try{
-      return await navigator.locks.request('frog-jumper-shop-economy',deposit);
+      return await withProgressLock('frog-jumper-shop-economy',deposit);
     }catch(_){return false;}
   }
 

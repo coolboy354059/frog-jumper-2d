@@ -274,3 +274,43 @@ test('10 fps and 60 fps advance the same number of physics ticks over a second',
   assert.equal(run(10),120);
   assert.equal(run(60),120);
 });
+
+test('repaired achievements reload shared progress and recognize a full platform history', async () => {
+  const logic=part('function loadAchievementData(', 'function showAchievements()');
+  const fixture=Function(`
+    let stored='{',achievementData,achievementNotice='',achievementNoticeTime=0,state='playing';
+    const pendingAchievementChanges=[],status={};
+    const document={getElementById:()=>status};
+    const withProgressLock=(_,operation)=>Promise.resolve(operation());
+    const window={localStorage:{getItem:()=>stored,setItem:(_,value)=>{stored=value;}}};
+    const ACHIEVEMENTS=[{id:'first_jump',name:'First Jump'},{id:'platform_master',name:'Platform Master'}];
+    const infiniteWorld=null,gameMode='level',levelIndex=0;
+    ${logic}
+    achievementData=loadAchievementData();
+    awardAchievement('first_jump');
+    const repaired=JSON.parse(stored);
+    stored=JSON.stringify({...repaired,coinsCollected:1,platformsLanded:0,visitedPlatforms:Array.from({length:100},(_,i)=>'visited:'+i)});
+    recordCoinAchievement();
+    recordPlatformLanding({id:200});
+    return {repaired,result:JSON.parse(stored),announcement:status.textContent};`)();
+  assert.ok(fixture.repaired.earned.includes('first_jump'));
+  assert.equal(fixture.result.coinsCollected,2);
+  assert.equal(fixture.result.platformsLanded,100);
+  assert.ok(fixture.result.earned.includes('platform_master'));
+  assert.match(fixture.announcement,/Platform Master unlocked/);
+});
+
+test('a late lower best score cannot overwrite a higher score', async () => {
+  const best=part('function getBestCoins()', 'function updateHUD()');
+  const run=Function(`
+    let totalCoins=0,stored=5;
+    const jobs=[],document={getElementById:()=>null};
+    const withProgressLock=(_,operation)=>{jobs.push(operation);return Promise.resolve();};
+    const readStoredNumber=()=>stored,writeStoredNumber=(_,value)=>{stored=value;};
+    ${best}
+    totalCoins=11;updateBestCoins();
+    totalCoins=8;updateBestCoins();
+    jobs.forEach(job=>job());
+    return stored;`);
+  assert.equal(await run(),11);
+});

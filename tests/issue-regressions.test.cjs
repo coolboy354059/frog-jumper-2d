@@ -19,7 +19,7 @@ test('boss platform landings are distinct from adventure and race layouts', () =
   const end = html.indexOf('function showAchievements()', start);
   assert.ok(start >= 0 && end > start);
   const data = {visitedPlatforms: [], platformsLanded: 0, earned: []};
-  const context = { infiniteWorld: null, levelIndex: 0, gameMode: 'level', updateAchievementData: fn => fn(data) };
+  const context = { infiniteWorld: null, levelIndex: 0, gameMode: 'level', achievementData: data, updateAchievementData: fn => fn(data) };
   vm.createContext(context);
   vm.runInContext(html.slice(start, end), context);
   context.recordPlatformLanding({id:3});

@@ -571,17 +571,20 @@ test('achievement progress is merged when two tabs collect coins at the same tim
 
   async function collectFirstCoin(page){
     await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(650);
+    await page.waitForTimeout(540);
     await page.keyboard.up('ArrowRight');
     await page.keyboard.down('Space');
     await page.keyboard.down('ArrowRight');
-    await page.waitForTimeout(450);
+    await page.waitForTimeout(500);
     await page.keyboard.up('ArrowRight');
     await page.waitForTimeout(260);
     await page.keyboard.up('Space');
   }
   await Promise.all([collectFirstCoin(pageA),collectFirstCoin(pageB)]);
-  await pageA.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
+  await pageA.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000}).catch(async error=>{
+    const save=await pageA.evaluate(()=>localStorage.getItem('frogJumperAchievements'));
+    assert.fail(error.message+' '+JSON.stringify({errors,save}));
+  });
   await pageB.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}').coinsCollected>=2,null,{timeout:7000});
   const saved=await pageA.evaluate(()=>JSON.parse(localStorage.getItem('frogJumperAchievements')||'{}'));
   assert.equal(saved.coinsCollected,2,'both tabs should retain their separate coin pickup progress');
@@ -1009,5 +1012,40 @@ test('using a shop item leaves the changed action focused and visible',async()=>
     const item=await poppy.boundingBox();
     const card=await page.locator('.shop-card').boundingBox();
     assert.ok(item.y>=card.y&&item.y+item.height<=card.y+card.height);
+  }finally{await context.close();}
+});
+
+test('wallet and achievements retain concurrent progress without Web Locks',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      Object.defineProperty(navigator,'locks',{value:undefined,configurable:true});
+    });
+    const gameHtml=fs.readFileSync(path.join(__dirname,'..','index-game.html'),'utf8');
+    const boundary=/(  setupLevel\(0\);\r?\n  showOverlay\('menu'\);\r?\n  render\(\);)/;
+    assert.match(gameHtml,boundary);
+    await context.route('**/index-game.html',route=>route.fulfill({
+      contentType:'text/html',
+      body:gameHtml.replace(boundary,"  window.testProgress={bankWalletCoins,recordCoinAchievement};\n$1")
+    }));
+    const pages=[await context.newPage(),await context.newPage()];
+    await Promise.all(pages.map(page=>page.goto(baseUrl)));
+    await Promise.all(pages.map(page=>page.evaluate(async()=>{
+      const deposits=[];
+      for(let i=0;i<24;i++){
+        deposits.push(window.testProgress.bankWalletCoins(1));
+        window.testProgress.recordCoinAchievement();
+      }
+      if(!(await Promise.all(deposits)).every(Boolean))throw new Error('A deposit failed');
+    })));
+    await pages[0].waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperAchievements'))?.coinsCollected===48
+      &&localStorage.getItem('frogJumperWalletCoins')==='48',null,{timeout:5000}).catch(async error=>{
+      const saves=await Promise.all(pages.map(page=>page.evaluate(()=>({
+        achievements:localStorage.getItem('frogJumperAchievements'),wallet:localStorage.getItem('frogJumperWalletCoins')
+      }))));
+      assert.fail(error.message+' '+JSON.stringify(saves));
+    });
+    assert.equal(await pages[0].evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'48');
   }finally{await context.close();}
 });
