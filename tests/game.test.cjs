@@ -1161,3 +1161,77 @@ test('a focused touch Jump button works with Enter and click while secondary joy
     await page.waitForFunction(()=>window.testGame.readPlayer().jumped);
   }finally{await context.close();}
 });
+
+test('opening the game offline serves an equipped cosmetic that was never loaded during play',async()=>{
+  const context=await browser.newContext();
+  try{
+    await stubExternal(context);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.waitForFunction(()=>Boolean(navigator.serviceWorker.controller));
+    await page.evaluate(()=>localStorage.setItem('frogJumperShop',JSON.stringify({
+      ownedSkins:['red','poppy'],ownedHats:[],equippedSkin:'poppy',equippedHat:'none'
+    })));
+    await context.setOffline(true);
+    const cosmetic=page.waitForResponse(response=>response.url().endsWith('/assets/poppy-skin.png')&&response.fromServiceWorker());
+    await page.goto(baseUrl,{waitUntil:'domcontentloaded'});
+    await assertVisibleText(page,'FROG JUMPER');
+    const response=await cosmetic;
+    assert.equal(response.status(),200);
+    assert.equal((await response.body()).subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  }finally{await context.close();}
+});
+
+test('clearing the wallet in another tab resets displayed and newly deposited coins',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await exposeGameForTest(context,'bankWalletCoins');
+    const a=await context.newPage();
+    await a.goto(baseUrl);
+    await a.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','80'));
+    const b=await context.newPage();
+    await b.goto(baseUrl);
+    await b.getByRole('button',{name:'COIN SHOP'}).click();
+    assert.equal(await b.locator('.wallet-line strong').innerText(),'80');
+    await a.evaluate(()=>localStorage.removeItem('frogJumperWalletCoins'));
+    await b.waitForFunction(()=>document.querySelector('.wallet-line strong').textContent==='0');
+    assert.equal(await b.evaluate(()=>window.testGame.bankWalletCoins(1)),true);
+    assert.equal(await b.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'1');
+  }finally{await context.close();}
+});
+
+test('a failed portal save lets the player continue without crediting unsaved coins',async()=>{
+  const context=await browser.newContext({hasTouch:true,viewport:{width:390,height:844},serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      const write=Storage.prototype.setItem;
+      Storage.prototype.setItem=function(key,value){
+        if(key==='frogJumperWalletCoins')throw new Error('Wallet writes are blocked');
+        return write.call(this,key,value);
+      };
+    });
+    await exposeGameForTest(context,`reachPortal:()=>{
+      const coin=coins[0];
+      player.x=coin.x-player.w/2;player.y=coin.y-player.h/2;
+      update(FIXED_DT);
+      const end=platforms.at(-1);
+      player.x=end.x+end.w*.68-player.w/2;player.y=end.y-player.h;
+      return completeLevel();
+    },coins:()=>totalCoins`);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+    await page.evaluate(()=>window.testGame.reachPortal());
+    await assertVisibleText(page,'COINS NOT SAVED YET');
+    await page.getByRole('button',{name:'TRY SAVING AGAIN'}).click();
+    await assertVisibleText(page,'COINS NOT SAVED YET');
+    await page.getByRole('button',{name:'CONTINUE WITHOUT SAVING'}).click();
+    await assertVisibleText(page,'LEVEL 1 COMPLETE!');
+    assert.equal(await page.evaluate(()=>window.testGame.coins()),0);
+    assert.equal(await page.evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),null);
+    await page.getByRole('button',{name:'NEXT LEVEL'}).click();
+    await assertHidden(page,'#overlay');
+  }finally{await context.close();}
+});

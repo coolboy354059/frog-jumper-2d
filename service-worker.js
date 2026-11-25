@@ -20,7 +20,15 @@ const OPTIONAL_ASSET_FILES = [
 const OPTIONAL_ASSET_URLS = new Set(OPTIONAL_ASSET_FILES.map(file => new URL(file, self.registration.scope).toString()));
 
 function fetchWithTimeout(request, options = {}) {
-  return fetch(request, { ...options, signal: AbortSignal.timeout(NETWORK_TIMEOUT_MS) });
+  let signal;
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    signal = AbortSignal.timeout(NETWORK_TIMEOUT_MS);
+  } else {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
+    signal = controller.signal;
+  }
+  return fetch(request, { ...options, signal });
 }
 
 async function isPlayable(response) {

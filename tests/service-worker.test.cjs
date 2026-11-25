@@ -43,6 +43,8 @@ function loadWorker(fetchImpl, failures = {}) {
     URL,
     Response,
     AbortSignal: failures.abortSignal || AbortSignal,
+    AbortController,
+    setTimeout: failures.setTimeout || setTimeout,
     Set,
     Promise
   });
@@ -209,6 +211,15 @@ test('an unresponsive network falls back to the cached game after the deadline',
   const worker=loadWorker(async (_,options) => new Promise((resolve,reject) => {
     options.signal.addEventListener('abort',() => reject(options.signal.reason),{once:true});
   }), {abortSignal:{timeout(ms){assert.equal(ms,4000);setImmediate(()=>controller.abort());return controller.signal;}}});
+  const url=scope+'index-game.html';
+  worker.entries.set(url,page(gameHtml));
+  assert.equal(await (await dispatchFetch(worker,{method:'GET',mode:'navigate',url})).text(),gameHtml);
+});
+
+test('older service workers still time out when AbortSignal.timeout is unavailable', async () => {
+  const worker=loadWorker(async (_,options) => new Promise((resolve,reject) => {
+    options.signal.addEventListener('abort',()=>reject(options.signal.reason),{once:true});
+  }), {abortSignal:{},setTimeout(callback,ms){assert.equal(ms,4000);setImmediate(callback);}});
   const url=scope+'index-game.html';
   worker.entries.set(url,page(gameHtml));
   assert.equal(await (await dispatchFetch(worker,{method:'GET',mode:'navigate',url})).text(),gameHtml);

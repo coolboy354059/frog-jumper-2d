@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Keep fallback progress records separate from native browser locks. -->
 <!-- CHANGE LOG: 2026-11-25 — Support multiple controllers, the multiplayer mode picker, and Boss Fight power-ups on a controller. -->
 <!-- CHANGE LOG: 2026-11-25 — Recover interrupted room joins and synchronize moving platforms, cosmetics, and final positions. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep saved progress consistent between tabs and announce achievement unlocks accessibly. -->
@@ -613,7 +614,7 @@
   function currentModeTotalCoins(){return currentModeTotalLevels()*COINS_PER_LEVEL;}
 
   function withProgressLock(name,operation){
-    if(typeof navigator.locks?.request==='function')return navigator.locks.request(name,operation);
+    if(typeof navigator.locks?.request==='function')return navigator.locks.request(name,()=>operation());
     if(!window.indexedDB)return Promise.resolve(operation());
     // Keep the authoritative counters in the transaction on browsers without
     // Web Locks. Their localStorage views can lag behind a write from another tab.
