@@ -301,7 +301,7 @@ test('worker checks room capacity before eating a join ticket',()=>{
 test('menu frame loop runs and animates without a controller',()=>{
   const ensure=part('function ensureFrameLoop(){','function hideOverlay()');
   const frame=part('function frame(now){',"document.addEventListener('keydown'");
-  const result=Function(`let rafId=0,lastTime=0,state='menu',elapsed=0,accumulator=0,achievementNoticeTime=0,renders=0;
+  const result=Function(`let rafId=0,lastTime=0,state='menu',elapsed=0,accumulator=0,achievementNoticeTime=0,renders=0,multiplayerConnected=false;
     const document={hidden:false},overlay={hidden:false},FIXED_DT=1/60;
     const pollGamepad=()=>{},update=()=>{},render=()=>{renders++};
     const requestAnimationFrame=()=>1;
@@ -355,7 +355,7 @@ test('robot does not win a tie at the portal',()=>{
 test('restarting a finished level does not respawn its coins',()=>{
   const code=part('function setupLevel(index) {','function startGame(');
   const run=Function('banked',`let gameMode='level',infiniteWorld,levelIndex,level,elapsed,ticks,platforms,coins,enemies,particles,player,robot,boss,fireProjectiles,bossSpeedTimer,fireCooldown,bossPowerups,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
-    const achievementNotice='';
+    const achievementNotice='',platformTime=()=>0;
     const COINS_PER_LEVEL=5,PLAYER_H=36;
     const fake={platforms:[[0,515,250],[300,460,120],[500,400,120],[700,450,120],[900,380,120],[1100,430,120],[1300,370,120],[1500,430,120],[1700,500,400]],movers:[],enemies:[],bossLevel:false};
     const currentModeLevels=()=>[fake],makePlayer=(x,y)=>({x,y,w:36,h:36,onGround:false,standingOn:null}),updateHUD=()=>{};

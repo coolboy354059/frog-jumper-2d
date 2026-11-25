@@ -266,7 +266,7 @@ test('10 fps and 60 fps advance the same number of physics ticks over a second',
   const frame=part('function frame(now)',"document.addEventListener('keydown',e=>{");
   const run=Function('fps',`
     let state='playing',rafId=0,lastTime=1,accumulator=0,ticks=0,achievementNoticeTime=0;
-    const FIXED_DT=1/120,document={hidden:false},overlay={hidden:true};
+    const FIXED_DT=1/120,document={hidden:false},overlay={hidden:true},multiplayerConnected=false;
     const pollGamepad=()=>{},render=()=>{},update=()=>ticks++,requestAnimationFrame=()=>1;
     ${frame}
     for(let i=1;i<=fps;i++)frame(1+i*1000/fps);
@@ -313,4 +313,48 @@ test('a late lower best score cannot overwrite a higher score', async () => {
     jobs.forEach(job=>job());
     return stored;`);
   assert.equal(await run(),11);
+});
+
+test('unchanged positions stay quiet and the finishing position reaches room peers', () => {
+  const send=part('function sendMultiplayerPosition','function drawRemotePlayers');
+  const frame=part('function frame(now)', "document.addEventListener('keydown',e=>{");
+  const run=Function(`
+    let state='playing',rafId=0,lastTime=1,accumulator=0,achievementNoticeTime=0,lastRenderedState;
+    let multiplayerLastSent=-Infinity,multiplayerLastPosition='';
+    const packets=[],multiplayerConnected=true,WebSocket={OPEN:1},levelIndex=0;
+    const multiplayerSocket={readyState:1,send:message=>packets.push(JSON.parse(message))};
+    const player={x:54,y:479,face:1};
+    const FIXED_DT=1/120,document={hidden:false},overlay={hidden:false};
+    const pollGamepad=()=>{},render=()=>{},drawMultiplayerHud=()=>{},ensureFrameLoop=()=>{},update=()=>{},requestAnimationFrame=()=>1;
+    ${send}${frame}
+    frame(1);frame(101);frame(201);
+    player.x=1944.7;state='levelComplete';frame(301);frame(401);
+    return packets.map(packet=>packet.x);`);
+  assert.deepEqual(run(),[54,1944.7]);
+});
+
+test('room platform phases use the same elapsed clock for early and late joiners', () => {
+  const source=part('function platformTime()', 'function addInfinitePlatform');
+  const time=Function('elapsed','performance','multiplayerClock',source+'return platformTime();');
+  assert.equal(time(3,{now:()=>10000},2000),time(0,{now:()=>300},11700));
+  assert.equal(time(6,{now:()=>10000},null),6);
+});
+
+test('Infinite Explore positions can pass one million while fixed stages keep their limit', () => {
+  const worker=read('worker/index.js');
+  const room=worker.slice(worker.indexOf('export class FrogRoom')).replace('export class FrogRoom','class FrogRoom');
+  const dependencies=worker.slice(0,worker.indexOf('export default'));
+  const FrogRoom=Function(dependencies+room+';return FrogRoom;')();
+  const instance=Object.create(FrogRoom.prototype);
+  const sent=[];
+  instance.broadcast=message=>sent.push(message.player.x);
+  const move=mode=>{
+    let player={joined:true,mode,x:999999,y:479,levelIndex:0,face:1,updatedAt:0};
+    const socket={deserializeAttachment:()=>player,serializeAttachment:value=>{player=value;}};
+    instance.webSocketMessage(socket,JSON.stringify({type:'move',x:1000003,y:479,face:1,levelIndex:0}));
+    return player.x;
+  };
+  assert.equal(move('level'),999999);
+  assert.equal(move('infinite'),1000003);
+  assert.deepEqual(sent,[1000003]);
 });

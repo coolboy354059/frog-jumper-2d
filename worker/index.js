@@ -7,7 +7,7 @@ const MAX_PLAYERS = 10;
 const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
 const JOIN_RATE_WINDOW_MS = 60_000;
-const JOIN_RATE_MAX_PER_IP = 6;
+const JOIN_RATE_MAX_PER_IP = MAX_PLAYERS;
 const MAX_PENDING_TICKETS_PER_IP = 3;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
@@ -154,9 +154,11 @@ export class FrogRoom {
     this.env = env;
     this.roomCreated = false;
     this.roomMode = "level";
+    this.roomStartedAt = Date.now();
     this.ctx.blockConcurrencyWhile(async () => {
       this.roomCreated = (await this.ctx.storage.get("created")) === true;
       this.roomMode = (await this.ctx.storage.get("mode")) || "level";
+      this.roomStartedAt = (await this.ctx.storage.get("startedAt")) ?? this.roomStartedAt;
     });
   }
 
@@ -181,7 +183,8 @@ export class FrogRoom {
       if (!ALLOWED_MODES.has(body.mode)) return json({ error: "Invalid game mode." }, 400);
       this.roomCreated = true;
       this.roomMode = body.mode;
-      await this.ctx.storage.put({ created: true, mode: body.mode });
+      this.roomStartedAt = Date.now();
+      await this.ctx.storage.put({ created: true, mode: body.mode, startedAt: this.roomStartedAt });
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ ok: true, mode: body.mode });
     }
@@ -278,15 +281,18 @@ export class FrogRoom {
         skin: cleanSkin(ticket.skin),
         hat: cleanHat(ticket.hat),
         levelIndex: 0,
-        x: 80,
-        y: 440,
+        x: 54,
+        y: 479,
         face: 1,
-        updatedAt: Date.now(),
+        updatedAt: 0,
       };
       server.serializeAttachment(player);
       this.ctx.acceptWebSocket(server);
       const players = this.getPlayers();
-      server.send(JSON.stringify({ type: "welcome", playerId: player.playerId, players, capacity: MAX_PLAYERS }));
+      server.send(JSON.stringify({
+        type: "welcome", playerId: player.playerId, players, capacity: MAX_PLAYERS,
+        roomElapsedMs: Math.max(0, Date.now() - this.roomStartedAt),
+      }));
       this.broadcast({ type: "player-joined", player: this.publicPlayer(player) }, server);
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return new Response(null, { status: 101, webSocket: client });
@@ -321,6 +327,7 @@ export class FrogRoom {
     if (!player?.joined || typeof message !== "string" || message.length > 1024) return;
     let data;
     try { data = JSON.parse(message); } catch (_) { return; }
+    if (!data || typeof data !== "object") return;
     if (data.type === "cosmetics") {
       const skin = cleanSkin(data.skin);
       const hat = cleanHat(data.hat);
@@ -334,11 +341,16 @@ export class FrogRoom {
       if (now - (player.updatedAt || 0) < 70) return;
       const x = Number(data.x), y = Number(data.y), face = Number(data.face);
       const levelIndex = Number(data.levelIndex);
-      if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > 1_000_000 || Math.abs(y) > 10_000) return;
-      player.x = Math.round(x * 10) / 10;
-      player.y = Math.round(y * 10) / 10;
-      player.face = face < 0 ? -1 : 1;
-      player.levelIndex = Number.isSafeInteger(levelIndex) ? Math.max(0, Math.min(999, levelIndex)) : 0;
+      const maxX = player.mode === "infinite" ? Number.MAX_SAFE_INTEGER / 10 : 1_000_000;
+      if (!Number.isFinite(x) || !Number.isFinite(y) || Math.abs(x) > maxX || Math.abs(y) > 10_000) return;
+      const next = {
+        x: Math.round(x * 10) / 10,
+        y: Math.round(y * 10) / 10,
+        face: face < 0 ? -1 : 1,
+        levelIndex: Number.isSafeInteger(levelIndex) ? Math.max(0, Math.min(999, levelIndex)) : 0,
+      };
+      if (Object.keys(next).every(key => next[key] === player[key])) return;
+      Object.assign(player, next);
       player.updatedAt = now;
       ws.serializeAttachment(player);
       this.broadcast({ type: "player-moved", player: this.publicPlayer(player) }, ws);

@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Recover interrupted room joins and synchronize moving platforms, cosmetics, and final positions. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep saved progress consistent between tabs and announce achievement unlocks accessibly. -->
 <!-- CHANGE LOG: 2026-11-25 — Recover purchases safely after storage errors, preserve shop focus, and apply the advertised sale prices. -->
 <!-- CHANGE LOG: 2026-11-25 — Fit the play area and controls to the viewport and keep room information and dialog focus accessible. -->
@@ -254,10 +255,12 @@
   let multiplayerRoomCode = '';
   let multiplayerAttemptId = 0;
   let multiplayerRequestController = null;
+  let multiplayerRequestTimer = 0;
   let multiplayerPlayerId = '';
   let multiplayerPlayers = new Map();
-  let multiplayerMode = 'level';
-  let multiplayerLastSent = 0;
+  let multiplayerLastSent = -Infinity;
+  let multiplayerLastPosition = '';
+  let multiplayerClock = null;
   let multiplayerConnected = false;
   let roomInfiniteProgress = null;
   const stage = document.getElementById('stage');
@@ -752,8 +755,11 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
   }
+  function platformTime(){
+    return multiplayerClock===null?elapsed:Math.max(0,(performance.now()+multiplayerClock)/1000);
+  }
   function addInfinitePlatform(x, y, width, moving = null) {
-    const startY=moving?y+Math.sin(elapsed*moving.speed+moving.phase)*moving.amp:y;
+    const startY=moving?y+Math.sin(platformTime()*moving.speed+moving.phase)*moving.amp:y;
     const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y:startY,w:width,h:20,prevY:startY,moving};
     platforms.push(p);
     infiniteWorld.lastPlatform = p;
@@ -886,9 +892,10 @@
     level = currentModeLevels()[levelIndex];
     elapsed = 0; ticks = 0;
     platforms = level.platforms.map((p,i)=>({id:i,x:p[0],baseY:p[1],y:p[1],w:p[2],h:20,prevY:p[1],moving:null}));
+    const time=platformTime();
     for (const m of level.movers) {
       const p = platforms[m.index];
-      if(p){p.moving={amp:m.amp,speed:m.speed,phase:m.phase};p.y=p.prevY=p.baseY+Math.sin(m.phase)*m.amp;}
+      if(p){p.moving={amp:m.amp,speed:m.speed,phase:m.phase};p.y=p.prevY=p.baseY+Math.sin(time*m.speed+m.phase)*m.amp;}
     }
     coins = [];
     // Replays keep banked pickups collected and leave the other coins available.
@@ -1347,6 +1354,9 @@
   function multiplayerModeLabel(mode){
     return ({level:'Level Adventure',race:'Robot Race',boss:'Boss Fight',infinite:'Infinite Explore'})[mode]||'Level Adventure';
   }
+  function normalizeRoomCode(value){
+    return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+  }
   function showMultiplayerScreen(prefill={}){
     cancelMultiplayerAttempt();
     state='multiplayer';syncPauseControl();syncBossTools();window.clearTimeout(bottomBarTimer);
@@ -1357,29 +1367,39 @@
     const codeInput=overlay.querySelector('#mp-code');
     if(typeof prefill.name==='string')nameInput.value=prefill.name.slice(0,16)||'Frog';
     if(['level','race','boss','infinite'].includes(prefill.mode))modeInput.value=prefill.mode;
-    const retryCode=String(prefill.code||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
-    if(retryCode)codeInput.value=retryCode;
+    codeInput.removeAttribute('maxlength');
+    codeInput.placeholder='ABC234';
+    codeInput.value=normalizeRoomCode(prefill.code);
+    codeInput.addEventListener('input',()=>{codeInput.value=normalizeRoomCode(codeInput.value);});
     const status=overlay.querySelector('#mp-status');
     const createButton=overlay.querySelector('#mp-create');
     const joinButton=overlay.querySelector('#mp-join');
-    const setBusy=(busy)=>{createButton.disabled=busy;joinButton.disabled=busy;};
+    const setBusy=busy=>{for(const control of [nameInput,modeInput,codeInput,createButton,joinButton])control.disabled=busy;};
+    const fail=message=>{cancelMultiplayerAttempt();status.textContent=message;setBusy(false);};
+    const beginAttempt=()=>{
+      cancelMultiplayerAttempt();
+      setBusy(true);
+      multiplayerRequestController=new AbortController();
+      multiplayerRequestTimer=window.setTimeout(()=>fail('The connection timed out. Try again.'),12000);
+      return multiplayerAttemptId;
+    };
     createButton.addEventListener('click',async()=>{
       const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;
-      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;const controller=new AbortController();multiplayerRequestController=controller;
-      setBusy(true);status.textContent='Creating your room...';
+      const attemptId=beginAttempt();const controller=multiplayerRequestController;
+      status.textContent='Creating your room...';
       try{
         const response=await fetch(MULTIPLAYER_API+'/api/rooms',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode}),signal:controller.signal});
         const result=await response.json();if(attemptId!==multiplayerAttemptId)return;if(!response.ok)throw new Error(result.error||'Could not create the room.');
-        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId,()=>setBusy(false));
-      }catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not create the room.';setBusy(false);}
+        await connectToMultiplayerRoom(result.code,name,mode,status,attemptId,fail);
+      }catch(error){if(attemptId===multiplayerAttemptId)fail(error.message||'Could not create the room.');}
     });
     joinButton.addEventListener('click',async()=>{
-      const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;const code=codeInput.value.trim().toUpperCase();
+      const name=nameInput.value.trim().slice(0,16)||'Frog';const mode=modeInput.value;const code=normalizeRoomCode(codeInput.value);
       if(!/^[A-HJ-NP-Z2-9]{6}$/.test(code)){status.textContent='Enter a valid 6-character room code.';return;}
-      cancelMultiplayerAttempt();const attemptId=multiplayerAttemptId;
-      setBusy(true);status.textContent='Joining room '+code+'...';
-      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId,()=>setBusy(false));}
-      catch(error){if(attemptId!==multiplayerAttemptId)return;status.textContent=error.message||'Could not join the room.';setBusy(false);}
+      const attemptId=beginAttempt();
+      status.textContent='Joining room '+code+'...';
+      try{await connectToMultiplayerRoom(code,name,mode,status,attemptId,fail);}
+      catch(error){if(attemptId===multiplayerAttemptId)fail(error.message||'Could not join the room.');}
     });
     overlay.querySelector('#mp-back').addEventListener('click',()=>{cancelMultiplayerAttempt();showOverlay('menu');});
     activateOverlayDialog(nameInput);
@@ -1387,36 +1407,46 @@
   function cancelMultiplayerAttempt(){
     multiplayerAttemptId++;
     roomInfiniteProgress=null;
+    multiplayerClock=null;
+    multiplayerLastSent=-Infinity;
+    multiplayerLastPosition='';
+    window.clearTimeout(multiplayerRequestTimer);multiplayerRequestTimer=0;
     if(multiplayerRequestController){multiplayerRequestController.abort();multiplayerRequestController=null;}
     const socket=multiplayerSocket;multiplayerSocket=null;multiplayerConnected=false;
     multiplayerRoomCode='';multiplayerPlayerId='';multiplayerPlayers.clear();
+    drawMultiplayerHud();
     if(socket){try{socket.close(1000,'Left the room');}catch(_){}}
   }
   async function connectToMultiplayerRoom(code,name,mode,statusElement,attemptId=multiplayerAttemptId,onConnectionFailure){
     if(attemptId!==multiplayerAttemptId)return;
     const controller=multiplayerRequestController||new AbortController();
     multiplayerRequestController=controller;
-    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin:equippedSkin,hat:equippedHat}),signal:controller.signal});
+    const skin=equippedSkin,hat=equippedHat;
+    const response=await fetch(MULTIPLAYER_API+'/api/rooms/'+code+'/join',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name,mode,skin,hat}),signal:controller.signal});
     const ticket=await response.json();
     if(attemptId!==multiplayerAttemptId||controller.signal.aborted)return;
     if(!response.ok)throw new Error(ticket.error||'Could not join the room.');
-    multiplayerRoomCode=code;multiplayerMode=mode;multiplayerPlayers.clear();multiplayerPlayerId='';multiplayerConnected=false;
     const socketUrl=MULTIPLAYER_API.replace(/^https:/,'wss:')+'/api/rooms/'+code+'/socket?token='+encodeURIComponent(ticket.token);
     const socket=new WebSocket(socketUrl);multiplayerSocket=socket;
     let connectionOpened=false;
-    let connectionFailureHandled=false;
     socket.addEventListener('open',()=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket){try{socket.close(1000,'Cancelled before connection');}catch(_){}return;}
       connectionOpened=true;
+      multiplayerRoomCode=code;
       multiplayerConnected=true;
       if(statusElement&&statusElement.isConnected)statusElement.textContent='Connected! Room '+code+' is ready. Share the code with friends.';
       multiplayerRequestController=null;
+      window.clearTimeout(multiplayerRequestTimer);multiplayerRequestTimer=0;
       startGame(mode);
+      if(skin!==equippedSkin||hat!==equippedHat)sendMultiplayerCosmetics();
     });
     socket.addEventListener('message',event=>{
       if(attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
       let message;try{message=JSON.parse(event.data);}catch(_){return;}
       if(message.type==='welcome'){
+        if(Number.isFinite(message.roomElapsedMs)&&message.roomElapsedMs>=0){
+          multiplayerClock=message.roomElapsedMs-performance.now();
+        }
         multiplayerPlayerId=message.playerId;
         multiplayerPlayers=new Map((message.players||[]).filter(p=>p.id!==multiplayerPlayerId).map(p=>[p.id,p]));
       }else if(message.type==='player-joined'||message.type==='player-updated'||message.type==='player-moved'){
@@ -1424,19 +1454,14 @@
       }else if(message.type==='player-left'){multiplayerPlayers.delete(message.playerId);}
     });
     const handleConnectionFailure=()=>{
-      if(connectionOpened||connectionFailureHandled||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
-      connectionFailureHandled=true;
-      multiplayerConnected=false;
-      multiplayerPlayers.clear();
-      if(statusElement&&statusElement.isConnected)statusElement.textContent='Connection failed. Check the room code and try again.';
-      if(typeof onConnectionFailure==='function')onConnectionFailure();
+      if(connectionOpened||attemptId!==multiplayerAttemptId||multiplayerSocket!==socket)return;
+      onConnectionFailure('Connection failed. Check the room code and try again.');
     };
     socket.addEventListener('close',()=>{
       if(!connectionOpened)handleConnectionFailure();
       if(multiplayerSocket===socket){
-        multiplayerSocket=null;multiplayerConnected=false;multiplayerPlayers.clear();
+        cancelMultiplayerAttempt();
         if(connectionOpened&&!['menu','multiplayer','shop','achievements','multiplayerDisconnected'].includes(state)){
-          multiplayerRoomCode='';multiplayerPlayerId='';
           showOverlay('multiplayerDisconnected',{name,mode,code});
         }
       }
@@ -1447,6 +1472,16 @@
   function sendMultiplayerCosmetics(){
     if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN)return;
     try{multiplayerSocket.send(JSON.stringify({type:'cosmetics',skin:equippedSkin,hat:equippedHat}));}catch(_){}
+  }
+  function sendMultiplayerPosition(now){
+    if(!multiplayerSocket||multiplayerSocket.readyState!==WebSocket.OPEN||!player||now-multiplayerLastSent<85)return;
+    const message=JSON.stringify({type:'move',x:Math.round(player.x*10)/10,y:Math.round(player.y*10)/10,face:player.face,levelIndex});
+    if(message===multiplayerLastPosition)return;
+    try{
+      multiplayerSocket.send(message);
+      multiplayerLastSent=now;
+      multiplayerLastPosition=message;
+    }catch(_){}
   }
   function drawRemotePlayers(){
     if(!multiplayerConnected||!player)return;
@@ -1652,9 +1687,10 @@
     player.blink+=dt*12;
 
     // Move lift platforms first and carry the frog when it is standing on one.
+    const movingTime=platformTime();
     for(const p of platforms){
       p.prevY=p.y;
-      if(p.moving){p.y=p.baseY+Math.sin(elapsed*p.moving.speed+p.moving.phase)*p.moving.amp;}
+      if(p.moving){p.y=p.baseY+Math.sin(movingTime*p.moving.speed+p.moving.phase)*p.moving.amp;}
       if(player.standingOn===p && player.onGround) player.y+=p.y-p.prevY;
       if(robot && robot.standingOn===p && robot.onGround) robot.y+=p.y-p.prevY;
     }
@@ -1753,10 +1789,6 @@
       const portalOverlap=overlapsPortal(player,endPlatform);
       const portalReady=gameMode==='level'||gameMode==='math'||gameMode==='race'||gameMode==='boss';
       if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){if(gameMode==='math')beginMathQuiz();else completeLevel();}
-    }
-    if(multiplayerSocket&&multiplayerSocket.readyState===WebSocket.OPEN&&Date.now()-multiplayerLastSent>=85){
-      multiplayerLastSent=Date.now();
-      try{multiplayerSocket.send(JSON.stringify({type:'move',x:player.x,y:player.y,face:player.face,levelIndex}));}catch(_){}
     }
   }
 
@@ -2180,7 +2212,6 @@
     drawRobot();
     if(player)drawPlayer();
     drawRemotePlayers();
-    drawMultiplayerHud();
     // Keep the gameplay view free of extra text labels, as in the sketch.
     if(state==='paused'){
       ctx.fillStyle='#061c28a8';ctx.fillRect(0,0,W,H);
@@ -2249,6 +2280,7 @@
       let count=0;
       while(accumulator+1e-9>=FIXED_DT&&count<16){update(FIXED_DT);accumulator=Math.max(0,accumulator-FIXED_DT);count++;if(state!=='playing')break;}
     }else{accumulator=0;if(state==='menu')elapsed+=delta;}
+    if(multiplayerConnected){sendMultiplayerPosition(now);drawMultiplayerHud();}
     if(state==='playing'||state==='menu'||state!==lastRenderedState){render();lastRenderedState=state;}
     if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&!document.hidden)ensureFrameLoop();
     else if(state==='playing'&&!document.hidden&&!rafId)rafId=requestAnimationFrame(frame);

@@ -1049,3 +1049,37 @@ test('wallet and achievements retain concurrent progress without Web Locks',asyn
     assert.equal(await pages[0].evaluate(()=>localStorage.getItem('frogJumperWalletCoins')),'48');
   }finally{await context.close();}
 });
+
+test('a stalled room request times out, restores the form, and keeps a pasted room code intact',async()=>{
+  const context=await browser.newContext({serviceWorkers:'block'});
+  try{
+    await stubExternal(context);
+    await context.addInitScript(()=>{
+      const request=window.fetch.bind(window);
+      window.fetch=(input,options)=>{
+        if(!String(input).includes('/api/rooms/ABC234/join'))return request(input,options);
+        return new Promise((resolve,reject)=>options.signal.addEventListener('abort',()=>{
+          window.roomRequestAborted=true;
+          reject(options.signal.reason);
+        },{once:true}));
+      };
+    });
+    const page=await context.newPage();
+    await page.clock.install();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'MULTIPLAYER'}).click();
+    assert.equal(await page.locator('#mp-code').getAttribute('placeholder'),'ABC234');
+    await page.locator('#mp-code').fill(' ABC234 ');
+    assert.equal(await page.locator('#mp-code').inputValue(),'ABC234');
+    await page.locator('#mp-join').click();
+    for(const id of ['#mp-name','#mp-mode','#mp-code','#mp-create','#mp-join']){
+      assert.equal(await page.locator(id).isDisabled(),true);
+    }
+    await page.clock.fastForward(12001);
+    assert.match(await page.locator('#mp-status').textContent(),/timed out/i);
+    assert.equal(await page.evaluate(()=>window.roomRequestAborted),true);
+    assert.equal(await page.locator('#mp-join').isEnabled(),true);
+    assert.equal(await page.locator('#mp-mode').isEnabled(),true);
+    assert.equal(await page.locator('#room-hud').isVisible(),false);
+  }finally{await context.close();}
+});
