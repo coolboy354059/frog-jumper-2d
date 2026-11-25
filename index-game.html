@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Keep checkpoints safe, make platform landings and races consistent, and fix low-frame-rate play and rendering. -->
 <!-- CHANGE LOG: 2026-11-25 — Scope coin saves to the run that earned them and track banked pickups individually. -->
 <!-- CHANGE LOG: 2026-11-25 — Fix touch, keyboard and controller activation and return focus to gameplay after using tools. -->
 <!-- CHANGE LOG: 2026-11-25 — Require two distinct Math Mode answers, preserve quiz time across tab switches, and show the final answer. -->
@@ -302,9 +303,10 @@
   // Build transparent PNG name sprites once, without external artwork.
   const nameSkinImages = {};
   function getNameSkinImage(name) {
-    if (nameSkinImages[name]) return nameSkinImages[name];
+    if (Object.hasOwn(nameSkinImages,name)) return nameSkinImages[name];
     const c=document.createElement('canvas');c.width=320;c.height=120;
     const g=c.getContext('2d');const label=name==='kiera'?'KIERA':'TEO';
+    if(!g){nameSkinImages[name]=null;return null;}
     g.textAlign='center';g.textBaseline='middle';g.lineJoin='round';
     g.font='900 '+(name==='kiera'?70:96)+'px system-ui, sans-serif';
     g.lineWidth=14;g.strokeStyle=name==='kiera'?'#8b2674':'#a21d28';g.strokeText(label,160,60,290);
@@ -323,7 +325,7 @@
   const motionPreference = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   let reduceMotion = !!(motionPreference && motionPreference.matches);
   if (motionPreference) {
-    const syncMotionPreference = () => { reduceMotion = motionPreference.matches; };
+    const syncMotionPreference = () => { reduceMotion = motionPreference.matches; if(reduceMotion)particles=[]; };
     if (motionPreference.addEventListener) motionPreference.addEventListener('change', syncMotionPreference);
     else if (motionPreference.addListener) motionPreference.addListener(syncMotionPreference);
   }
@@ -685,7 +687,8 @@
     };
   }
   function addInfinitePlatform(x, y, width, moving = null) {
-    const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y,w:width,h:20,prevY:y,moving};
+    const startY=moving?y+Math.sin(elapsed*moving.speed+moving.phase)*moving.amp:y;
+    const p = {id:infiniteWorld.nextPlatformId++,x,baseY:y,y:startY,w:width,h:20,prevY:startY,moving};
     platforms.push(p);
     infiniteWorld.lastPlatform = p;
     return p;
@@ -767,13 +770,16 @@
     if (pruneBefore > 0) {
       const safePlatform = checkpoint.platformRef || null;
       infiniteWorld.minX=Math.max(infiniteWorld.minX||0,pruneBefore);
-      platforms = platforms.filter(p =>
-        p.x+p.w >= pruneBefore || p === safePlatform || p === player.standingOn
-      );
-      const livePlatforms = new Set(platforms);
-      coins = coins.filter(c => c.x >= pruneBefore-80 && (!c.platformRef || livePlatforms.has(c.platformRef)));
-      enemies = enemies.filter(e => e.x+e.w >= pruneBefore-80 && livePlatforms.has(e.platformRef));
-      infiniteWorld.zones = infiniteWorld.zones.filter(z => z.endX >= pruneBefore-160);
+      const keepPlatform=p=>p.x+p.w>=pruneBefore||p===safePlatform||p===player.standingOn;
+      if(platforms.some(p=>!keepPlatform(p))){
+        platforms=platforms.filter(keepPlatform);
+        const livePlatforms=new Set(platforms);
+        coins=coins.filter(c=>!c.platformRef||livePlatforms.has(c.platformRef));
+        enemies=enemies.filter(e=>livePlatforms.has(e.platformRef));
+      }
+      if(coins.some(c=>c.x<pruneBefore-80))coins=coins.filter(c=>c.x>=pruneBefore-80);
+      if(enemies.some(e=>e.x+e.w<pruneBefore-80))enemies=enemies.filter(e=>e.x+e.w>=pruneBefore-80);
+      if(infiniteWorld.zones[0]?.endX<pruneBefore-160)infiniteWorld.zones=infiniteWorld.zones.filter(z=>z.endX>=pruneBefore-160);
     }
 
     const zone = infiniteWorld.zones.find(z=>player.x>=z.startX && player.x<z.endX) ||
@@ -816,7 +822,7 @@
     platforms = level.platforms.map((p,i)=>({id:i,x:p[0],baseY:p[1],y:p[1],w:p[2],h:20,prevY:p[1],moving:null}));
     for (const m of level.movers) {
       const p = platforms[m.index];
-      if(p) p.moving={amp:m.amp,speed:m.speed,phase:m.phase};
+      if(p){p.moving={amp:m.amp,speed:m.speed,phase:m.phase};p.y=p.prevY=p.baseY+Math.sin(m.phase)*m.amp;}
     }
     coins = [];
     // Replays keep banked pickups collected and leave the other coins available.
@@ -837,6 +843,7 @@
     boss = null;
     fireProjectiles = [];
     bossSpeedTimer = 0;
+    if(achievementNotice==='GO FASTER!')achievementNoticeTime=0;
     fireCooldown = 0;
     bossPowerups = {speed:true};
     if(gameMode==='boss' && level.bossLevel){
@@ -844,7 +851,7 @@
       const health=3+Math.floor((levelIndex+1)/10);
       boss={x:finalPlatform.x+65,y:finalPlatform.y-68,w:94,h:68,minX:finalPlatform.x+16,maxX:finalPlatform.x+finalPlatform.w-110,vx:145+level.difficulty*12,health,maxHealth:health,alive:true,phase:(levelIndex+1)*.73};
     }
-    checkpoint={x:54,y:platforms[0].y-PLAYER_H};
+    checkpoint={x:54,y:platforms[0].y-PLAYER_H,platformRef:platforms[0]};
     cameraX=0;
     coinsThisLevel=0;pendingLevelReward=0;
     updateHUD();
@@ -1080,8 +1087,10 @@
     bossTools.hidden=!(gameMode==='boss'&&state==='playing');
     bossSpeedButton.disabled=!bossPowerups.speed;
     bossSkipButton.disabled=bossSkipsRemaining<=0;
-    bossSkipButton.textContent=`⏭ SKIP LEVEL (${bossSkipsRemaining})`;
-    bossSpeedButton.textContent=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
+    const skipLabel=`⏭ SKIP LEVEL (${bossSkipsRemaining})`;
+    const speedLabel=bossSpeedTimer>0?'⚡ FASTER!':'⚡ GO FASTER';
+    if(bossSkipButton.textContent!==skipLabel)bossSkipButton.textContent=skipLabel;
+    if(bossSpeedButton.textContent!==speedLabel)bossSpeedButton.textContent=speedLabel;
   }
   function shootFire(){
     if(gameMode!=='boss'||state!=='playing'||!player||fireCooldown>0)return;
@@ -1209,7 +1218,7 @@
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
       rewardSaveFailed:{emoji:'🪙',title:'COINS NOT SAVED YET',text:'Your reward could not be saved. Try again or finish the level without adding these coins to your wallet.',buttons:[['TRY SAVING AGAIN','primary',()=>completeLevel(options.mathFeedback)],['CONTINUE WITHOUT SAVING','secondary',()=>{totalCoins=Math.max(0,totalCoins-pendingLevelReward);pendingLevelReward=0;finishLevel(options.mathFeedback);}],['MAIN MENU','ghost',returnToMenu]]},
       levelComplete:{emoji:gameMode==='race'?'🏁':(gameMode==='boss'?'👾':'✨'),title:gameMode==='race'?`YOU BEAT THE ROBOT!`:`LEVEL ${levelIndex+1} COMPLETE!`,text:gameMode==='race'?`You reached the portal before the robot on Level ${levelIndex + 1}. Nice work!`:(gameMode==='boss'&&level.bossLevel?`Boss defeated! Stage ${levelIndex+1} cleared.`:`You cleared the level and can keep hopping forward.`),buttons:[['NEXT LEVEL','primary',()=>advanceModeLevel()],['MENU','ghost',()=>returnToMenu()]]},
-      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'} with a skip.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
+      won:{emoji:'🏆',title:gameMode==='race'?'ROBOT RACING CHAMPION!':(gameMode==='boss'?'BOSS FIGHT CHAMPION!':'FROG LEGEND!'),text:gameMode==='race'?`You beat the robot across all ${currentModeTotalLevels()} levels! You collected ${totalCoins} bonus coins on the way.`:(gameMode==='boss'?(bossStagesSkipped>0?`You cleared ${currentModeTotalLevels()-bossStagesSkipped} of ${currentModeTotalLevels()} Boss Fight levels. You skipped ${bossStagesSkipped} stage${bossStagesSkipped===1?'':'s'}.`:`You defeated every boss and cleared all ${currentModeTotalLevels()} Boss Fight levels!`):(gameMode==='math'?`You finished all ${currentModeTotalLevels()} Math Mode levels and completed the math adventure with ${totalCoins} coins.`:`You finished all ${currentModeTotalLevels()} Adventure levels and completed the frog adventure with ${totalCoins} coins.`)),buttons:[['PLAY AGAIN','primary',()=>startGame(gameMode)],['MENU','ghost',()=>returnToMenu()]]},
       gameover:{emoji:'💫',title:'OH, CROAK!',text:gameMode==='infinite'? `Your Infinite Explore run ended after ${Math.floor(Math.max(0,player.x-54))} meters. You collected ${totalCoins} coins. Every frog gets another try!` : `You ran out of lives on Level ${levelIndex+1}. You earned ${Math.max(0,totalCoins-pendingLevelReward)} coins.${pendingLevelReward>0?` You picked up ${pendingLevelReward} more on this level, but they were not saved because the level was not finished.`:''} Every frog gets another try!`,buttons:[['TRY AGAIN','primary',()=>restartRun()],['MENU','ghost',()=>returnToMenu()]]},
       robotWon:{emoji:'🤖',title:'THE ROBOT WON!',text:`The robot reached the portal first on Level ${levelIndex+1}! Try again, find your rhythm, and beat it to the finish.`,buttons:[['RETRY RACE','primary',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]}
     }[kind];
@@ -1385,14 +1394,17 @@
   function requestJump(pointer=null){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;player.jumpRequestPointer=pointer;}
   function hurt(){
     if(player.invulnerable>0)return;
-    if(Number.isFinite(lives))lives--;
+    if(Number.isFinite(lives)){
+      lives--;
+      if(reduceMotion){achievementNotice='−1 LIFE';achievementNoticeTime=1.4;}
+    }
     updateHUD();
     if(lives<=0){showOverlay('gameover');clearInputs();return;}
-    player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=false;player.standingOn=null;player.invulnerable=1.65;player.coyote=0;
+    player.x=checkpoint.x;player.y=checkpoint.platformRef?checkpoint.platformRef.y-player.h:checkpoint.y;player.vx=0;player.vy=0;player.jumpBuffer=0;player.onGround=!!checkpoint.platformRef;player.standingOn=checkpoint.platformRef||null;player.invulnerable=1.65;player.coyote=0;
     cameraX=gameMode==='infinite'?Math.max(0,player.x-W*.34):Math.max(0,Math.min(level.platforms[level.platforms.length-1][0]+level.platforms[level.platforms.length-1][2]-W,player.x-W*.34));
     particles.push(...makeBurst(player.x+player.w/2,player.y+player.h/2,'#ffffff',12));
   }
-  function makeBurst(x,y,color,count){let a=[];for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
+  function makeBurst(x,y,color,count){let a=[];if(reduceMotion)return a;for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,speed=65+Math.random()*200,life=0.45+Math.random()*0.45;a.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,size:3+Math.random()*4,color});}return a;}
   function updateRobot(dt){
     if(!robot || state!=='playing') return;
     robot.stumble=Math.max(0,robot.stumble-dt);
@@ -1421,17 +1433,11 @@
     robot.vy=Math.min(900,robot.vy+1580*dt);
     robot.x+=robot.vx*dt;
     robot.y+=robot.vy*dt;
-    robot.onGround=false;robot.standingOn=null;
-    if(robot.vy>=0){
-      for(const p of platforms){
-        const overlapsX=robot.x+robot.w-4>p.x && robot.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && prevBottom<=oldTop+12 && robot.y+robot.h>=p.y && robot.y+robot.h<=p.y+24){
-          robot.y=p.y-robot.h;robot.vy=0;robot.onGround=true;robot.standingOn=p;
-        }
-      }
+    resolvePlatformLanding(robot,prevBottom,current);
+    if(robot.onGround&&robot.standingOn.id>=robot.targetIndex){
+      robot.targetIndex=robot.standingOn.id+1;
+      robot.falls=0;
     }
-    if(robot.onGround && robot.standingOn) robot.targetIndex=Math.max(robot.targetIndex,robot.standingOn.id+1);
     if(robot.y>H+110){
       robot.falls++;
       // targetIndex points to the next platform, so the last safe landing
@@ -1447,15 +1453,26 @@
       robot.x=safe.x+Math.min(20,Math.max(4,safe.w-robot.w-4));robot.y=safe.y-robot.h;
       robot.vx=0;robot.vy=0;robot.onGround=true;robot.standingOn=safe;robot.targetIndex=safe.id+1;robot.stumble=0.7;
     }
-    const end=level.platforms[level.platforms.length-1];
-    const portalX=end[0]+end[2]*.68, portalY=end[1]-75;
-    const overlap=robot.x+robot.w>portalX-24 && robot.x<portalX+24 && robot.y+robot.h>portalY && robot.y<portalY+88;
-    if(overlap){
-      // The robot moves before the player's portal check each step, so if the
-      // frog is at the portal too, the tie goes to the player instead.
-      const playerAtPortal=player&&Math.abs(player.x+player.w/2-portalX)<42&&player.y+player.h/2>portalY-8&&player.y+player.h/2<portalY+88;
-      if(!playerAtPortal){showOverlay('robotWon');clearInputs();}
+    const end=platforms[platforms.length-1];
+    if(overlapsPortal(robot,end)&&(!player||!overlapsPortal(player,end))){showOverlay('robotWon');clearInputs();}
+  }
+
+  function resolvePlatformLanding(actor,previousBottom,support){
+    actor.standingOn=null;actor.onGround=false;
+    if(actor.vy<0)return;
+    let landing=null;
+    for(const p of platforms){
+      const oldTop=p===support?p.y:p.prevY;
+      const overlapsX=actor.x+actor.w-4>p.x&&actor.x+4<p.x+p.w;
+      if(overlapsX&&previousBottom<=oldTop+.001&&actor.y+actor.h>=p.y&&(!landing||p.y<landing.y))landing=p;
     }
+    if(!landing)return;
+    actor.y=landing.y-actor.h;actor.vy=0;actor.onGround=true;actor.standingOn=landing;
+  }
+
+  function overlapsPortal(actor,platform){
+    const portalX=platform.x+platform.w*.68,portalY=platform.y-75;
+    return Math.abs(actor.x+actor.w/2-portalX)<42&&actor.y+actor.h>portalY&&actor.y<portalY+88;
   }
 
   function bankInfiniteCoins(rewards){
@@ -1507,7 +1524,7 @@
         if(boss.health<=0){boss.alive=false;particles.push(...makeBurst(boss.x+boss.w/2,boss.y+boss.h/2,'#c9a0ff',34));achievementNotice='BOSS DEFEATED!';achievementNoticeTime=2.2;}
       }
     }
-    fireProjectiles=fireProjectiles.filter(function(shot){return shot.life>0&&shot.x>-30&&shot.x<W+cameraX+80;});
+    fireProjectiles=fireProjectiles.filter(shot=>shot.life>0);
     if(boss&&boss.alive){
       boss.x+=boss.vx*dt;
       if(boss.x<boss.minX){boss.x=boss.minX;boss.vx=Math.abs(boss.vx);}
@@ -1535,6 +1552,9 @@
   }
   function finishLevel(mathFeedback){
     showOverlay(levelIndex===currentModeTotalLevels()-1?'won':'levelComplete',{mathFeedback});
+  }
+  function checkpointOverlapsBossPatrol(x,y){
+    return boss?.alive&&x+player.w-5>boss.minX&&x+5<boss.maxX+boss.w&&y+player.h>boss.y+5&&y+5<boss.y+boss.h;
   }
   function update(dt){
     if(state!=='playing')return;
@@ -1567,17 +1587,7 @@
     player.vy=Math.min(900,player.vy+1580*dt);
     player.y+=player.vy*dt;
     player.wasOnGround=player.onGround;
-    player.onGround=false;
-    player.standingOn=null;
-    if(player.vy>=0){
-      for(const p of platforms){
-        const overlapsX=player.x+player.w-4>p.x && player.x+4<p.x+p.w;
-        const oldTop=Math.min(p.prevY,p.y);
-        if(overlapsX && previousBottom<=oldTop+12 && player.y+player.h>=p.y && player.y+player.h<=p.y+24){
-          player.y=p.y-player.h;player.vy=0;player.onGround=true;player.standingOn=p;
-        }
-      }
-    }
+    resolvePlatformLanding(player,previousBottom,player.standingOn);
     if(player.onGround&&!player.wasOnGround)recordPlatformLanding(player.standingOn);
     if(player.onGround) player.coyote=.105; else player.coyote=Math.max(0,player.coyote-dt);
     if(player.jumpBuffer>0 && (player.onGround || player.coyote>0)){
@@ -1633,7 +1643,8 @@
       const safeX=gameMode==='infinite'
         ? player.standingOn.x+(player.standingOn.w-player.w)*.5
         : Math.max(player.standingOn.x+7,Math.min(player.x,player.standingOn.x+player.standingOn.w-player.w-7));
-      checkpoint={x:safeX,y:player.standingOn.y-player.h,platformRef:player.standingOn};
+      const safeY=player.standingOn.y-player.h;
+      if(!checkpointOverlapsBossPatrol(safeX,safeY))checkpoint={x:safeX,y:safeY,platformRef:player.standingOn};
     }
 
     for(const part of particles){part.x+=part.vx*dt;part.y+=part.vy*dt;part.vy+=340*dt;part.life-=dt;}
@@ -1651,12 +1662,7 @@
       maintainInfiniteWorld();
     }else{
       const endPlatform=platforms[platforms.length-1];
-      const portalX=endPlatform.x+endPlatform.w*.68;
-      const portalY=endPlatform.y-75;
-      // The original fixed-level portal remains unchanged in Adventure and Race.
-      const playerCenterX=player.x+player.w/2;
-      const playerCenterY=player.y+player.h/2;
-      const portalOverlap=Math.abs(playerCenterX-portalX)<42&&playerCenterY>portalY-8&&playerCenterY<portalY+88;
+      const portalOverlap=overlapsPortal(player,endPlatform);
       const portalReady=gameMode==='level'||gameMode==='math'||gameMode==='race'||gameMode==='boss';
       if(portalOverlap&&portalReady&&!(gameMode==='boss'&&boss&&boss.alive)){if(gameMode==='math')beginMathQuiz();else completeLevel();}
     }
@@ -1694,7 +1700,7 @@
     // The bottom tells you what happens if you miss a platform.
     ctx.fillStyle=level.bottom;ctx.globalAlpha=.9;ctx.fillRect(0,565,W,35);ctx.globalAlpha=1;
     if(gameMode!=='boss'&&level.themeIndex===3){for(let i=0;i<18;i++){let x=i*64-(cameraX*.45%64);ctx.fillStyle=i%2?'#ffb64b':'#ffdc6a';ctx.beginPath();ctx.moveTo(x,565);ctx.lineTo(x+16,554+(i%3)*4);ctx.lineTo(x+35,565);ctx.closePath();ctx.fill();}}
-    else if(gameMode!=='boss'&&level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){let x=(i*97-cameraX*.42)%(W+40);ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
+    else if(gameMode!=='boss'&&level.themeIndex===1){ctx.strokeStyle='#b4fff2aa';ctx.lineWidth=2;for(let i=0;i<12;i++){const x=((i*97-cameraX*.42)%(W+40)+W+40)%(W+40)-20;ctx.beginPath();ctx.ellipse(x,583,17,3,0,0,Math.PI*2);ctx.stroke();}}
 
   }
   function drawPlatform(p){
@@ -2148,13 +2154,12 @@
     if(document.hidden||(state!=='playing'&&state!=='paused'&&state!=='menu'&&(typeof overlay==='undefined'||overlay.hidden)))return;
     pollGamepad();
     if(!lastTime)lastTime=now;
-    let delta=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
+    const delta=Math.min(FIXED_DT*16,Math.max(0,(now-lastTime)/1000));lastTime=now;
     if((state==='playing'||state==='menu')&&achievementNoticeTime>0)achievementNoticeTime=Math.max(0,achievementNoticeTime-delta);
     if(state==='playing'){
       accumulator+=delta;
       let count=0;
-      while(accumulator>=FIXED_DT&&count<8){update(FIXED_DT);accumulator-=FIXED_DT;count++;if(state!=='playing')break;}
-      if(count>=8)accumulator=0;
+      while(accumulator+1e-9>=FIXED_DT&&count<16){update(FIXED_DT);accumulator=Math.max(0,accumulator-FIXED_DT);count++;if(state!=='playing')break;}
     }else{accumulator=0;if(state==='menu')elapsed+=delta;}
     render();
     if((state==='paused'||state==='menu'||(typeof overlay!=='undefined'&&!overlay.hidden))&&!document.hidden)ensureFrameLoop();

@@ -184,7 +184,7 @@ test('skipping the final boss still wins and counts the skip',()=>{
 });
 
 test('boss victory text does not claim every boss was defeated after a skip',()=>{
-  assert.ok(html.includes("bossStagesSkipped>0?`You cleared all ${currentModeTotalLevels()} Boss Fight levels! You skipped"));
+  assert.ok(html.includes("bossStagesSkipped>0?`You cleared ${currentModeTotalLevels()-bossStagesSkipped} of ${currentModeTotalLevels()} Boss Fight levels. You skipped"));
   assert.ok(html.includes("bossStagesSkipped = 0;"));
 });
 
@@ -340,6 +340,7 @@ test('robot does not win a tie at the portal',()=>{
 test('restarting a finished level does not respawn its coins',()=>{
   const code=part('function setupLevel(index) {','function startGame(');
   const run=Function('banked',`let gameMode='level',infiniteWorld,levelIndex,level,elapsed,ticks,platforms,coins,enemies,particles,player,robot,boss,fireProjectiles,bossSpeedTimer,fireCooldown,bossPowerups,checkpoint,cameraX,coinsThisLevel,pendingLevelReward;
+    const achievementNotice='';
     const COINS_PER_LEVEL=5,PLAYER_H=36;
     const fake={platforms:[[0,515,250],[300,460,120],[500,400,120],[700,450,120],[900,380,120],[1100,430,120],[1300,370,120],[1500,430,120],[1700,500,400]],movers:[],enemies:[],bossLevel:false};
     const currentModeLevels=()=>[fake],makePlayer=(x,y)=>({x,y,w:36,h:36,onGround:false,standingOn:null}),updateHUD=()=>{};

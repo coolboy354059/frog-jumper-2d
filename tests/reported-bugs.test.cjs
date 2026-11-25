@@ -228,3 +228,49 @@ test('room restarts preserve claimed pickups and clear actors from other modes',
     return [first,coins[0].taken,boss,fireProjectiles.length];`);
   assert.deepEqual(run(),[false,true,null,0]);
 });
+
+test('the Stage 3 boss patrol is excluded from checkpoints', () => {
+  const levels=part('const BOSS_WORLD_TEMPLATES =','let state =');
+  const patrol=part('function checkpointOverlapsBossPatrol','function update(dt)');
+  const run=Function(`
+    const BOSS_TOTAL_LEVELS=45;
+    ${levels}
+    const end=BOSS_LEVELS[2].platforms.at(-1);
+    const boss={minX:end[0]+16,maxX:end[0]+end[2]-110,w:94,h:68,y:end[1]-68,alive:true};
+    const player={w:36,h:36};
+    ${patrol}
+    const inPatrol=checkpointOverlapsBossPatrol(end[0]+190,end[1]-36);
+    const above=checkpointOverlapsBossPatrol(end[0]+190,end[1]-110);
+    boss.alive=false;
+    return [inPatrol,above,checkpointOverlapsBossPatrol(end[0]+190,end[1]-36)];`);
+  assert.deepEqual(run(),[true,false,false]);
+});
+
+test('falling below a ledge cannot snap either racer up through its side', () => {
+  const landing=part('function resolvePlatformLanding','function bankInfiniteCoins');
+  const run=Function(`
+    const platforms=[{x:100,y:460,prevY:460,w:120}];
+    ${landing}
+    const actor={x:105,y:438,w:36,h:36,vy:120};
+    resolvePlatformLanding(actor,470,null);
+    const below=[actor.y,actor.onGround];
+    actor.y=425;
+    resolvePlatformLanding(actor,459,null);
+    const crossed=[actor.y,actor.onGround];
+    const high={x:152,y:354,w:36,h:36};
+    return [below,crossed,overlapsPortal(high,platforms[0])];`);
+  assert.deepEqual(run(),[[438,false],[424,true],true]);
+});
+
+test('10 fps and 60 fps advance the same number of physics ticks over a second', () => {
+  const frame=part('function frame(now)',"document.addEventListener('keydown',e=>{");
+  const run=Function('fps',`
+    let state='playing',rafId=0,lastTime=1,accumulator=0,ticks=0,achievementNoticeTime=0;
+    const FIXED_DT=1/120,document={hidden:false},overlay={hidden:true};
+    const pollGamepad=()=>{},render=()=>{},update=()=>ticks++,requestAnimationFrame=()=>1;
+    ${frame}
+    for(let i=1;i<=fps;i++)frame(1+i*1000/fps);
+    return ticks;`);
+  assert.equal(run(10),120);
+  assert.equal(run(60),120);
+});
