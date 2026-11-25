@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Recover purchases safely after storage errors, preserve shop focus, and apply the advertised sale prices. -->
 <!-- CHANGE LOG: 2026-11-25 — Fit the play area and controls to the viewport and keep room information and dialog focus accessible. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep checkpoints safe, make platform landings and races consistent, and fix low-frame-rate play and rendering. -->
 <!-- CHANGE LOG: 2026-11-25 — Scope coin saves to the run that earned them and track banked pickups individually. -->
@@ -576,6 +577,7 @@
   let shopData = loadShopData();
   let equippedSkin = shopData.equippedSkin;
   let equippedHat = shopData.equippedHat;
+  const pendingShopActions = new Set();
   let lives = 25;
   let ticks = 0;
   let elapsed = 0;
@@ -895,12 +897,12 @@
   function returnToMenu(){clearMathQuiz();leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
   function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();cancelJump();}
 
-  function readStoredNumber(key, fallback = 0) {
+  function readStoredNumber(key, fallback = 0, missing = 0) {
     try {
       const raw = window.localStorage.getItem(key);
-      if (raw === null || raw.trim() === '') return fallback;
+      if (raw === null || raw.trim() === '') return missing;
       const parsed = Number(raw);
-      return Number.isSafeInteger(parsed) ? Math.max(0, parsed) : fallback;
+      return Number.isSafeInteger(parsed) && parsed>=0 ? parsed : missing;
     } catch (_) {
       return fallback;
     }
@@ -915,33 +917,48 @@
       return false;
     }
   }
-  function loadShopData(){
+  function loadShopData({strict=false,settle=false}={}){
     const defaults={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
+    let raw;
+    try{raw=window.localStorage.getItem('frogJumperShop');}catch(_){return strict?null:defaults;}
     try{
-      const saved=JSON.parse(window.localStorage.getItem('frogJumperShop')||'null');
+      let saved=JSON.parse(raw||'null');
       if(!saved||typeof saved!=='object'||Array.isArray(saved))return defaults;
+      // An interrupted purchase uses its original ownership until the debit is present.
+      const pending=saved.pendingPurchase;
+      if(pending&&Number.isSafeInteger(pending.balance)&&pending.balance>=0&&pending.next&&typeof pending.next==='object'){
+        const balance=readStoredNumber('frogJumperWalletCoins',null,-1);
+        if(balance===null&&strict)return null;
+        if(balance===pending.balance)saved=pending.next;
+      }
       const ownedSkins=Array.isArray(saved.ownedSkins)?[...new Set(['red',...saved.ownedSkins.filter(v=>FROG_SKIN_IDS.has(v))])]:defaults.ownedSkins;
       const ownedHats=Array.isArray(saved.ownedHats)?[...new Set(saved.ownedHats.filter(v=>v==='black'||v==='tv'))]:defaults.ownedHats;
-      return {
+      const result={
         ownedSkins,
         ownedHats,
         equippedSkin:FROG_SKIN_IDS.has(saved.equippedSkin)&&ownedSkins.includes(saved.equippedSkin)?saved.equippedSkin:'red',
         equippedHat:['black','tv'].includes(saved.equippedHat)&&ownedHats.includes(saved.equippedHat)?saved.equippedHat:'none'
       };
+      if(pending&&settle&&!saveShopData(result))return null;
+      return result;
     }catch(_){return defaults;}
   }
-  function saveShopData(){
-    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(shopData));return true;}catch(_){return false;}
+  function saveShopData(data){
+    try{window.localStorage.setItem('frogJumperShop',JSON.stringify(data));return true;}catch(_){return false;}
   }
   function saveWallet(){return writeStoredNumber('frogJumperWalletCoins',walletCoins);}
   function showShop(focusItemId=null){
+    const previousCard=state==='shop'?overlay.querySelector('.shop-card'):null;
+    const previousScroll=previousCard?.scrollTop??0;
+    const backFocused=document.activeElement?.id==='shop-back';
+    const canPurchase=typeof navigator.locks?.request==='function';
     state='shop';syncPauseControl();window.clearTimeout(bottomBarTimer);bottomBar.classList.remove('is-hidden');overlay.hidden=false;
     const items=[
-      {id:'black',kind:'hat',name:'Black Hat',price:35,emoji:'🎩',description:'A classic black hat for Froggy'},
-      {id:'ocean',kind:'skin',name:'Ocean Blue',price:85,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
+      {id:'black',kind:'hat',name:'Black Hat',price:33,emoji:'🎩',description:'A classic black hat for Froggy'},
+      {id:'ocean',kind:'skin',name:'Ocean Blue',price:83,emoji:'🌊',description:'A cool blue frog with aqua freckles'},
       {id:'jupiter',kind:'skin',name:'Jupiter Skin',price:330,emoji:'🪐',description:'Turn Froggy into a tiny gas giant'},
       {id:'gold',kind:'skin',name:'Golden Froggy',price:165,emoji:'✨',description:'A shiny sunshine-yellow frog'},
-      {id:'ninja',kind:'skin',name:'Ninja Frog',price:360,emoji:'🥷',description:'Dark stealth colors with a red headband'},
+      {id:'ninja',kind:'skin',name:'Ninja Frog',price:358,emoji:'🥷',description:'Dark stealth colors with a red headband'},
       {id:'car',kind:'skin',name:'Froggy Race Car',price:440,emoji:'🏎️',description:'A little red race car skin with 5× coin rewards'},
       {id:'dinosaur',kind:'skin',name:'Dinosaur Frog',price:165,emoji:'🦕',description:'A long neck dinosaur inspired by a drawing'},
       {id:'bee',kind:'skin',name:'Bee Frog',price:165,emoji:'🐝',description:'A buzzing frog with wings and stripes'},
@@ -954,24 +971,24 @@
       {id:'rainbow',kind:'skin',name:'Rainbow Frog',price:165,emoji:'🌈',description:'A cheerful rainbow inspired by a class drawing'},
       {id:'popcorn',kind:'skin',name:'Popcorn Frog',price:165,emoji:'🍿',description:'A striped popcorn box with fluffy popcorn'},
       {id:'flowerpot',kind:'skin',name:'Flowerpot Frog',price:165,emoji:'🌼',description:'A heart decorated flowerpot with three flowers'},
-      {id:'spiky',kind:'skin',name:'Red Quill',price:145,emoji:'🦔',description:'A warm orange frog with a row of bright back spikes'},
-      {id:'longneck',kind:'skin',name:'Longneck Pal',price:175,emoji:'🦒',description:'A tall, friendly creature with a long neck'},
-      {id:'glider',kind:'skin',name:'Sky Glider',price:195,emoji:'🪽',description:'A blue frog with wide gliding fins'},
+      {id:'spiky',kind:'skin',name:'Red Quill',price:143,emoji:'🦔',description:'A warm orange frog with a row of bright back spikes'},
+      {id:'longneck',kind:'skin',name:'Longneck Pal',price:176,emoji:'🦒',description:'A tall, friendly creature with a long neck'},
+      {id:'glider',kind:'skin',name:'Sky Glider',price:193,emoji:'🪽',description:'A blue frog with wide gliding fins'},
       {id:'fishbone',kind:'skin',name:'Fishbone',price:160,emoji:'🐟',description:'A sea-blue frog with a silly skeleton pattern'},
       {id:'bigeyes',kind:'skin',name:'Big-Eye Buddy',price:165,emoji:'👀',description:'A purple-blue frog with extra-big eyes'},
-      {id:'mouse',kind:'skin',name:'Little Mouse',price:145,emoji:'🐭',description:'A soft gray frog with round pink ears'},
-      {id:'bear',kind:'skin',name:'Bear Buddy',price:180,emoji:'🐻',description:'A cozy brown bear-like frog'},
+      {id:'mouse',kind:'skin',name:'Little Mouse',price:143,emoji:'🐭',description:'A soft gray frog with round pink ears'},
+      {id:'bear',kind:'skin',name:'Bear Buddy',price:182,emoji:'🐻',description:'A cozy brown bear-like frog'},
       {id:'longbeak',kind:'skin',name:'Wacky Beak',price:165,emoji:'🐤',description:'A golden frog with a funny long beak'},
-      {id:'bunny',kind:'skin',name:'Bunny Hop',price:195,emoji:'🐰',description:'A fluffy pink bunny frog with tall ears'},
-      {id:'boxbot',kind:'skin',name:'Box Buddy',price:230,emoji:'🤖',description:'A square-headed little robot frog'},
-      {id:'kitty',kind:'skin',name:'Whiskers',price:185,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
+      {id:'bunny',kind:'skin',name:'Bunny Hop',price:193,emoji:'🐰',description:'A fluffy pink bunny frog with tall ears'},
+      {id:'boxbot',kind:'skin',name:'Box Buddy',price:231,emoji:'🤖',description:'A square-headed little robot frog'},
+      {id:'kitty',kind:'skin',name:'Whiskers',price:187,emoji:'🐱',description:'A cream-colored cat frog with pointy ears'},
       {id:'chick',kind:'skin',name:'Tiny Chick',price:165,emoji:'🐥',description:'A sunny yellow chick frog with a tiny beak'},
-      {id:'alien',kind:'skin',name:'Little Alien',price:250,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
+      {id:'alien',kind:'skin',name:'Little Alien',price:248,emoji:'👽',description:'A mint-green space creature with glowing antennae'},
       {id:'poppy',kind:'skin',name:'Poppy Skin',price:0,emoji:'⭐',description:'A pop-art frog with a POP burst and star'},
       {id:'usflag',kind:'skin',name:'US Flag Skin',price:275,emoji:'🇺🇸',description:'A patriotic frog carrying the waving US flag'},
-      {id:'pirate',kind:'skin',name:'Pirate Frog',price:140,emoji:'🏴‍☠️',description:'A pirate frog with a hat and eye patch'},
+      {id:'pirate',kind:'skin',name:'Pirate Frog',price:138,emoji:'🏴‍☠️',description:'A pirate frog with a hat and eye patch'},
       {id:'superhero',kind:'skin',name:'Superhero Frog',price:165,emoji:'🦸',description:'A brave frog with a cape and mask'},
-      {id:'wizard',kind:'skin',name:'Wizard Frog',price:195,emoji:'🧙',description:'A magic frog with a starry wizard hat'},
+      {id:'wizard',kind:'skin',name:'Wizard Frog',price:193,emoji:'🧙',description:'A magic frog with a starry wizard hat'},
       {id:'astronaut',kind:'skin',name:'Astronaut Frog',price:220,emoji:'🚀',description:'A space frog in a rocket suit'},
       {id:'tv',kind:'hat',name:'Tiny TV Hat',price:275,emoji:'📺',description:'A tiny television for your frog'}
     ];
@@ -979,72 +996,66 @@
       const owned=item.kind==='skin'?shopData.ownedSkins.includes(item.id):shopData.ownedHats.includes(item.id);
       const equipped=item.kind==='skin'?equippedSkin===item.id:equippedHat===item.id;
       const label=equipped?'UNEQUIP':owned?'EQUIP':`BUY · ${item.price.toLocaleString()}`;
-      const disabled=!equipped&&!owned&&walletCoins<item.price;
-      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" data-shop-item="${item.id}" ${disabled?'disabled':''}>${label}</button></div>`;
+      const disabled=!canPurchase||(!equipped&&!owned&&walletCoins<item.price);
+      return `<div class="shop-item"><div class="shop-emoji">${item.emoji}</div><strong>${item.name}</strong><small>${item.description}</small><button type="button" class="action ${equipped?'ghost':'secondary'}" aria-label="${label} ${item.name}" data-shop-item="${item.id}" data-shop-action="${equipped?'unequip':owned?'equip':'buy'}" ${disabled?'disabled':''}>${label}</button></div>`;
     }).join('')}</div><div class="button-row"><button type="button" class="action ghost" id="shop-back">BACK TO MENU</button></div></div>`;
-    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',()=>{
-      const id=button.dataset.shopItem;
-      const applyShopAction=()=>{
-        const item=items.find(entry=>entry.id===id);if(!item)return;
-        // Re-read both shared records inside the cross-tab lock; never spend a stale balance
-        // or save an ownership snapshot that predates another tab's purchase.
-        walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
-        shopData=loadShopData();
-        equippedSkin=shopData.equippedSkin;
-        equippedHat=shopData.equippedHat;
-        const oldShop=JSON.stringify(shopData), oldWallet=walletCoins;
-        const owned=item.kind==='skin'?shopData.ownedSkins.includes(id):shopData.ownedHats.includes(id);
-        const currentlyEquipped=item.kind==='skin'?equippedSkin===id:equippedHat===id;
-        if(currentlyEquipped){
-          if(item.kind==='skin')equippedSkin='red';else equippedHat='none';
-        }else{
-          if(!owned){
-            if(walletCoins<item.price){showShop(id);return;}
-            walletCoins-=item.price;
-            if(item.kind==='skin')shopData.ownedSkins.push(id);else shopData.ownedHats.push(id);
-          }
-          if(item.kind==='skin')equippedSkin=id;else equippedHat=id;
-        }
-        shopData.equippedSkin=equippedSkin;shopData.equippedHat=equippedHat;
-        if(!saveShopData()){
-          walletCoins=oldWallet;shopData=JSON.parse(oldShop);
-          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
-          window.alert('Could not save the shop change. Your coins were not spent.');
-          showShop(id);return;
-        }
-        if(walletCoins!==oldWallet&&!saveWallet()){
-          // Save ownership first so a failed debit cannot take coins without an item.
-          shopData=JSON.parse(oldShop);walletCoins=oldWallet;
-          equippedSkin=shopData.equippedSkin;equippedHat=shopData.equippedHat;
-          saveShopData();
-          window.alert('Could not save the purchase. Your coins were not spent.');
-          showShop(id);return;
-        }
-        sendMultiplayerCosmetics();showShop(id);
-      };
-      // Web Locks serializes purchases made by different same-origin tabs.
-      // The fresh read above also keeps older tabs in sync before every action.
-      if(navigator.locks&&typeof navigator.locks.request==='function'){
-        // Never fall back to an unlocked write: two tabs could spend the same balance.
-        navigator.locks.request('frog-jumper-shop-economy',()=>{
-          applyShopAction();
-        }).catch(()=>{
-          window.alert('Frog Jumper could not safely complete that shop action. Please try again.');
-        });
-      }else{
-        // Fail closed when cross-tab locking is unavailable instead of risking lost purchases.
-        window.alert('This browser does not support safe shop purchases across multiple tabs. Please use a browser with Web Locks support to buy items.');
-      }
+    const card=overlay.querySelector('.shop-card');
+    if(!canPurchase){
+      const notice=document.createElement('p');
+      notice.textContent='Shop changes are unavailable in this browser.';
+      card.querySelector('.button-row').before(notice);
+    }
+    overlay.querySelectorAll('[data-shop-item]').forEach(button=>button.addEventListener('click',async()=>{
+      const item=items.find(entry=>entry.id===button.dataset.shopItem);
+      if(!item||pendingShopActions.has(item.id)||!canPurchase)return;
+      pendingShopActions.add(item.id);
+      let saved=false;
+      try {
+        saved=await navigator.locks.request('frog-jumper-shop-economy',()=>applyShopAction(item,button.dataset.shopAction));
+      }catch(_){}
+      finally{pendingShopActions.delete(item.id);}
+      syncShopFromStorage();
+      if(state!=='shop')return;
+      if(!saved)window.alert('Could not save the shop change. Your coins were not spent.');
+      showShop(overlay.contains(card)?item.id:document.activeElement?.dataset?.shopItem);
     }));
-    document.getElementById('shop-back').addEventListener('click',()=>showOverlay('menu'));
-    const focusTarget=focusItemId?overlay.querySelector('[data-shop-item="'+focusItemId+'"]'):overlay.querySelector('[data-shop-item]:not(:disabled)');
-    activateOverlayDialog(focusTarget||document.getElementById('shop-back'));
+    const back=document.getElementById('shop-back');
+    back.addEventListener('click',()=>showOverlay('menu'));
+    const focusTarget=focusItemId
+      ? overlay.querySelector('[data-shop-item="'+focusItemId+'"]:not(:disabled)')||back
+      : backFocused?back:overlay.querySelector('[data-shop-item]:not(:disabled)')||back;
+    card.scrollTop=previousScroll;
+    activateOverlayDialog(focusTarget);
+    focusTarget.scrollIntoView({block:'nearest'});
+  }
+
+  function applyShopAction(item,action){
+    const balance=readStoredNumber('frogJumperWalletCoins',null);
+    const previous=loadShopData({strict:true,settle:true});
+    if(balance===null||!previous)return false;
+    const [ownedKey,equippedKey,defaultItem]=item.kind==='hat'
+      ? ['ownedHats','equippedHat','none']
+      : ['ownedSkins','equippedSkin','red'];
+    const owned=previous[ownedKey].includes(item.id);
+    const equipped=previous[equippedKey]===item.id;
+    if(action==='unequip')return !equipped||saveShopData({...previous,[equippedKey]:defaultItem});
+    if(equipped||(action==='equip'&&!owned))return true;
+    const next={...previous,[equippedKey]:item.id};
+    if(owned)return saveShopData(next);
+    if(balance<item.price)return true;
+    next[ownedKey]=[...previous[ownedKey],item.id];
+    if(item.price===0)return saveShopData(next);
+    const remaining=balance-item.price;
+    if(!saveShopData({...previous,pendingPurchase:{balance:remaining,next}}))return false;
+    const debited=writeStoredNumber('frogJumperWalletCoins',remaining);
+    saveShopData(debited?next:previous);
+    return debited;
   }
 
   function syncShopFromStorage(){
     const previousSkin=equippedSkin, previousHat=equippedHat;
     walletCoins=readStoredNumber('frogJumperWalletCoins',walletCoins);
-    shopData=loadShopData();
+    shopData=loadShopData({strict:true})||shopData;
     equippedSkin=shopData.equippedSkin;
     equippedHat=shopData.equippedHat;
     if(previousSkin!==equippedSkin||previousHat!==equippedHat)sendMultiplayerCosmetics();
@@ -1505,8 +1516,10 @@
   async function bankWalletCoins(amount){
     if(!Number.isSafeInteger(amount)||amount<=0)return true;
     const deposit=()=>{
+      const storedWallet=readStoredNumber('frogJumperWalletCoins',null);
+      if(storedWallet===null||!loadShopData({strict:true,settle:true}))return false;
       const previousWallet=walletCoins;
-      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,readStoredNumber('frogJumperWalletCoins',walletCoins)+amount);
+      walletCoins=Math.min(Number.MAX_SAFE_INTEGER,storedWallet+amount);
       if(!saveWallet()){walletCoins=previousWallet;return false;}
       syncShopFromStorage();
       updateHUD();

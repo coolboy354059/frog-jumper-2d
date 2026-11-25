@@ -2,6 +2,8 @@
 
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { chromium } = require('playwright');
 const { spawn } = require('node:child_process');
 const http = require('node:http');
@@ -359,7 +361,7 @@ test('invalid and unsafe wallet values are safely handled', async () => {
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   await assertVisibleText(page,'FROGGY SHOP');
-  assert.match(await page.locator('.wallet-line').innerText(), /0 coins/);
+  assert.equal(await page.locator('.wallet-line strong').innerText(), '0');
   assert.deepEqual(errors, []);
   await page.close();
 });
@@ -396,7 +398,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','35'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','33'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
@@ -701,12 +703,10 @@ test('browser without a 2D canvas context gets a helpful fallback instead of cra
 
 test('all game artwork files are served successfully', async () => {
   const {page}=await freshPage();
-  for (const asset of [
-    '/assets/601f2f8d-d595-494c-bd9e-6aaaf5fcdcea.png',
-    '/assets/black-hat.png',
-    '/assets/tv-hat.png',
-    '/assets/wacky-beak.png'
-  ]) {
+  const files=fs.readdirSync(path.join(__dirname,'..','assets')).filter(file=>file.endsWith('.png'));
+  assert.ok(files.length>=7);
+  for (const file of files) {
+    const asset='/assets/'+encodeURIComponent(file);
     const response=await page.request.get(baseUrl+asset);
     assert.equal(response.status(),200,asset+' must load');
     assert.ok((await response.body()).length > 0,asset+' must not be empty');
@@ -778,7 +778,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await stubExternal(context);
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','200'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','198'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -787,9 +787,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('35 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line strong')?.textContent==='33');
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 35-coin balance');
+    'the second tab should see the remaining 33-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -801,7 +801,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 200 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 198 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
@@ -960,4 +960,54 @@ test('Boss Fight room code fits below wrapped tools on phones and small desktop 
       assert.ok(label.y>=tools.y+tools.height,`${width}×${height}: room label should clear all tool rows`);
     }finally{await context.close();}
   }
+});
+
+test('queued duplicate Buy clicks equip once and a delayed purchase cannot reopen the shop',async()=>{
+  const {page}=await freshPage();
+  try{
+    await page.evaluate(()=>{
+      localStorage.setItem('frogJumperWalletCoins','100');
+      window.holdShopLock=()=>new Promise(ready=>{
+        navigator.locks.request('frog-jumper-shop-economy',()=>new Promise(release=>{
+          window.releaseShopLock=release;
+          ready();
+        }));
+      });
+    });
+    await page.getByRole('button',{name:'COIN SHOP'}).click();
+    await page.evaluate(async()=>{
+      await window.holdShopLock();
+      const buy=document.querySelector('[data-shop-item=black]');
+      buy.click();buy.click();
+      window.releaseShopLock();
+    });
+    await page.waitForFunction(()=>document.querySelector('[data-shop-item=black]').textContent==='UNEQUIP');
+    assert.equal(await page.locator('.wallet-line strong').innerText(),'67');
+    await page.evaluate(async()=>{
+      await window.holdShopLock();
+      document.querySelector('[data-shop-item=poppy]').click();
+      document.querySelector('#shop-back').click();
+      window.releaseShopLock();
+    });
+    await page.waitForFunction(()=>JSON.parse(localStorage.getItem('frogJumperShop'))?.equippedSkin==='poppy');
+    await assertVisibleText(page,'FROG JUMPER');
+  }finally{await page.close();}
+});
+
+test('using a shop item leaves the changed action focused and visible',async()=>{
+  const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  try{
+    await stubExternal(context);
+    const page=await context.newPage();
+    await page.goto(baseUrl);
+    await page.getByRole('button',{name:'COIN SHOP'}).click();
+    const poppy=page.locator('[data-shop-item=poppy]');
+    await poppy.click();
+    await page.waitForFunction(()=>document.querySelector('[data-shop-item=poppy]').textContent==='UNEQUIP');
+    assert.equal(await poppy.evaluate(button=>button===document.activeElement),true);
+    assert.match(await poppy.getAttribute('aria-label'),/Poppy Skin/);
+    const item=await poppy.boundingBox();
+    const card=await page.locator('.shop-card').boundingBox();
+    assert.ok(item.y>=card.y&&item.y+item.height<=card.y+card.height);
+  }finally{await context.close();}
 });

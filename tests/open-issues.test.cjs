@@ -60,9 +60,10 @@ test('game and worker allow the same skins',()=>{
   assert.ok(a&&b);assert.deepEqual(Function('return '+a[1])().sort(),Function('return '+b[1])().sort());
 });
 test('new embedded PNG skins are in the shop with valid sprite data',()=>{
-  for(const [id,price] of [['pirate',140],['superhero',165],['wizard',195],['astronaut',220]]){
+  for(const [id,price] of [['pirate',138],['superhero',165],['wizard',193],['astronaut',220]]){
     assert.ok(html.includes(`{id:'${id}',kind:'skin'`),`${id} missing from shop items`);
-    assert.ok(html.includes(`id:'${id}',kind:'skin',name:`)&&html.includes(`price:${price}`),`${id} price changed`);
+    const item=html.match(new RegExp("\\{id:'"+id+"',kind:'skin',name:'[^']+',price:(\\d+),"));
+    assert.equal(Number(item?.[1]),price,`${id} price changed`);
     const m=html.match(new RegExp(`${id}:\\{image:new Image\\(\\),src:'data:image/png;base64,([A-Za-z0-9+/=]+)'\\}`));
     assert.ok(m,`${id} embedded sprite missing`);
     const buf=Buffer.from(m[1],'base64');
@@ -72,7 +73,8 @@ test('new embedded PNG skins are in the shop with valid sprite data',()=>{
   assert.ok(html.includes('EMBEDDED_SKIN_IMAGES[equippedSkin]'));
 });
 test('Black Friday sale prices are 45% off every shop item',()=>{
-  const expected={black:35,ocean:85,jupiter:330,gold:165,ninja:360,car:440,dinosaur:165,bee:165,king:825,baggy:330,kiera:165,teo:165,buff:220,steve:165,rainbow:165,popcorn:165,flowerpot:165,spiky:145,longneck:175,glider:195,fishbone:160,bigeyes:165,mouse:145,bear:180,longbeak:165,bunny:195,boxbot:230,kitty:185,chick:165,alien:250,poppy:0,usflag:275,pirate:140,superhero:165,wizard:195,astronaut:220,tv:275};
+  const original={black:60,ocean:150,jupiter:600,gold:300,ninja:650,car:800,dinosaur:300,bee:300,king:1500,baggy:600,kiera:300,teo:300,buff:400,steve:300,rainbow:300,popcorn:300,flowerpot:300,spiky:260,longneck:320,glider:350,fishbone:290,bigeyes:300,mouse:260,bear:330,longbeak:300,bunny:350,boxbot:420,kitty:340,chick:300,alien:450,poppy:0,usflag:500,pirate:250,superhero:300,wizard:350,astronaut:400,tv:500};
+  const expected=Object.fromEntries(Object.entries(original).map(([id,price])=>[id,Math.round(price*55/100)]));
   const found={};
   for(const m of html.matchAll(/\{id:'([a-z]+)',kind:'(?:skin|hat)',name:'[^']*',price:(\d+),emoji:/g))found[m[1]]=Number(m[2]);
   assert.deepEqual(found,expected);
@@ -87,20 +89,32 @@ test('clicking boss tools returns focus to the game for keyboard controls',()=>{
 });
 
 test('shop write failures never debit coins without ownership',()=>{
-  const code=part('const applyShopAction=()=>{','// Web Locks serializes purchases');
-  for(const failed of ['shop','wallet']){
-    const result=Function('failed',`let walletCoins=60, equippedSkin='red',equippedHat='none',messages=0;
-      let shopData={ownedSkins:['red'],ownedHats:[],equippedSkin:'red',equippedHat:'none'};
-      let storedWallet=60,storedShop=JSON.stringify(shopData);
-      const id='black',items=[{id:'black',kind:'hat',price:60}];
-      const readStoredNumber=()=>storedWallet,loadShopData=()=>JSON.parse(storedShop);
-      const saveShopData=()=>{if(failed==='shop')return false;storedShop=JSON.stringify(shopData);return true};
-      const saveWallet=()=>{if(failed==='wallet')return false;storedWallet=walletCoins;return true};
-      const window={alert(){messages++}},showShop=()=>{},sendMultiplayerCosmetics=()=>{};
-      ${code} applyShopAction();return {storedWallet,storedShop,messages};`)(failed);
-    assert.equal(result.storedWallet,60);
-    assert.equal(result.messages,1);
-    assert.ok(!JSON.parse(result.storedShop).ownedHats.includes('black'));
+  const code=part('function readStoredNumber','function showShop(')+part('function applyShopAction(','function syncShopFromStorage');
+  for(const failure of ['journal','debit','debit-and-cleanup','finalize','shop-read']){
+    const result=Function('failure',`
+      const FROG_SKIN_IDS=new Set(['red','king']);
+      const walletKey='frogJumperWalletCoins',shopKey='frogJumperShop';
+      const stored=new Map([[walletKey,'60'],[shopKey,JSON.stringify({ownedSkins:['red','king'],equippedSkin:'king'})]]);
+      let shopWrites=0,readonly=failure==='shop-read';
+      const window={localStorage:{
+        getItem(key){if(readonly&&key===shopKey)throw Error('read failed');return stored.get(key)??null;},
+        setItem(key,value){
+          if(key===shopKey)shopWrites++;
+          if((key===walletKey&&failure.startsWith('debit'))||
+            (key===shopKey&&(failure==='journal'||(shopWrites>1&&['debit-and-cleanup','finalize'].includes(failure)))))
+              throw Error('write failed');
+          stored.set(key,value);
+        }
+      }};
+      ${code}
+      const saved=applyShopAction({id:'black',kind:'hat',price:33},'buy');
+      readonly=false;
+      return {wallet:readStoredNumber(walletKey),shop:loadShopData(),saved};`)(failure);
+    const debited=failure==='finalize';
+    assert.equal(result.saved,debited,failure);
+    assert.equal(result.wallet,debited?27:60,failure);
+    assert.equal(result.shop.ownedHats.includes('black'),debited,failure);
+    assert.ok(result.shop.ownedSkins.includes('king'),failure);
   }
 });
 test('game-over text does not compare bonus rewards with a pickup maximum',()=>{
@@ -241,7 +255,7 @@ test('coins save anyway in browsers without Web Locks',async()=>{
   const code=part('async function bankWalletCoins(amount){','function updateBossCombat(dt)');
   const run=Function('saveOk',`let walletCoins=10;
     const navigator={};
-    const readStoredNumber=()=>10,saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
+    const readStoredNumber=()=>10,loadShopData=()=>({}),saveWallet=()=>saveOk,syncShopFromStorage=()=>{},updateHUD=()=>{};
     ${code} return bankWalletCoins(7).then(saved=>[saved,walletCoins]);`);
   assert.deepEqual(await run(true),[true,17],'no-lock save should bank the coins');
   assert.deepEqual(await run(false),[false,10],'failed storage write should restore the wallet');
