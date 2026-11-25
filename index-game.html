@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Support multiple controllers, the multiplayer mode picker, and Boss Fight power-ups on a controller. -->
 <!-- CHANGE LOG: 2026-11-25 — Recover interrupted room joins and synchronize moving platforms, cosmetics, and final positions. -->
 <!-- CHANGE LOG: 2026-11-25 — Keep saved progress consistent between tabs and announce achievement unlocks accessibly. -->
 <!-- CHANGE LOG: 2026-11-25 — Recover purchases safely after storage errors, preserve shop focus, and apply the advertised sale prices. -->
@@ -554,6 +555,8 @@
   let bossSpeedTimer = 0;
   let fireCooldown = 0;
   let previousGamepadFire = false;
+  let previousGamepadPowerups = 0;
+  let editingRoomModeWithController = false;
   let levelIndex = 0;
   let level = LEVELS[0];
   let platforms = [];
@@ -603,7 +606,6 @@
   let previousGamepadMenu=false;
   let previousGamepadNavNext=false;
   let previousGamepadNavPrev=false;
-  let gamepadConnected=false;
   function syncHorizontalInput(){input.left=keyboardInput.left||joystickInput.left||gamepadInput.left;input.right=keyboardInput.right||joystickInput.right||gamepadInput.right;}
   const MAX_LIVES = 25;
   function currentModeTotalLevels(){return gameMode==='boss'?BOSS_TOTAL_LEVELS:TOTAL_LEVELS;}
@@ -1308,7 +1310,7 @@
       mathSetup:{emoji:'🧮',title:'MATH MODE',text:'Choose your math. At every portal, answer two questions in 40 seconds. One correct answer opens the portal.',buttons:[...mathOperations.map(op=>[op,'secondary',()=>{mathOperation=op;startGame('math');}]),['BACK TO MENU','ghost',returnToMenu]]},
       mathQuestion:{emoji:'🧮',title:options.title,text:options.text,buttons:options.buttons},
       mathRetry:{emoji:'🐸',title:'TRY THE PORTAL AGAIN',text:options.text,buttons:[['TRY AGAIN','primary',beginMathQuiz],['MAIN MENU','ghost',returnToMenu]]},
-      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the round joystick to move and tap the green button to jump. On computers, use ← → or A / D to move and SPACE/W/↑ to jump. P or Esc pauses; R restarts. In Boss Fight, press F to fire. Xbox controller: Left Stick or D-pad moves, A jumps, X fires in Boss Fight, and Menu pauses or resumes. In menus, D-pad or Left Stick chooses a button and A picks it. GO FASTER can be used once per stage; SKIP LEVEL can be used three times per Boss Fight run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
+      help:{emoji:'🎮',title:'HOW TO HOP',text:'On phones and tablets, drag the joystick to move and tap the green button to jump. On computers, use ← → or A / D to move, SPACE/W/↑ to jump, P or Esc to pause, and R to restart. Press F to fire in Boss Fight. On an Xbox controller, move with the left stick or D-pad, jump with A, and pause or resume with Menu. In menus, move the focus with the stick or D-pad and choose with A. In Boss Fight, press X to fire, Y for Go Faster once per stage, and B to skip up to three stages per run.',buttons:[['PLAY NOW','primary',()=>startGame('level')],['BACK TO MENU','ghost',()=>showOverlay('menu')]]},
       paused:{emoji:'⏸️',title:'PAUSED',text:'Take a breather. Your coins and checkpoint are safe.',buttons:[['▶ RESUME','primary',()=>{state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}],[gameMode==='infinite'?'RESTART RUN':'RESTART LEVEL','ghost',()=>restartCurrentLevel()],['MENU','ghost',()=>returnToMenu()]]},
       multiplayerDisconnected:{emoji:'📡',title:'MULTIPLAYER CONNECTION LOST',text:'Your connection to room '+String(options.code||'').replace(/[^A-Z0-9]/g,'').slice(0,6)+' was lost. You are no longer connected to other frogs. Try joining again or return to the menu.',buttons:[['BACK TO MULTIPLAYER','primary',()=>showMultiplayerScreen(options)],['MAIN MENU','ghost',()=>returnToMenu()]]},
       saving:{emoji:'🪙',title:'SAVING COINS',text:'Please keep this page open while your coins are saved.',buttons:[]},
@@ -1357,6 +1359,11 @@
   function normalizeRoomCode(value){
     return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
   }
+  function setControllerModeEditing(editing){
+    editingRoomModeWithController=editing;
+    const hint=document.getElementById('mp-mode-controller-hint');
+    if(hint)hint.hidden=!editing;
+  }
   function showMultiplayerScreen(prefill={}){
     cancelMultiplayerAttempt();
     state='multiplayer';syncPauseControl();syncBossTools();window.clearTimeout(bottomBarTimer);
@@ -1365,6 +1372,13 @@
     const nameInput=overlay.querySelector('#mp-name');
     const modeInput=overlay.querySelector('#mp-mode');
     const codeInput=overlay.querySelector('#mp-code');
+    const modeHint=document.createElement('p');
+    modeHint.id='mp-mode-controller-hint';
+    modeHint.setAttribute('role','status');
+    modeHint.textContent='Use the stick or D-pad to change modes. Press A to confirm.';
+    modeInput.after(modeHint);
+    setControllerModeEditing(false);
+    modeInput.addEventListener('blur',()=>setControllerModeEditing(false));
     if(typeof prefill.name==='string')nameInput.value=prefill.name.slice(0,16)||'Frog';
     if(['level','race','boss','infinite'].includes(prefill.mode))modeInput.value=prefill.mode;
     codeInput.removeAttribute('maxlength');
@@ -2220,43 +2234,55 @@
   function pollGamepad(){
     let pads=[];
     try{pads=navigator.getGamepads?navigator.getGamepads():[];}catch(_){pads=[];}
-    const pad=Array.from(pads).find(p=>p&&p.connected);
-    if(!pad){
-      gamepadConnected=false;
+    const connected=Array.from(pads).filter(pad=>pad?.connected);
+    if(!connected.length){
       gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();
-      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;previousGamepadNavNext=false;previousGamepadNavPrev=false;return;
+      previousGamepadJump=false;previousGamepadMenu=false;previousGamepadFire=false;previousGamepadPowerups=0;previousGamepadNavNext=false;previousGamepadNavPrev=false;return;
     }
-    gamepadConnected=true;
-    const axisX=Number.isFinite(pad.axes?.[0])?pad.axes[0]:0;
-    const left=axisX < -0.35 || !!pad.buttons?.[14]?.pressed;
-    const right=axisX > 0.35 || !!pad.buttons?.[15]?.pressed;
+    const pressed=button=>connected.some(pad=>pad.buttons?.[button]?.pressed);
+    const alongAxis=(axis,direction)=>connected.some(pad=>pad.axes?.[axis]*direction>0.35);
+    const left=alongAxis(0,-1)||pressed(14);
+    const right=alongAxis(0,1)||pressed(15);
     gamepadInput.left=left;gamepadInput.right=right;syncHorizontalInput();
-    const jump=!!pad.buttons?.[0]?.pressed;
-    const fire=!!pad.buttons?.[2]?.pressed;
-    const menu=!!pad.buttons?.[9]?.pressed;
+    const jump=pressed(0);
+    const fire=pressed(2);
+    const powerups=(pressed(3)?1:0)|(pressed(1)?2:0);
+    const menu=pressed(9);
     // Controller menu support: D-pad or left stick moves between popup buttons, A picks the focused one.
     const overlayActive=typeof overlay!=='undefined'&&overlay&&!overlay.hidden&&state!=='playing';
     if(overlayActive){
-      const axisY=Number.isFinite(pad.axes?.[1])?pad.axes[1]:0;
-      const navNext=!!pad.buttons?.[13]?.pressed||right||axisY>0.35;
-      const navPrev=!!pad.buttons?.[12]?.pressed||left||axisY<-0.35;
+      const navNext=pressed(13)||right||alongAxis(1,1);
+      const navPrev=pressed(12)||left||alongAxis(1,-1);
       const step=(navNext&&!previousGamepadNavNext)?1:((navPrev&&!previousGamepadNavPrev)?-1:0);
       if(step){
-        const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
-        if(focusable.length){
-          const current=focusable.indexOf(document.activeElement);
-          const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
-          next.focus();
+        const active=document.activeElement;
+        if(state==='multiplayer'&&active?.id==='mp-mode'&&!active.disabled&&editingRoomModeWithController){
+          const count=active.options.length;
+          active.selectedIndex=(active.selectedIndex+count+step)%count;
+        }else{
+          const focusable=overlayControls();
+          if(focusable.length){
+            const current=focusable.indexOf(active);
+            const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
+            next.focus();
+          }
         }
       }
       previousGamepadNavNext=navNext;previousGamepadNavPrev=navPrev;
       if(jump&&!previousGamepadJump){
         const active=document.activeElement;
-        if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
+        if(state==='multiplayer'&&active?.id==='mp-mode'&&!active.disabled)setControllerModeEditing(!editingRoomModeWithController);
+        else if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
       }
     }else{previousGamepadNavNext=false;previousGamepadNavPrev=false;}
     if(!overlayActive&&fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
     previousGamepadFire=fire;
+    if(powerups&&!overlayActive&&state==='playing'&&gameMode==='boss'){
+      const newlyPressed=powerups&~previousGamepadPowerups;
+      if(newlyPressed&1)useBossSpeed();
+      if(newlyPressed&2)useBossSkip();
+    }
+    previousGamepadPowerups=powerups;
     if(!overlayActive&&jump&&!previousGamepadJump&&state==='playing')requestJump();
     if(menu&&!previousGamepadMenu){
       if(state==='playing'){clearInputs();showOverlay('paused');}
@@ -2265,8 +2291,8 @@
     }
     previousGamepadJump=jump;previousGamepadMenu=menu;
   }
-  window.addEventListener('gamepadconnected',()=>{previousGamepadJump=false;previousGamepadMenu=false;gamepadConnected=true;ensureFrameLoop();});
-  window.addEventListener('gamepaddisconnected',()=>{gamepadInput.left=false;gamepadInput.right=false;syncHorizontalInput();previousGamepadJump=false;previousGamepadMenu=false;});
+  window.addEventListener('gamepadconnected',ensureFrameLoop);
+  window.addEventListener('gamepaddisconnected',ensureFrameLoop);
 
   function frame(now){
     rafId=0;

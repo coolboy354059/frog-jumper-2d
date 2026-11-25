@@ -358,3 +358,51 @@ test('Infinite Explore positions can pass one million while fixed stages keep th
   assert.equal(move('infinite'),1000003);
   assert.deepEqual(sent,[1000003]);
 });
+
+test('an active second controller moves and uses boss power-ups without duplicate presses', () => {
+  const poll=part('function pollGamepad()', "window.addEventListener('gamepadconnected'");
+  const run=Function(`
+    let previousGamepadJump=false,previousGamepadMenu=false,previousGamepadNavNext=false,
+      previousGamepadNavPrev=false,previousGamepadFire=false,previousGamepadPowerups=0;
+    const state='playing',gameMode='boss',overlay={hidden:true},gamepadInput={};
+    const syncHorizontalInput=()=>{},calls=[];
+    const requestJump=()=>calls.push('jump'),useBossSpeed=()=>calls.push('speed'),useBossSkip=()=>calls.push('skip');
+    const first={connected:true,axes:[0,0]};
+    const active={connected:true,axes:[1,0],buttons:[{pressed:true},{pressed:true},null,{pressed:true}]};
+    const navigator={getGamepads:()=>[first,active]};
+    ${poll}
+    pollGamepad();
+    const moved=gamepadInput.right;
+    first.connected=false;
+    pollGamepad();
+    return {moved,calls};`);
+  assert.deepEqual(run(),{moved:true,calls:['speed','skip','jump']});
+});
+
+test('ten admitted classmates can join through one IP while pending tickets stay capped',async()=>{
+  const worker=read('worker/index.js');
+  const room=worker.slice(worker.indexOf('export class FrogRoom')).replace('export class FrogRoom','class FrogRoom');
+  const dependencies=worker.slice(0,worker.indexOf('export default'));
+  const FrogRoom=Function(dependencies+room+';return FrogRoom;')();
+  const store=new Map(),active=[];
+  const storage={
+    async get(key){return store.get(key);},
+    async put(key,value){for(const [k,v] of Object.entries(typeof key==='string'?{[key]:value}:key))store.set(k,v);},
+    async delete(key){store.delete(key);},
+    async list({prefix}){return new Map([...store].filter(([key])=>key.startsWith(prefix)));},
+    async setAlarm(){}
+  };
+  let ready;
+  const roomObject=new FrogRoom({storage,getWebSockets:()=>active,blockConcurrencyWhile:work=>{ready=work();}},{});
+  await ready;
+  const post=(pathname,body)=>roomObject.fetch(new Request('https://room.test'+pathname,{method:'POST',body:JSON.stringify(body)}));
+  assert.equal((await post('/create',{mode:'level'})).status,200);
+  const ip='192.0.2.15';
+  for(let i=0;i<10;i++){
+    const result=await post('/join',{mode:'level',name:'Student '+i,ip});
+    assert.equal(result.status,200,'student '+(i+1));
+    await storage.delete('ticket:'+(await result.json()).token);
+    active.push({deserializeAttachment:()=>({joined:true})});
+  }
+  assert.equal((await post('/join',{mode:'level',name:'Extra Student',ip:'192.0.2.16'})).status,409);
+});

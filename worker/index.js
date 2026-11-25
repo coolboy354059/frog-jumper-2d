@@ -158,7 +158,9 @@ export class FrogRoom {
     this.ctx.blockConcurrencyWhile(async () => {
       this.roomCreated = (await this.ctx.storage.get("created")) === true;
       this.roomMode = (await this.ctx.storage.get("mode")) || "level";
-      this.roomStartedAt = (await this.ctx.storage.get("startedAt")) ?? this.roomStartedAt;
+      const savedStart = await this.ctx.storage.get("startedAt");
+      if (Number.isFinite(savedStart)) this.roomStartedAt = savedStart;
+      else if (this.roomCreated) await this.ctx.storage.put("startedAt", this.roomStartedAt);
     });
   }
 

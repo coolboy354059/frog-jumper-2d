@@ -218,7 +218,8 @@ test('controller D-pad and A button can select other menu modes',()=>{
     const gamepadInput={},clicked=[];
     const buttons=['PLAY LEVEL ADVENTURE','MATH MODE','ROBOT RACE'].map(label=>({label,hidden:false,getAttribute:()=>null,focus(){document.activeElement=this;},click(){clicked.push(label);}}));
     const document={hidden:false,activeElement:buttons[0]};
-    const overlay={hidden:false,contains:el=>buttons.includes(el),querySelectorAll:()=>buttons};
+    const overlay={hidden:false,contains:el=>buttons.includes(el)};
+    const overlayControls=()=>buttons;
     let padButtons=Array.from({length:16},()=>({pressed:false}));
     const navigator={getGamepads:()=>[{connected:true,axes:[0,0],buttons:padButtons}]};
     const syncHorizontalInput=()=>{},startGame=mode=>{started=mode;},requestJump=()=>{},shootFire=()=>{},clearInputs=()=>{},showOverlay=()=>{},hideOverlay=()=>{};
