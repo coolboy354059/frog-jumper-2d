@@ -101,3 +101,57 @@ test('a quiz with two wrong answers retries and repeated ticks preserve countdow
   assert.equal(quiz.state,'mathRetry');
   assert.deepEqual(quiz.completions,[]);
 });
+
+test('touch controls ignore secondary buttons and preserve a newer keyboard jump when a touch is canceled', () => {
+  const jump = part('function requestJump(', 'function hurt()');
+  const joystick = part("  const moveStick=document", "  const bottomBar=");
+  const jumpEvents = part("  const jumpBtn=document", "  canvas.addEventListener('pointerdown'");
+  const run = Function(`
+    const state='playing',player={jumpBuffer:0},joystickInput={},syncHorizontalInput=()=>{};
+    const control=()=>({handlers:{},style:{},classList:{add(){},remove(){}},
+      addEventListener(name,fn){this.handlers[name]=fn;},
+      getBoundingClientRect(){return {left:0,top:0,width:100,height:100};},
+      setPointerCapture(){},hasPointerCapture(){return false;}});
+    const controls={'move-stick':control(),'stick-knob':control(),'jump-control':control()};
+    const document={getElementById:id=>controls[id]};
+    ${jump}${joystick}${jumpEvents}
+    const pointer={button:2,pointerId:1,clientX:92,clientY:50,preventDefault(){}};
+    moveStick.handlers.pointerdown(pointer);
+    jumpBtn.handlers.pointerdown(pointer);
+    const secondary=[!!joystickInput.right,player.jumpBuffer];
+    jumpBtn.handlers.pointerdown({...pointer,button:0});
+    jumpBtn.handlers.pointercancel(pointer);
+    const canceled=player.jumpBuffer;
+    jumpBtn.handlers.pointerdown({...pointer,button:0});
+    requestJump();
+    jumpBtn.handlers.pointercancel(pointer);
+    const newer=player.jumpBuffer;
+    player.jumpBuffer=0;
+    jumpBtn.handlers.click({detail:0});
+    return {secondary,canceled,newer,accessible:player.jumpBuffer};`);
+  assert.deepEqual(run(),{secondary:[false,0],canceled:0,newer:0.14,accessible:0.14});
+});
+
+test('controller A starts play without also jumping', () => {
+  const poll = part('function pollGamepad()', "window.addEventListener('gamepadconnected'");
+  const run = Function(`
+    let state='menu', jumps=0,gamepadConnected=false,previousGamepadJump=false,previousGamepadMenu=false,
+      previousGamepadFire=false,previousGamepadNavNext=false,previousGamepadNavPrev=false;
+    const gamepadInput={},syncHorizontalInput=()=>{};
+    const button={click(){state='playing';overlay.hidden=true;}};
+    const overlay={hidden:false,contains:()=>true};
+    const document={activeElement:button};
+    const pad={connected:true,buttons:[{pressed:true}]};
+    const navigator={getGamepads:()=>[pad]};
+    const requestJump=()=>jumps++;
+    ${poll}
+    pollGamepad();
+    const afterStart=jumps;
+    pollGamepad();
+    pad.buttons[0].pressed=false;
+    pollGamepad();
+    pad.buttons[0].pressed=true;
+    pollGamepad();
+    return [state,afterStart,jumps];`);
+  assert.deepEqual(run(),['playing',0,1]);
+});

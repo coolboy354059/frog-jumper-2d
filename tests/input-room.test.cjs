@@ -2,10 +2,11 @@ const test=require('node:test'), assert=require('node:assert/strict'), vm=requir
 const src=fs.readFileSync(require('node:path').join(__dirname,'../index-game.html'),'utf8');
 function section(a,b){return src.slice(src.indexOf(a),src.indexOf(b,src.indexOf(a)));}
 test('both physical keys must be released before horizontal movement stops',()=>{
- const handlers={}, c={document:{addEventListener:(k,f)=>handlers[k]=f},heldMovementKeys:new Set(),keyboardInput:{},syncHorizontalInput(){},state:'playing'};
+ const handlers={}, c={document:{addEventListener:(k,f)=>handlers[k]=f},heldMovementKeys:new Map(),keyboardInput:{},syncHorizontalInput(){},state:'playing'};
  vm.runInNewContext(section("  document.addEventListener('keydown',e=>{","  window.addEventListener('blur'"),c);
- for(const [first,second,dir] of [['KeyD','ArrowRight','right'],['ArrowLeft','KeyA','left']]){
- for(const code of [first,second])handlers.keydown({code,preventDefault(){}});
+ const keys={KeyD:'d',ArrowRight:'ArrowRight',ArrowLeft:'ArrowLeft',KeyQ:'a'};
+ for(const [first,second,dir] of [['KeyD','ArrowRight','right'],['ArrowLeft','KeyQ','left']]){
+ for(const code of [first,second])handlers.keydown({code,key:keys[code],preventDefault(){}});
  handlers.keyup({code:first});assert.equal(c.keyboardInput[dir],true);
  handlers.keyup({code:second});assert.equal(c.keyboardInput[dir],false);}
 });

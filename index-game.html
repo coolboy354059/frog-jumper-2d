@@ -1,3 +1,4 @@
+<!-- CHANGE LOG: 2026-11-25 — Fix touch, keyboard and controller activation and return focus to gameplay after using tools. -->
 <!-- CHANGE LOG: 2026-11-25 — Require two distinct Math Mode answers, preserve quiz time across tab switches, and show the final answer. -->
 <!-- CHANGE LOG: 2026-11-23 — Add a BLACK FRIDAY 45% OFF banner at the top of the shop. -->
 <!-- CHANGE LOG: 2026-11-23 — Add Cloudflare visit counting and crash logging so visits are counted and game crashes are reported. -->
@@ -570,7 +571,7 @@
   let infiniteWorld = null;
   let particles = [];
   const input = {left:false,right:false,jumpBuffer:0};
-  const heldMovementKeys = new Set();
+  const heldMovementKeys = new Map();
   const keyboardInput = {left:false,right:false};
   const joystickInput = {left:false,right:false};
   const gamepadInput = {left:false,right:false};
@@ -867,7 +868,7 @@
   }
   function restartRun(){startGame(gameMode);}
   function returnToMenu(){clearMathQuiz();leaveMultiplayerRoom();clearInputs();gameMode='level';infiniteWorld=null;robot=null;boss=null;fireProjectiles=[];totalCoins=0;lives=MAX_LIVES;setupLevel(0);showOverlay('menu');}
-  function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();document.querySelectorAll('.control').forEach(b=>b.classList.remove('pressed'));}
+  function clearInputs(){heldMovementKeys.clear();keyboardInput.left=false;keyboardInput.right=false;joystickInput.left=false;joystickInput.right=false;gamepadInput.left=false;gamepadInput.right=false;input.left=false;input.right=false;input.jumpBuffer=0;if(player)player.jumpBuffer=0;resetJoystick();cancelJump();}
 
   function readStoredNumber(key, fallback = 0) {
     try {
@@ -1100,9 +1101,9 @@
     bossSkipsRemaining--;bossStagesSkipped++;advanceModeLevel();
   }
   [[bossFireButton,shootFire],[bossSpeedButton,useBossSpeed],[bossSkipButton,useBossSkip]].forEach(([button,action])=>{
-    button.addEventListener('click',event=>{
+    button.addEventListener('click',()=>{
       action();
-      if(event.detail>0&&state==='playing')canvas.focus({preventScroll:true});
+      if(state==='playing')canvas.focus({preventScroll:true});
     });
   });
 
@@ -1377,7 +1378,7 @@
     roundedRect(W-width-12,top,width,30,9,'#102b36eF','#d5ff7d');
     ctx.fillStyle='#f4ffd9';ctx.fillText(label,W-23,top+20);ctx.restore();
   }
-  function requestJump(){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;}
+  function requestJump(pointer=null){if(state!=='playing'||!player)return;player.jumpBuffer=0.14;player.jumpRequestPointer=pointer;}
   function hurt(){
     if(player.invulnerable>0)return;
     if(Number.isFinite(lives))lives--;
@@ -2096,15 +2097,15 @@
     const overlayActive=typeof overlay!=='undefined'&&overlay&&!overlay.hidden&&state!=='playing';
     if(overlayActive){
       const axisY=Number.isFinite(pad.axes?.[1])?pad.axes[1]:0;
-      const navNext=!!pad.buttons?.[13]?.pressed||!!pad.buttons?.[15]?.pressed||axisY>0.35;
-      const navPrev=!!pad.buttons?.[12]?.pressed||!!pad.buttons?.[14]?.pressed||axisY<-0.35;
+      const navNext=!!pad.buttons?.[13]?.pressed||right||axisY>0.35;
+      const navPrev=!!pad.buttons?.[12]?.pressed||left||axisY<-0.35;
       const step=(navNext&&!previousGamepadNavNext)?1:((navPrev&&!previousGamepadNavPrev)?-1:0);
       if(step){
         const focusable=Array.from(overlay.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),select:not(:disabled),[tabindex]:not([tabindex="-1"])')).filter(el=>!el.hidden&&el.getAttribute('aria-hidden')!=='true');
         if(focusable.length){
           const current=focusable.indexOf(document.activeElement);
           const next=current<0?(step>0?focusable[0]:focusable[focusable.length-1]):focusable[(current+step+focusable.length)%focusable.length];
-          next.focus({preventScroll:true});
+          next.focus();
         }
       }
       previousGamepadNavNext=navNext;previousGamepadNavPrev=navPrev;
@@ -2113,12 +2114,12 @@
         if(active&&overlay.contains(active)&&typeof active.click==='function')active.click();
       }
     }else{previousGamepadNavNext=false;previousGamepadNavPrev=false;}
-    if(fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
+    if(!overlayActive&&fire&&!previousGamepadFire&&state==='playing'&&gameMode==='boss')shootFire();
     previousGamepadFire=fire;
-    if(jump&&!previousGamepadJump&&state==='playing')requestJump();
+    if(!overlayActive&&jump&&!previousGamepadJump&&state==='playing')requestJump();
     if(menu&&!previousGamepadMenu){
       if(state==='playing'){clearInputs();showOverlay('paused');}
-      else if(state==='paused'){state='playing';hideOverlay();clearInputs();}
+      else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}
       else if(state==='menu')startGame('level');
     }
     previousGamepadJump=jump;previousGamepadMenu=menu;
@@ -2146,24 +2147,30 @@
 
   document.addEventListener('keydown',e=>{
     const code=e.code;
-    if(state==='mathQuestion'&&code==='Enter'&&e.repeat){e.preventDefault();return;}
+    if(e.defaultPrevented||e.isComposing||e.altKey||e.ctrlKey||e.metaKey)return;
+    const key=e.key?.toLowerCase();
+    const jumpFocused=e.target?.id==='jump-control';
+    if((state==='mathQuestion'||jumpFocused)&&code==='Enter'&&e.repeat){e.preventDefault();return;}
     const interactiveTarget=e.target&&typeof e.target.closest==='function'&&e.target.closest('button,a,input,textarea,select,[contenteditable="true"]');
-    const useGameControls=!interactiveTarget||e.target===canvas||e.target.id==='jump-control';
+    const useGameControls=!interactiveTarget||jumpFocused;
     if(useGameControls&&['ArrowLeft','ArrowRight','ArrowUp','Space'].includes(code))e.preventDefault();
-    if(useGameControls&&(code==='ArrowLeft'||code==='KeyA')){heldMovementKeys.add(code);keyboardInput.left=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='ArrowRight'||code==='KeyD')){heldMovementKeys.add(code);keyboardInput.right=true;syncHorizontalInput();}
-    if(useGameControls&&(code==='Space'||code==='ArrowUp'||code==='KeyW')&&!e.repeat)requestJump();
-    if(useGameControls&&code==='KeyF'&&!e.repeat&&gameMode==='boss')shootFire();
-    if((code==='KeyP'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();}}
-    if(code==='KeyR'&&!e.repeat&&(!interactiveTarget||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
+    if(useGameControls&&(code==='ArrowLeft'||key==='a')){heldMovementKeys.set(code,'left');keyboardInput.left=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='ArrowRight'||key==='d')){heldMovementKeys.set(code,'right');keyboardInput.right=true;syncHorizontalInput();}
+    if(useGameControls&&(code==='Space'||code==='ArrowUp'||key==='w')&&!e.repeat)requestJump();
+    if(useGameControls&&key==='f'&&!e.repeat&&gameMode==='boss')shootFire();
+    if((key==='p'||code==='Escape')&&!e.repeat){if(state==='playing'){clearInputs();showOverlay('paused');}else if(state==='paused'){state='playing';hideOverlay();clearInputs();canvas.focus({preventScroll:true});}}
+    if(key==='r'&&!e.repeat&&(useGameControls||['paused','gameover','won','levelComplete','robotWon'].includes(state))){
       if(state==='gameover'||state==='won')restartRun();
       else if(['playing','paused','levelComplete','robotWon'].includes(state))restartCurrentLevel();
     }
     if(code==='Enter'&&!e.repeat&&state==='menu'&&!interactiveTarget)startGame('level');
   },{passive:false});
   document.addEventListener('keyup',e=>{
-    if(e.code==='ArrowLeft'||e.code==='KeyA'){heldMovementKeys.delete(e.code);keyboardInput.left=heldMovementKeys.has('KeyA')||heldMovementKeys.has('ArrowLeft');syncHorizontalInput();}
-    if(e.code==='ArrowRight'||e.code==='KeyD'){heldMovementKeys.delete(e.code);keyboardInput.right=heldMovementKeys.has('KeyD')||heldMovementKeys.has('ArrowRight');syncHorizontalInput();}
+    const direction=heldMovementKeys.get(e.code);
+    if(!direction)return;
+    heldMovementKeys.delete(e.code);
+    keyboardInput[direction]=Array.from(heldMovementKeys.values()).includes(direction);
+    syncHorizontalInput();
   });
   window.addEventListener('blur',clearInputs);
   document.addEventListener('visibilitychange',()=>{
@@ -2211,7 +2218,7 @@
     }
   }
   moveStick.addEventListener('pointerdown',e=>{
-    if(stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
+    if(e.button!==0||stickPointer!==null)return;e.preventDefault();stickPointer=e.pointerId;
     try{moveStick.setPointerCapture(e.pointerId);}catch(_){}moveJoystick(e);
   });
   moveStick.addEventListener('pointermove',e=>{if(e.pointerId===stickPointer){e.preventDefault();moveJoystick(e);}});
@@ -2228,11 +2235,13 @@
   document.addEventListener('keydown',noteActivity,{passive:true});
   document.addEventListener('pointermove',noteActivity,{passive:true});
   document.addEventListener('pointerdown',noteActivity,{passive:true});
-  document.getElementById('bar-fullscreen').addEventListener('click',async()=>{
+  document.getElementById('bar-fullscreen').addEventListener('click',async event=>{
+    const button=event.currentTarget;
     try{
       if(document.fullscreenElement) await document.exitFullscreen();
       else if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
     }catch(_){ /* Fullscreen can be blocked by browser or device policy. */ }
+    if(event.detail>0&&state==='playing'&&document.activeElement===button)canvas.focus({preventScroll:true});
   });
   document.getElementById('bar-exit').addEventListener('click',()=>{
     window.clearTimeout(bottomBarTimer);
@@ -2244,8 +2253,8 @@
   const jumpBtn=document.getElementById('jump-control');
   let jumpPointer=null;
   jumpBtn.addEventListener('pointerdown',e=>{
-    if(jumpPointer!==null||state!=='playing')return;
-    e.preventDefault();jumpPointer=e.pointerId;jumpBtn.classList.add('pressed');requestJump();
+    if(e.button!==0||jumpPointer!==null||state!=='playing')return;
+    e.preventDefault();jumpPointer=e.pointerId;jumpBtn.classList.add('pressed');requestJump(jumpPointer);
     try{jumpBtn.setPointerCapture(e.pointerId);}catch(_){}
   });
   const releaseJump=e=>{
@@ -2256,12 +2265,15 @@
   const cancelJump=e=>{
     if(e)e.preventDefault();
     if(jumpPointer===null||(e&&e.pointerId!==jumpPointer))return;
-    if(player&&state==='playing')player.jumpBuffer=0;
-    jumpPointer=null;jumpBtn.classList.remove('pressed');
+    const pointer=jumpPointer;
+    if(player&&player.jumpRequestPointer===pointer)player.jumpBuffer=0;
+    releaseJump();
+    if(jumpBtn.hasPointerCapture(pointer)){try{jumpBtn.releasePointerCapture(pointer);}catch(_){}}
   };
   jumpBtn.addEventListener('pointerup',releaseJump);
   jumpBtn.addEventListener('pointercancel',cancelJump);
   jumpBtn.addEventListener('lostpointercapture',cancelJump);
+  jumpBtn.addEventListener('click',e=>{if(e.detail===0)requestJump();});
   jumpBtn.addEventListener('contextmenu',e=>e.preventDefault());
 
   canvas.addEventListener('pointerdown',()=>canvas.focus({preventScroll:true}));

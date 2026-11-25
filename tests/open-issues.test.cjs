@@ -83,7 +83,7 @@ test('clicking boss tools returns focus to the game for keyboard controls',()=>{
     const [bossFireButton,bossSpeedButton,bossSkipButton]=buttons;
     const shootFire=()=>{},useBossSpeed=()=>{},useBossSkip=()=>{},state='playing',canvas={focus(){calls++}};
     ${code} buttons[0].click({detail:1});buttons[0].click({detail:0});return calls;`)();
-  assert.equal(result,1);
+  assert.equal(result,2);
 });
 
 test('shop write failures never debit coins without ownership',()=>{
@@ -361,7 +361,7 @@ test('infinite explore save warning shows at most once per run',async()=>{
 });
 
 test('boss tools do not cover the multiplayer room label',()=>{
-  const code=part('function drawMultiplayerHud(){','function requestJump()');
+  const code=part('function drawMultiplayerHud(){','function requestJump(');
   assert.ok(code.includes("(gameMode==='boss'&&state==='playing')?54:12"),'room label should drop below the boss tools in Boss Fight');
 });
 
