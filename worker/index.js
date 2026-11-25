@@ -6,10 +6,31 @@ const ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const MAX_PLAYERS = 10;
 const MAX_NAME_LENGTH = 16;
 const TICKET_TTL_MS = 60_000;
+const JOIN_RATE_WINDOW_MS = 60_000;
+const JOIN_RATE_MAX_PER_IP = 6;
+const MAX_PENDING_TICKETS_PER_IP = 3;
 const ROOM_IDLE_TTL_MS = 6 * 60 * 60 * 1000;
 const ALLOWED_MODES = new Set(["level", "race", "boss", "infinite"]);
-const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag"]);
+const ALLOWED_SKINS = new Set(["red","jupiter","ocean","gold","ninja","car","spiky","longneck","glider","fishbone","bigeyes","mouse","bear","longbeak","bunny","boxbot","kitty","chick","alien","poppy","usflag","rainbow","popcorn","flowerpot","dinosaur","bee","king","baggy","kiera","teo","buff","steve","astronaut","pirate","wizard","superhero"]);
 const ALLOWED_HATS = new Set(["none","black","tv"]);
+const CRASH_LOG_NAME = "__crashlog__";
+const MAX_CRASHES = 100;
+const MAX_CRASH_MESSAGE = 300;
+const MAX_CRASH_SOURCE = 200;
+const MAX_CRASH_STACK = 1000;
+const CRASH_RATE_WINDOW_MS = 60_000;
+const CRASH_RATE_MAX = 20;
+function cleanCrash(body) {
+  const line = Number(body.line), col = Number(body.col);
+  return {
+    message: String(body.message || "Unknown error").slice(0, MAX_CRASH_MESSAGE),
+    source: String(body.source || "").slice(0, MAX_CRASH_SOURCE),
+    line: Number.isFinite(line) ? Math.max(0, Math.floor(line)) : 0,
+    col: Number.isFinite(col) ? Math.max(0, Math.floor(col)) : 0,
+    stack: String(body.stack || "").slice(0, MAX_CRASH_STACK),
+    page: body.page === "index" ? "index" : "index-game",
+  };
+}
 function cleanSkin(value) { return ALLOWED_SKINS.has(value) ? value : "red"; }
 function cleanHat(value) { return ALLOWED_HATS.has(value) ? value : "none"; }
 
@@ -45,6 +66,10 @@ function makeCode() {
 function cleanName(value) {
   return String(value || "Frog").replace(/[<>\u0000-\u001f]/g, "").trim().slice(0, MAX_NAME_LENGTH) || "Frog";
 }
+async function readJsonObject(request) {
+  const body = await request.json().catch(() => null);
+  return body !== null && typeof body === "object" && !Array.isArray(body) ? body : null;
+}
 
 export default {
   async fetch(request, env) {
@@ -56,8 +81,29 @@ export default {
       return json({ ok: true, service: "frog-jumper-multiplayer", maxPlayers: MAX_PLAYERS }, 200, headers);
     }
 
+    if (url.pathname === "/crash" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object describing the crash." }, 400, headers);
+      const log = env.ROOMS.get(env.ROOMS.idFromName(CRASH_LOG_NAME));
+      const response = await log.fetch("https://room.internal/crash", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(cleanCrash(body)),
+      });
+      const result = await response.json().catch(() => ({}));
+      return json(result, response.status, headers);
+    }
+
+    if (url.pathname === "/crashes" && request.method === "GET") {
+      const log = env.ROOMS.get(env.ROOMS.idFromName(CRASH_LOG_NAME));
+      const response = await log.fetch("https://room.internal/crashes");
+      const result = await response.json().catch(() => ({ crashes: [] }));
+      return json(result, response.status, headers);
+    }
+
     if (url.pathname === "/api/rooms" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object with a game mode." }, 400, headers);
       const mode = ALLOWED_MODES.has(body.mode) ? body.mode : null;
       if (!mode) return json({ error: "Choose a valid game mode." }, 400, headers);
       for (let attempt = 0; attempt < 4; attempt++) {
@@ -81,11 +127,13 @@ export default {
       const action = routeParts[4];
       const room = env.ROOMS.get(env.ROOMS.idFromName(code));
       if (action === "join" && request.method === "POST") {
-        const body = await request.json().catch(() => ({}));
+        const body = await readJsonObject(request);
+        if (!body) return json({ error: "Send a JSON object to join a room." }, 400, headers);
+        const ip = request.headers.get("CF-Connecting-IP") || request.headers.get("x-forwarded-for") || "unknown";
         const response = await room.fetch("https://room.internal/join", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify(body),
+          body: JSON.stringify({ ...body, ip }),
         });
         const result = await response.json().catch(() => ({}));
         return json(result, response.status, headers);
@@ -128,7 +176,8 @@ export class FrogRoom {
     const url = new URL(request.url);
     if (url.pathname === "/create" && request.method === "POST") {
       if (this.roomCreated) return json({ error: "Room code already exists." }, 409);
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object with a game mode." }, 400);
       if (!ALLOWED_MODES.has(body.mode)) return json({ error: "Invalid game mode." }, 400);
       this.roomCreated = true;
       this.roomMode = body.mode;
@@ -137,22 +186,67 @@ export class FrogRoom {
       return json({ ok: true, mode: body.mode });
     }
 
+    // Crash log lives in its own singleton instance of this class, so it is
+    // handled before the room-created check below.
+    if (url.pathname === "/crash" && request.method === "POST") {
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object describing the crash." }, 400);
+      const crashes = (await this.ctx.storage.get("crashes")) || [];
+      const now = Date.now();
+      if (crashes.filter(c => now - c.atMs < CRASH_RATE_WINDOW_MS).length >= CRASH_RATE_MAX) {
+        return json({ error: "Too many crash reports. Try again later." }, 429);
+      }
+      crashes.push({ at: new Date(now).toISOString(), atMs: now, ...cleanCrash(body) });
+      await this.ctx.storage.put("crashes", crashes.slice(-MAX_CRASHES));
+      return json({ ok: true }, 201);
+    }
+
+    if (url.pathname === "/crashes" && request.method === "GET") {
+      const crashes = (await this.ctx.storage.get("crashes")) || [];
+      return json({ crashes: [...crashes].reverse() });
+    }
+
     if (!this.roomCreated) return json({ error: "Room not found. Check the code or create a new room." }, 404);
 
     if (url.pathname === "/join" && request.method === "POST") {
-      const body = await request.json().catch(() => ({}));
+      const body = await readJsonObject(request);
+      if (!body) return json({ error: "Send a JSON object to join a room." }, 400);
       const name = cleanName(body.name);
       if (body.mode !== this.roomMode) {
         return json({ error: "This room is for " + this.roomMode + ". Choose the same game mode to join." }, 409);
+      }
+      // Rate-limit joins per IP so one client cannot grab every reservation
+      // with fake tickets and block the whole room.
+      const ip = String(body.ip || "unknown").slice(0, 64);
+      const now = Date.now();
+      const logKey = "joinip:" + ip;
+      const recent = ((await this.ctx.storage.get(logKey)) || []).filter(t => now - t < JOIN_RATE_WINDOW_MS);
+      if (recent.length >= JOIN_RATE_MAX_PER_IP) {
+        return json({ error: "Too many join tries. Wait a minute and try again." }, 429);
+      }
+      recent.push(now);
+      await this.ctx.storage.put(logKey, recent);
+      let pendingForIp = 0;
+      for (const [, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
+        if (ticket && ticket.ip === ip && ticket.expiresAt > now) pendingForIp++;
+      }
+      if (pendingForIp >= MAX_PENDING_TICKETS_PER_IP) {
+        return json({ error: "Too many join tries. Wait a minute and try again." }, 429);
       }
       if (await this.countReservations() >= MAX_PLAYERS) {
         return json({ error: "This room is full (10/10 players)." }, 409);
       }
       const token = crypto.randomUUID();
       await this.ctx.storage.put("ticket:" + token, {
-        name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat),
+        name, mode: this.roomMode, skin: cleanSkin(body.skin), hat: cleanHat(body.hat), ip,
         createdAt: Date.now(), expiresAt: Date.now() + TICKET_TTL_MS,
       });
+      // Two joins at the same moment can both pass the first count, so count
+      // again with this ticket included and give the spot back if it overfilled.
+      if (await this.countReservations() > MAX_PLAYERS) {
+        await this.ctx.storage.delete("ticket:" + token);
+        return json({ error: "This room is full (10/10 players)." }, 409);
+      }
       await this.ctx.storage.setAlarm(Date.now() + ROOM_IDLE_TTL_MS);
       return json({ token, name, mode: this.roomMode, capacity: MAX_PLAYERS });
     }
@@ -164,9 +258,15 @@ export class FrogRoom {
         if (ticket) await this.ctx.storage.delete("ticket:" + token);
         return json({ error: "Join ticket expired. Please join the room again." }, 401);
       }
-      await this.ctx.storage.delete("ticket:" + token);
       const active = this.ctx.getWebSockets().filter(ws => ws.deserializeAttachment()?.joined).length;
       if (active >= MAX_PLAYERS) return json({ error: "This room is full (10/10 players)." }, 409);
+      await this.ctx.storage.delete("ticket:" + token);
+      // If the room filled while the ticket was being used, hand the ticket
+      // back so the player can retry instead of joining all over again.
+      if (this.ctx.getWebSockets().filter(ws => ws.deserializeAttachment()?.joined).length >= MAX_PLAYERS) {
+        await this.ctx.storage.put("ticket:" + token, ticket);
+        return json({ error: "This room is full (10/10 players)." }, 409);
+      }
 
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
@@ -260,6 +360,9 @@ export class FrogRoom {
     const now = Date.now();
     for (const [key, ticket] of await this.ctx.storage.list({ prefix: "ticket:" })) {
       if (!ticket || ticket.expiresAt <= now) await this.ctx.storage.delete(key);
+    }
+    for (const [key, log] of await this.ctx.storage.list({ prefix: "joinip:" })) {
+      if (!Array.isArray(log) || !log.some(t => now - t < JOIN_RATE_WINDOW_MS)) await this.ctx.storage.delete(key);
     }
     const active = this.ctx.getWebSockets().some(ws => ws.deserializeAttachment()?.joined);
     if (active) {

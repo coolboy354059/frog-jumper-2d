@@ -9,7 +9,7 @@ const vm = require('node:vm');
 const workerSource = fs.readFileSync(path.join(__dirname, '..', 'service-worker.js'), 'utf8');
 const scope = 'https://example.test/frog-jumper-2d/';
 
-function loadWorker(fetchImpl) {
+function loadWorker(fetchImpl, failures = {}) {
   const handlers = {};
   const entries = new Map();
   let installFiles = [];
@@ -22,11 +22,12 @@ function loadWorker(fetchImpl) {
       return value ? value.clone() : null;
     },
     async put(key, response) {
+      if (failures.put) throw new Error('cache put failed');
       entries.set(typeof key === 'string' ? key : key.url, response.clone());
     }
   };
   const caches = {
-    async open() { return cache; },
+    async open() { if (failures.open) throw new Error('cache open failed'); return cache; },
     async keys() { return []; },
     async delete() { return true; }
   };
@@ -59,11 +60,15 @@ async function installWorker(worker) {
 
 async function dispatchFetch(worker, request) {
   let pending;
+  const waits = [];
   worker.handlers.fetch({
     request,
-    respondWith(value) { pending = Promise.resolve(value); }
+    respondWith(value) { pending = Promise.resolve(value); },
+    waitUntil(value) { waits.push(Promise.resolve(value)); }
   });
-  return pending ? pending : null;
+  const result = pending ? await pending : null;
+  await Promise.all(waits);
+  return result;
 }
 
 test('installation precaches only the essential game page, not optional cosmetics', async () => {
@@ -88,8 +93,23 @@ test('optional cosmetic images are cached on first request and reused afterward'
   assert.equal(worker.entries.has(assetUrl), true);
 
   const second = await dispatchFetch(worker, request);
-  assert.equal(await second.text(), 'wacky-beak-image');
-  assert.equal(networkCalls, 1, 'the second request should use the cached cosmetic');
+  assert.equal(await second.text(), 'wacky-beak-image', 'the second request should be served from the cache right away');
+  assert.equal(networkCalls, 2, 'the cached cosmetic should also refresh in the background');
+});
+
+test('a changed cosmetic picture replaces the cached copy in the background', async () => {
+  let body = 'old-skin-image';
+  const worker = loadWorker(async () => new Response(body));
+  await installWorker(worker);
+
+  const assetUrl = scope + 'assets/wacky-beak.png';
+  const request = { method: 'GET', mode: 'no-cors', url: assetUrl };
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'old-skin-image');
+
+  body = 'new-skin-image';
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'old-skin-image', 'the saved copy is served while the refresh runs');
+  assert.equal(await worker.entries.get(assetUrl).text(), 'new-skin-image', 'the background refresh should store the new picture');
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'new-skin-image', 'later requests get the updated picture');
 });
 
 test('the project root and index.html navigation fall back to the cached game page offline', async () => {
@@ -112,4 +132,42 @@ test('online root navigation does not overwrite the cached game with the redirec
   const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url: scope });
   assert.equal(await response.text(), 'redirect page');
   assert.equal(await worker.entries.get(gameUrl).text(), 'cached game');
+});
+
+test('all newer optional skins are cached on demand', async () => {
+  for (const file of ['poppy-skin.png', 'us-flag-skin.png']) {
+    let calls = 0;
+    const worker = loadWorker(async () => { calls++; return new Response('skin'); });
+    const request = { method: 'GET', mode: 'no-cors', url: scope + 'assets/' + file };
+    assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
+    assert.equal(await (await dispatchFetch(worker, request)).text(), 'skin');
+    assert.equal(calls, 2, 'first request caches the skin, second serves the cache and refreshes in the background');
+  }
+});
+
+test('successful network responses survive runtime cache failures', async () => {
+  for (const failure of ['open', 'put']) {
+    for (const [mode, path] of [['navigate', 'index-game.html'], ['no-cors', 'assets/poppy-skin.png']]) {
+      const worker = loadWorker(async () => new Response('network success'), { [failure]: true });
+      const response = await dispatchFetch(worker, { method: 'GET', mode, url: scope + path });
+      assert.equal(await response.text(), 'network success', failure + ' ' + path);
+    }
+  }
+});
+
+test('navigation HTTP errors use saved game, or preserve the error if none is cached', async () => {
+  const worker = loadWorker(async () => new Response('server error', { status: 503 }));
+  const request = { method: 'GET', mode: 'navigate', url: scope + 'index-game.html' };
+  assert.equal((await dispatchFetch(worker, request)).status, 503);
+  worker.entries.set(scope + 'index-game.html', new Response('saved game'));
+  assert.equal(await (await dispatchFetch(worker, request)).text(), 'saved game');
+});
+
+test('unrelated missing pages ending in index-game.html are not served the game', async () => {
+  const worker = loadWorker(async () => { throw new Error('simulated offline network'); });
+  await installWorker(worker);
+  const gameUrl = new URL('index-game.html', scope).toString();
+  worker.entries.set(gameUrl, new Response('cached Frog Jumper game'));
+  const response = await dispatchFetch(worker, { method: 'GET', mode: 'navigate', url: scope + 'missing/index-game.html' });
+  assert.equal(response, null, 'the service worker should not handle unrelated missing pages');
 });

@@ -49,8 +49,17 @@ after(async () => {
   if (server) server.kill();
 });
 
+// Keep tests offline and deterministic: stub the external visit-counting
+// beacon and the crash-report endpoint so network failures in the test
+// environment do not pollute the game's console-error checks.
+async function stubExternal(target) {
+  await target.route('https://static.cloudflareinsights.com/**', route => route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }));
+  await target.route('https://frog-jumper-multiplayer-runner.teodorc2000.workers.dev/crash', route => route.fulfill({ status: 201, contentType: 'application/json', body: '{"ok":true}' }));
+}
+
 async function freshPage() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await stubExternal(page);
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
@@ -90,16 +99,15 @@ test('modal popups expose dialog semantics and trap keyboard focus', async () =>
   assert.equal(await overlay.getAttribute('role'),'dialog');
   assert.equal(await overlay.getAttribute('aria-modal'),'true');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
-  const lastMenuAction=String(await overlay.locator('[data-action]').count()-1);
   await page.keyboard.press('Shift+Tab');
-  assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),lastMenuAction);
+  assert.equal(await page.evaluate(()=>document.activeElement?.textContent?.trim()),'Watch Frog Jumper Ad');
   await page.keyboard.press('Tab');
   assert.equal(await page.evaluate(()=>document.activeElement?.dataset?.action),'0');
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   assert.equal(await overlay.getAttribute('role'),'dialog');
-  assert.equal(await page.evaluate(()=>document.activeElement?.id),'shop-back');
+  assert.ok(await page.evaluate(()=>document.activeElement?.dataset?.shopItem),'shop should focus a shop item');
   await page.keyboard.press('Tab');
-  assert.equal(await page.evaluate(()=>document.activeElement?.id),'shop-back');
+  assert.ok(await page.evaluate(()=>document.getElementById('overlay').contains(document.activeElement)),'Tab should stay inside the shop dialog');
   await page.getByRole('button',{name:'BACK TO MENU'}).click();
   await page.getByRole('button',{name:'ACHIEVEMENTS'}).click();
   assert.equal(await page.evaluate(()=>document.activeElement?.id),'achievements-back');
@@ -162,6 +170,7 @@ test('pausing freezes the rendered game state', async () => {
 
 test('canceling a touch on jump does not trigger a buffered jump', async () => {
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  await stubExternal(context);
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -197,6 +206,7 @@ test('canceling a touch on jump does not trigger a buffered jump', async () => {
 
 test('a completed touch tap still triggers a jump', async () => {
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  await stubExternal(context);
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -321,6 +331,7 @@ test('malformed saved shop data does not crash the game', async () => {
 
 test('the game remains playable when browser storage is unavailable', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   await context.addInitScript(() => {
     Storage.prototype.getItem=function(){throw new Error('Storage blocked');};
     Storage.prototype.setItem=function(){throw new Error('Storage blocked');};
@@ -385,7 +396,7 @@ test('Infinite Explore can start, pause, resume, and return to the menu', async 
 
 test('shop purchases are charged once and remain owned after reload', async () => {
   const {page,errors}=await freshPage();
-  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','60'));
+  await page.evaluate(() => localStorage.setItem('frogJumperWalletCoins','35'));
   await page.reload({waitUntil:'load'});
   await page.getByRole('button',{name:'COIN SHOP'}).click();
   const blackHat=page.locator('[data-shop-item="black"]');
@@ -451,6 +462,7 @@ test('the R key does not accidentally start a game from the title menu', async (
 test('Halloween Explorer unlocks only during October', async () => {
   async function runInfiniteExploreAt(dateString) {
     const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
     await context.addInitScript(iso => {
       const NativeDate=Date;
       const frozenTime=NativeDate.parse(iso);
@@ -479,6 +491,7 @@ test('Halloween Explorer unlocks only during October', async () => {
 
 test('multiplayer buttons are re-enabled when the WebSocket fails before opening', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   await context.addInitScript(() => {
     window.__frogJumperTestSockets=[];
     class FailingWebSocket extends EventTarget {
@@ -537,6 +550,7 @@ test('multiplayer buttons are re-enabled when the WebSocket fails before opening
 
 test('achievement progress is merged when two tabs collect coins at the same time', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   const pageA=await context.newPage();
   const pageB=await context.newPage();
   const errors=[];
@@ -575,6 +589,7 @@ test('achievement progress is merged when two tabs collect coins at the same tim
 
 test('achievement screen refreshes when another tab unlocks an achievement', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   const pageA=await context.newPage();
   const pageB=await context.newPage();
   const errors=[];
@@ -598,6 +613,7 @@ test('achievement screen refreshes when another tab unlocks an achievement', asy
 
 test('best-coin label refreshes across tabs when the label is present', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   const pageA=await context.newPage();
   const pageB=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
@@ -615,6 +631,7 @@ test('best-coin label refreshes across tabs when the label is present', async ()
 
 test('a connected multiplayer disconnect shows recovery options and preserves room details', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   await context.addInitScript(()=>{
     window.__frogJumperTestSockets=[];
     class MockWebSocket extends EventTarget {
@@ -664,6 +681,7 @@ test('a connected multiplayer disconnect shows recovery options and preserves ro
 
 test('browser without a 2D canvas context gets a helpful fallback instead of crashing', async () => {
   const context=await browser.newContext();
+  await stubExternal(context);
   await context.addInitScript(() => {
     const nativeGetContext=HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext=function(type,...args) {
@@ -698,6 +716,7 @@ test('all game artwork files are served successfully', async () => {
 
 test('mobile-sized viewport centers the game, popup, and touch controls', async () => {
   const context=await browser.newContext({viewport:{width:390,height:844},hasTouch:true});
+  await stubExternal(context);
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -756,9 +775,10 @@ test('Level Adventure coins are not banked until the level is completed', async 
 
 test('shop purchases stay synchronized across tabs and preserve both purchases', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   const pageA=await context.newPage();
   await pageA.goto(baseUrl,{waitUntil:'load'});
-  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','360'));
+  await pageA.evaluate(()=>localStorage.setItem('frogJumperWalletCoins','200'));
   await pageA.reload({waitUntil:'load'});
   await pageA.getByRole('button',{name:'COIN SHOP'}).click();
 
@@ -767,9 +787,9 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
   await pageB.getByRole('button',{name:'COIN SHOP'}).click();
 
   await pageA.locator('[data-shop-item="gold"]').click();
-  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('60 coins'));
+  await pageB.waitForFunction(()=>document.querySelector('.wallet-line')?.textContent.includes('35 coins'));
   assert.equal(await pageB.locator('[data-shop-item="black"]').isDisabled(),false,
-    'the second tab should see the remaining 60-coin balance');
+    'the second tab should see the remaining 35-coin balance');
   await pageB.locator('[data-shop-item="black"]').click();
 
   await pageB.waitForFunction(()=>{
@@ -781,7 +801,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
     wallet:localStorage.getItem('frogJumperWalletCoins'),
     shop:JSON.parse(localStorage.getItem('frogJumperShop')||'{}')
   }));
-  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 360 coins');
+  assert.equal(saved.wallet,'0','both legitimate purchases should use exactly 200 coins');
   assert.ok(saved.shop.ownedSkins.includes('gold'),'the first tab purchase must not be erased');
   assert.ok(saved.shop.ownedHats.includes('black'),'the second tab purchase must be preserved');
   assert.deepEqual(saved.shop.ownedSkins.sort(),['gold','red']);
@@ -791,6 +811,7 @@ test('shop purchases stay synchronized across tabs and preserve both purchases',
 // REGRESSION TEST: 2026-11-13 — Verify a connected gamepad can resume after its Menu button pauses the game.
 test('gamepad menu button can pause and resume gameplay', async () => {
   const context=await browser.newContext({viewport:{width:1280,height:800}});
+  await stubExternal(context);
   const page=await context.newPage();
   const errors=[];
   page.on('pageerror',error=>errors.push(error.message));
@@ -836,6 +857,7 @@ async function assertHidden(page,selector) {
 for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
   test('boss skips are limited to three per run at '+viewport.width, async () => {
     const context=await browser.newContext({viewport});
+  await stubExternal(context);
     const page=await context.newPage();
     await page.goto(baseUrl,{waitUntil:'load'});
     await page.getByRole('button',{name:'BOSS FIGHT'}).click();
@@ -853,3 +875,37 @@ for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
     await context.close();
   });
 }
+
+for (const viewport of [{width:1280,height:800},{width:390,height:844}]) {
+  test('menu, shop, and boss buttons have comfortable tap targets at '+viewport.width,async()=>{
+    const page=await browser.newPage({viewport});
+    try {
+      await page.goto(baseUrl,{waitUntil:'load'});
+      const checkTargets=async(selector)=>{
+        const sizes=await page.locator(selector).evaluateAll(buttons=>buttons.filter(b=>b.getClientRects().length).map(b=>({text:b.textContent.trim(),width:b.getBoundingClientRect().width,height:b.getBoundingClientRect().height})));
+        assert.ok(sizes.length>0);
+        for(const size of sizes) assert.ok(size.width>=44&&size.height>=44,JSON.stringify(size));
+      };
+      await checkTargets('#overlay button');
+      await page.getByRole('button',{name:'COIN SHOP'}).click();
+      await checkTargets('#overlay button');
+      await page.getByRole('button',{name:'BACK TO MENU'}).click();
+      await page.getByRole('button',{name:'BOSS FIGHT',exact:true}).click();
+      await checkTargets('.boss-tool');
+    } finally { await page.close(); }
+  });
+}
+test('bottom bar stays visible while a keyboard button has focus',async()=>{
+  const {page}=await freshPage();
+  try {
+    await page.getByRole('button',{name:'PLAY LEVEL ADVENTURE'}).click();
+    await page.locator('#bar-fullscreen').focus();
+    await page.evaluate(()=>document.querySelector('#bottom-bar').classList.add('is-hidden'));
+    await page.waitForFunction(()=>getComputedStyle(document.querySelector('#bottom-bar')).opacity==='1');
+    assert.equal(await page.locator('#bar-fullscreen').evaluate(b=>b===document.activeElement),true);
+    assert.equal(await page.locator('#bottom-bar').evaluate(b=>getComputedStyle(b).pointerEvents),'auto');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.locator('#bar-exit').evaluate(b=>b.matches(':focus-visible')),true);
+    assert.equal(await page.locator('#bar-exit').evaluate(b=>getComputedStyle(b).outlineStyle),'solid');
+  } finally { await page.close(); }
+});

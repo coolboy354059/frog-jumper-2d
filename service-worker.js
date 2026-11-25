@@ -1,5 +1,5 @@
    /* Frog Jumper offline support. Update CACHE_VERSION whenever the game shell changes. */ 
-const CACHE_VERSION = 'frog-jumper-shell-v5';
+const CACHE_VERSION = 'frog-jumper-shell-v17';
 const CACHE_NAME = CACHE_VERSION;
 const GAME_URL = new URL('./index-game.html', self.registration.scope).toString();
 const SCOPE_URL = new URL(self.registration.scope);
@@ -15,7 +15,9 @@ const OPTIONAL_ASSET_FILES = [
   './assets/wacky-beak.png',
   './assets/black-hat.png',
   './assets/car-skin.png',
-  './assets/tv-hat.png'
+  './assets/tv-hat.png',
+  './assets/poppy-skin.png',
+  './assets/us-flag-skin.png'
 ];
 const OPTIONAL_ASSET_URLS = new Set(OPTIONAL_ASSET_FILES.map(file => new URL(file, self.registration.scope).toString()));
 
@@ -45,23 +47,31 @@ self.addEventListener('fetch', event => {
   // Handle the normal project root and direct game-page navigations alike.
   // A root navigation redirects online; offline, serve the cached game page.
   const isGameNavigation = request.mode === 'navigate' && (
-    ROOT_NAVIGATION_PATHS.has(url.pathname) || url.pathname.endsWith('/index-game.html')
+    ROOT_NAVIGATION_PATHS.has(url.pathname) || url.pathname === new URL(GAME_URL).pathname
   );
   if (isGameNavigation) {
     event.respondWith((async () => {
-      const cache = await caches.open(CACHE_NAME);
-      try {
-        const response = await fetch(request);
-        if (response && response.ok && url.pathname === new URL(GAME_URL).pathname) await cache.put(GAME_URL, response.clone());
+      let cache;
+      try { cache = await caches.open(CACHE_NAME); } catch (_) {}
+      let response;
+      try { response = await fetch(request); } catch (_) {}
+      if (response && response.ok) {
+        if (cache && url.pathname === new URL(GAME_URL).pathname) {
+          try { await cache.put(GAME_URL, response.clone()); } catch (_) {}
+        }
         return response;
-      } catch (_) {
-        const cached = await cache.match(GAME_URL);
-        if (cached) return cached;
-        return new Response('Frog Jumper has somehow not been saved for offline play yet. HOW DONT U HAVE WIFI.', {
-          status: 503,
-          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-        });
       }
+      if (cache) {
+        try {
+          const cached = await cache.match(GAME_URL);
+          if (cached) return cached;
+        } catch (_) {}
+      }
+      if (response) return response;
+      return new Response('Frog Jumper could not be loaded. Please reconnect and try again.', {
+        status: 503,
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+      });
     })());
     return;
   }
@@ -72,12 +82,28 @@ self.addEventListener('fetch', event => {
   if (!cacheKey) return;
 
   event.respondWith((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    const cached = await cache.match(cacheKey);
-    if (cached) return cached;
+    let cache;
+    try {
+      cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(cacheKey);
+      if (cached) {
+        // Cosmetic pictures refresh in the background (stale-while-revalidate)
+        // so a changed skin PNG updates without waiting for a version bump,
+        // while offline play still gets the saved copy right away.
+        if (OPTIONAL_ASSET_URLS.has(cacheKey)) {
+          const refresh = fetch(request).then(async response => {
+            if (response && response.ok) { try { await cache.put(cacheKey, response.clone()); } catch (_) {} }
+          }).catch(() => {});
+          if (typeof event.waitUntil === 'function') event.waitUntil(refresh);
+        }
+        return cached;
+      }
+    } catch (_) {}
     try {
       const response = await fetch(request);
-      if (response && response.ok) await cache.put(cacheKey, response.clone());
+      if (response && response.ok && cache) {
+        try { await cache.put(cacheKey, response.clone()); } catch (_) {}
+      }
       return response;
     } catch (_) {
       return new Response('', { status: 504, statusText: 'Offline resource unavailable' });
