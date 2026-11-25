@@ -4,6 +4,15 @@ name: Deploy Frog Jumper to GitHub Pages
 on:
   push:
     branches: ["main"]
+    paths:
+      - index.html
+      - index-game.html
+      - maintenance.html
+      - service-worker.js
+      - robots.txt
+      - sitemap.xml
+      - assets/**
+      - .github/workflows/pages.yml
   workflow_dispatch:
 
 permissions:

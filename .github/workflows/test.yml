@@ -53,14 +53,15 @@ jobs:
           script: |
             const state = process.env.TEST_OUTCOME === 'success' ? 'success' : 'failure';
             const failureDetails = (process.env.FAILED_TESTS || '').trim();
-            const contextName = state === 'success'
-              ? 'frog-jumper/playwright'
-              : ('fjpw: ' + ((failureDetails.split(': ').slice(1).join(': ')) || failureDetails || ['checkout='+process.env.CHECKOUT_OUTCOME,'node='+process.env.NODE_OUTCOME,'deps='+process.env.DEPENDENCIES_OUTCOME,'tests='+process.env.TEST_OUTCOME].join(','))).slice(0, 100);
+            const description = state === 'success'
+              ? 'Playwright suite passed'
+              : (failureDetails || 'Playwright suite failed; check Actions logs');
             await github.rest.repos.createCommitStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
               sha: context.sha,
               state,
-              context: contextName,
-              description: state === 'success' ? 'Playwright suite passed' : 'Playwright suite failed; check Actions logs'
+              context: 'frog-jumper/playwright',
+              description: Array.from(description).slice(0, 140).join(''),
+              target_url: context.serverUrl + '/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
             });
